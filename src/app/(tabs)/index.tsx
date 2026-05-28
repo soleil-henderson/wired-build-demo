@@ -14,18 +14,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth-context';
 import { listFeed, togglePostLike, type FeedPost } from '@/lib/feed';
+import { getUnreadCount } from '@/lib/notifications';
 
 export default function FeedScreen() {
   const { session } = useAuth();
   const router = useRouter();
   const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const data = await listFeed(session?.user.id ?? null);
+      const [data, unreadCount] = await Promise.all([
+        listFeed(session?.user.id ?? null),
+        session ? getUnreadCount(session.user.id) : Promise.resolve(0),
+      ]);
       setPosts(data);
+      setUnread(unreadCount);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load feed';
       Alert.alert('Feed failed', message);
@@ -101,14 +107,32 @@ export default function FeedScreen() {
           />
         }
       >
-        <View className="px-6 pt-6">
-          <Text className="text-accent text-xs font-semibold tracking-[3px]">FEED</Text>
-          <Text className="mt-1 text-3xl font-bold text-white">
-            What&apos;s being built
-          </Text>
-          <Text className="mt-2 text-ink-300">
-            Recent mods logged across the network.
-          </Text>
+        <View className="flex-row items-start justify-between px-6 pt-6">
+          <View className="flex-1 pr-4">
+            <Text className="text-accent text-xs font-semibold tracking-[3px]">FEED</Text>
+            <Text className="mt-1 text-3xl font-bold text-white">
+              What&apos;s being built
+            </Text>
+            <Text className="mt-2 text-ink-300">
+              Recent mods logged across the network.
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => {
+              router.push('/notifications');
+              setUnread(0);
+            }}
+            className="mt-1 h-10 w-10 items-center justify-center rounded-full bg-ink-900 active:bg-ink-800"
+          >
+            <Text className="text-xl text-ink-200">🔔</Text>
+            {unread > 0 ? (
+              <View className="absolute -right-1 -top-1 min-w-[18px] items-center justify-center rounded-full bg-accent px-1">
+                <Text className="text-[10px] font-bold text-ink-950">
+                  {unread > 99 ? '99+' : unread}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
         </View>
 
         {loading ? (

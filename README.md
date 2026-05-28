@@ -28,6 +28,7 @@ src/
     vehicle/[id].tsx         Build profile: hero, stats, spend breakdown, mod timeline
     post/[id].tsx            Post detail: post card + comment thread + composer
     user/[handle].tsx        Public user profile: hero, stats, follow, garage
+    notifications.tsx        Inbox: follows / reactions / comments, mark-all-read on open
   lib/
     supabase.ts              Typed Supabase client (uses AsyncStorage for sessions)
     auth-context.tsx         Session state + sign-in / sign-up / sign-out
@@ -38,6 +39,7 @@ src/
     comments.ts              listComments() + addComment()
     follows.ts               isFollowing / toggleFollow / getFollowCounts
     users.ts                 getUserByHandle / getUserById / listUserVehicles
+    notifications.ts         listNotifications / getUnreadCount / markAllRead
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
 supabase/
@@ -50,6 +52,7 @@ supabase/
     20260528000005_storage.sql                mod-photos / receipts buckets + storage.objects policies
     20260528000006_social.sql                 posts, comments, reactions, follows, notifications + indexes
     20260528000007_social_rls_triggers.sql    Social RLS + auto-post-on-public-mod + reaction_count trigger
+    20260528000008_notifications_triggers.sql Emit notifications on follow / reaction / comment
 ```
 
 ## Setup
@@ -162,10 +165,16 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   rows tap-through to the right user.
 - **Profile tab** shows the signed-in user's real follower / following / vehicle
   counts and links to their own public profile.
+- **Notifications** at `/notifications` — follows, reactions and comments land
+  here in real time. Server-side Postgres triggers emit them (so the social
+  layer can never drift from the database), payloads are denormalised for fast
+  rendering, self-actions are skipped, and unliking / unfollowing cleans up the
+  matching notification. Visiting the inbox marks everything as read; the bell
+  in the Feed header shows an unread count.
 
 ## What's next
 
-- **Notifications** — list screen + a small badge on the Profile tab
+- **Followed-only feed filter** — toggle between "Everyone" and "Following"
 - **Step 3** — Plan / wishlist tables and screens
 - **Step 5** — Subscriptions, badges, public web share pages
 - **Step 6** — Cross-app hooks, VIN scanning, valuation API, search index
