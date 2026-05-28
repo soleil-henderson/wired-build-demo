@@ -45,6 +45,12 @@
           "cameraPermission": "Allow Wired Build to use the camera to scan VIN barcodes on your vehicle.",
           "recordAudioAndroid": false
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#F5A524"
+        }
       ]
     ],
     "experiments": {

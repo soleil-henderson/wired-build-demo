@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/lib/auth-context';
+import { subscribeToNotificationTaps } from '@/lib/push-notifications';
 
 function RootStack() {
   const { session, isLoading } = useAuth();
@@ -29,6 +30,22 @@ function RootStack() {
       router.replace('/(tabs)');
     }
   }, [session, isLoading, segments, router]);
+
+  // Route the user to the right place when they tap a push notification.
+  // The deep-link URL is set server-side in the push payload — see the
+  // notifications-push migration.
+  useEffect(() => {
+    return subscribeToNotificationTaps((url) => {
+      try {
+        // Strip the scheme + leading slashes so router.push gets a
+        // relative path it can resolve (e.g. /post/abc).
+        const path = url.replace(/^[a-z0-9+\-.]+:\/\//i, '/').replace(/^\/+/, '/');
+        router.push(path as Parameters<typeof router.push>[0]);
+      } catch (err) {
+        console.warn('[push] failed to route notification tap', err);
+      }
+    });
+  }, [router]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

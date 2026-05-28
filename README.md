@@ -55,6 +55,7 @@ src/
     ownership.ts             transferVehicleOwnership (RPC) / findRecipientByHandle / listOwnershipHistory
     public-build.ts          getPublicBuild() + publicBuildUrl() for the share page
     vin-handoff.ts           In-memory channel for scanned VIN -> Add-Vehicle
+    push-notifications.ts    Expo Push token registration + tap routing
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
 supabase/
@@ -70,6 +71,7 @@ supabase/
     20260528000008_notifications_triggers.sql Emit notifications on follow / reaction / comment
     20260528000009_wishlist.sql               wishlist_items table + priority enum + own-only RLS
     20260528000010_ownership_transfer.sql     ownership_transfers audit table + transfer_vehicle_ownership() RPC
+    20260528000011_push_notifications.sql     pg_net trigger -> Expo Push API on notifications insert
 ```
 
 ## Setup
@@ -274,6 +276,38 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   non-sensitive public-mod media, and ownership transfers — so the
   page literally cannot leak a private build.
 
+### Push notifications (Spec §4.6 follow-on)
+
+- **Server-side trigger** (`20260528000011_push_notifications.sql`) —
+  after every insert on `public.notifications` a `SECURITY DEFINER`
+  function reads the recipient's `push_token`, builds a type-specific
+  title/body/deep-link, and POSTs to
+  `https://exp.host/--/api/v2/push/send` via the `pg_net` extension.
+  The HTTP call is async (pg_net returns a request id and dispatches
+  out-of-band), so a slow Expo Push request never blocks the
+  originating insert. A `begin/exception` wrapper means a push hiccup
+  also never aborts the notification row itself.
+- **Wording matches the in-app inbox** — same actor name / preview
+  text, so the push body and the row at `/notifications` say the same
+  thing.
+- **Client registration** — `registerForPushNotificationsAsync()` runs
+  in the auth context when a session lands: requests permission, gets
+  an Expo push token (`getExpoPushTokenAsync`), and writes it to
+  `users.push_token`. Re-fires only on user-id change so token-refresh
+  events don't thrash. Sign-out clears the token first (still in
+  session, RLS allows the update), so an old device never keeps
+  receiving pushes after sign-out.
+- **Tap routing** — every push carries `data.url` with the app's
+  custom scheme (`wiredbuilddemo://…`). The root layout subscribes via
+  `addNotificationResponseReceivedListener`, strips the scheme, and
+  hands the path to the Expo Router. Open the app from a "Jamie liked
+  your post" push → land on `/post/<id>` directly.
+- **No EAS / native build required for the demo** — Expo Go ships with
+  the right entitlements; `getExpoPushTokenAsync` returns a real
+  `ExponentPushToken[...]` against the Expo Push Service. Production
+  builds need an `eas.projectId` (set via `eas init`) and APNs / FCM
+  credentials.
+
 ### VIN scanning (Spec §4.2, §9 Step 6)
 
 - **Camera barcode scanner** at `/garage/scan-vin` — full-screen
@@ -321,8 +355,6 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 
 - **VIN scanning** via `expo-camera` + OCR — populate the Add-Vehicle form
   from the dashboard plate; biggest Step 6 win for daily UX
-- **Push notifications** — `users.push_token` exists; wire Expo Push
-  registration + a server function on `notifications` insert
 - **VIN-decode autofill** — call an NHTSA / equivalent VIN-decode API after
   scan to pre-fill year / make / model / trim
 - **Part reviews + affiliate link slot** — extend `/part/[id]` with a review
