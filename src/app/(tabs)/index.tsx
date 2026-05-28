@@ -13,7 +13,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth-context';
-import { listFeed, togglePostLike, type FeedPost } from '@/lib/feed';
+import {
+  listFeed,
+  togglePostLike,
+  type FeedMode,
+  type FeedPost,
+} from '@/lib/feed';
 import { getUnreadCount } from '@/lib/notifications';
 
 export default function FeedScreen() {
@@ -21,13 +26,14 @@ export default function FeedScreen() {
   const router = useRouter();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [unread, setUnread] = useState(0);
+  const [mode, setMode] = useState<FeedMode>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const [data, unreadCount] = await Promise.all([
-        listFeed(session?.user.id ?? null),
+        listFeed(session?.user.id ?? null, mode),
         session ? getUnreadCount(session.user.id) : Promise.resolve(0),
       ]);
       setPosts(data);
@@ -39,7 +45,7 @@ export default function FeedScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [session]);
+  }, [session, mode]);
 
   useFocusEffect(
     useCallback(() => {
@@ -135,16 +141,54 @@ export default function FeedScreen() {
           </Pressable>
         </View>
 
+        {/* Mode toggle */}
+        {session ? (
+          <View className="mx-6 mt-5 flex-row self-start rounded-xl bg-ink-900 p-1">
+            <ModeTab
+              label="For you"
+              active={mode === 'all'}
+              onPress={() => {
+                if (mode === 'all') return;
+                setLoading(true);
+                setMode('all');
+              }}
+            />
+            <ModeTab
+              label="Following"
+              active={mode === 'following'}
+              onPress={() => {
+                if (mode === 'following') return;
+                setLoading(true);
+                setMode('following');
+              }}
+            />
+          </View>
+        ) : null}
+
         {loading ? (
           <View className="mt-12 items-center">
             <ActivityIndicator color="#F5A524" />
           </View>
         ) : posts.length === 0 ? (
           <View className="mx-6 mt-8 rounded-2xl border border-ink-700 bg-ink-900 p-6">
-            <Text className="text-ink-200 text-base font-semibold">Quiet around here</Text>
-            <Text className="mt-1 text-ink-300">
-              No public mods yet. Log one and it&apos;ll show up here for everyone.
-            </Text>
+            {mode === 'following' ? (
+              <>
+                <Text className="text-ink-200 text-base font-semibold">
+                  Nothing from your follows yet
+                </Text>
+                <Text className="mt-1 text-ink-300">
+                  Tap a username on any post to open their profile and follow
+                  them — their next mod will land here.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text className="text-ink-200 text-base font-semibold">Quiet around here</Text>
+                <Text className="mt-1 text-ink-300">
+                  No public mods yet. Log one and it&apos;ll show up here for everyone.
+                </Text>
+              </>
+            )}
           </View>
         ) : (
           <View className="mt-4 gap-3 px-3">
@@ -279,6 +323,27 @@ function PostCard({
         </View>
       </Pressable>
     </View>
+  );
+}
+
+function ModeTab({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`rounded-lg px-4 py-1.5 ${active ? 'bg-ink-700' : ''}`}
+    >
+      <Text className={`text-sm ${active ? 'font-semibold text-white' : 'text-ink-300'}`}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 

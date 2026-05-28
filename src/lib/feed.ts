@@ -34,15 +34,20 @@ export type FeedPost = {
 
 const PAGE_SIZE = 30;
 
+export type FeedMode = 'all' | 'following';
+
 /**
  * Reverse-chronological feed of recent public posts (Spec §4.4).
  *
- * MVP scope: shows posts from anyone on a public vehicle, newest first.
- * Once `follows` is wired up to a Profile page (next turn), we'll add a
- * `followed-only` mode and the trending slice scoped to the user's make.
+ * - mode='all'        Posts from anyone whose vehicle is public.
+ * - mode='following'  Only posts authored by users the viewer follows.
+ *   If the viewer is signed out, falls back to 'all'.
  */
-export async function listFeed(viewerId: string | null): Promise<FeedPost[]> {
-  const { data, error } = await supabase
+export async function listFeed(
+  viewerId: string | null,
+  mode: FeedMode = 'all'
+): Promise<FeedPost[]> {
+  let query = supabase
     .from('posts')
     .select(
       `
@@ -58,6 +63,14 @@ export async function listFeed(viewerId: string | null): Promise<FeedPost[]> {
     )
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE);
+
+  if (mode === 'following' && viewerId) {
+    const followeeIds = await fetchFolloweeIds(viewerId);
+    if (followeeIds.length === 0) return [];
+    query = query.in('user_id', followeeIds);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
   const rows = (data ?? []) as RawFeedRow[];
@@ -144,6 +157,15 @@ export async function getPost(
       : null,
     liked_by_me: likedSet.has(r.id),
   };
+}
+
+async function fetchFolloweeIds(viewerId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('follows')
+    .select('followee_id')
+    .eq('follower_id', viewerId);
+  if (error) return [];
+  return (data ?? []).map((r) => r.followee_id);
 }
 
 async function fetchLikedPostIds(
