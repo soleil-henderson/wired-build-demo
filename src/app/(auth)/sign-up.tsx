@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { OAuthButtons } from '@/components/OAuthButtons';
 import { useAuth } from '@/lib/auth-context';
 
 export default function SignUpScreen() {
@@ -40,7 +41,17 @@ export default function SignUpScreen() {
           One account per person. Add your 4WD next.
         </Text>
 
-        <View className="mt-8 gap-3">
+        <View className="mt-6">
+          <OAuthButtons disabled={submitting} />
+        </View>
+
+        <View className="my-6 flex-row items-center gap-3">
+          <View className="h-px flex-1 bg-ink-700" />
+          <Text className="text-xs uppercase tracking-wider text-ink-300">or email</Text>
+          <View className="h-px flex-1 bg-ink-700" />
+        </View>
+
+        <View className="gap-3">
           <View>
             <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">Email</Text>
             <TextInput

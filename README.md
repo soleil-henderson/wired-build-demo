@@ -39,6 +39,7 @@ src/
     wishlist/new.tsx         Quick-add form for planned parts (?vehicleId= optional)
   components/
     UserBadges.tsx           Verified / Pro / Workshop pills, two sizes
+    OAuthButtons.tsx         "Continue with Apple / Google" row for /sign-in + /sign-up
   lib/
     supabase.ts              Typed Supabase client (uses AsyncStorage for sessions)
     auth-context.tsx         Session state + sign-in / sign-up / sign-out
@@ -58,6 +59,7 @@ src/
     vin-decode.ts            NHTSA vPIC lookup: VIN -> {year,make,model,trim}
     push-notifications.ts    Expo Push token registration + tap routing
     reviews.ts               list / getMine / upsert / delete + recordPartClick
+    oauth.ts                 signInWithOAuthProvider() — WebBrowser flow + setSession
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
 supabase/
@@ -286,6 +288,45 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   non-sensitive public-mod media, and ownership transfers — so the
   page literally cannot leak a private build.
 
+### OAuth sign-in (Apple / Google)
+
+- **"Continue with Apple / Google" buttons** on both `/sign-in` and
+  `/sign-up`. Same Supabase flow regardless of which screen you land
+  on — Supabase provisions a user on first attempt and signs them in
+  on subsequent ones. The existing `handle_new_auth_user` trigger
+  already deals with OAuth-provisioned rows (falls back to a
+  uuid-based handle when the provider gives a private-relay email).
+- **WebBrowser-driven flow** in `src/lib/oauth.ts`: ask Supabase for
+  the consent URL with `skipBrowserRedirect: true`, hand it to
+  `WebBrowser.openAuthSessionAsync(url, redirectTo)`, parse the
+  `#access_token` / `#refresh_token` out of the returned redirect URL,
+  then `setSession`. Works inside Expo Go because `makeRedirectUri`
+  rewrites the redirect to the dev-client scheme on the fly.
+- **Push-notification token registration** in `auth-context` reacts
+  to the new session and registers automatically — no extra wiring
+  needed for OAuth.
+
+**Supabase dashboard setup (one-time, before this actually works
+end-to-end):**
+
+1. **Authentication → URL Configuration → Additional Redirect URLs**:
+   add `wiredbuilddemo://*` for production builds, plus `exp://*` to
+   cover Expo Go during development.
+2. **Authentication → Providers → Apple**: enable, fill in Service ID,
+   Team ID, Key ID, and the private key (.p8). Add the OAuth callback
+   URL Supabase shows you (`<project>.supabase.co/auth/v1/callback`)
+   to your Service ID in Apple's developer portal.
+3. **Authentication → Providers → Google**: enable, drop in your OAuth
+   2.0 Client ID + Client Secret from Google Cloud Console. Add the
+   same Supabase callback URL to the OAuth client's authorised
+   redirect URIs.
+
+**Native Apple on iOS (App Store-ready):** Apple requires native
+sign-in whenever third-party social sign-in is offered. The web-based
+flow above is the demo path; for production, layer
+`expo-apple-authentication` + Supabase's `signInWithIdToken` on top of
+the same helper — same Supabase user, swappable provider call.
+
 ### On-device image processing (Spec §7.2 slice)
 
 - **Resize + re-encode before upload** — every mod photo runs through
@@ -444,8 +485,13 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   `mod-photos` bucket events to generate AVIF thumbnails (the
   client-side single-resize is shipped; the variants story is the next
   step up)
+- **Native Apple sign-in** (`expo-apple-authentication` +
+  `signInWithIdToken`) — required for App Store builds; web-based
+  Apple OAuth via WebBrowser is already wired
+- **Pagination on the Feed** — cursor-based on `created_at`, replacing
+  the current 30-row hard cap
 - **Polish** — OCR fallback for VIN scan (damaged stickers), OCR for
-  receipts, OAuth (Apple / Google) sign-in
+  receipts
 
 ## Conventions
 
