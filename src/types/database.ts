@@ -127,6 +127,7 @@ export type Database = {
           is_for_sale: boolean;
           total_spend: number;
           build_value: number | null;
+          valuation_source: string;
           created_at: string;
           updated_at: string;
         };
@@ -145,6 +146,7 @@ export type Database = {
           is_for_sale?: boolean;
           total_spend?: number;
           build_value?: number | null;
+          valuation_source?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -163,6 +165,7 @@ export type Database = {
           is_for_sale?: boolean;
           total_spend?: number;
           build_value?: number | null;
+          valuation_source?: string;
           created_at?: string;
           updated_at?: string;
         };

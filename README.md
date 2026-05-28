@@ -84,6 +84,7 @@ supabase/
     20260528000013_build_value.sql            build_value heuristic in recalc_vehicle_total_spend + backfill
     20260528000014_post_on_public_update.sql  feed post when mod privacy flips to public on edit
     20260528000015_media_mod_cascade.sql      media rows cascade-delete when mod is removed
+    20260528000016_valuation_source.sql       valuation_source + estimate_build_value_heuristic()
 ```
 
 ## Setup
@@ -308,15 +309,12 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 
 - **`vehicles.build_value`** is recomputed server-side whenever a mod is
   inserted, updated, or deleted — same trigger path as `total_spend`.
-- **Heuristic (until RedBook / KBB):**
-  `build_value = total_spend × (1.10 + workshop_ratio × 0.20)`
-  where `workshop_ratio` is the share of mods on the build that were
-  workshop-installed. The 1.10 factor is the "documented history"
-  premium; the workshop term captures implied labour on top of parts
-  cost.
-- **UI** labels the stat **Est. value** on Garage cards, build profiles,
-  and the public share page, with a footnote that it is not a formal
-  appraisal.
+- **Heuristic (until RedBook / KBB):** `estimate_build_value_heuristic()`
+  in SQL — `build_value = total_spend × (1.10 + workshop_ratio × 0.20)`.
+  `recalc_vehicle_total_spend` sets `valuation_source = 'heuristic'` today;
+  branch there when external API keys land (`redbook` / `kbb`).
+- **UI** — `src/lib/valuation.ts` maps `valuation_source` to stat labels
+  and footnotes on build profiles and the public share page.
 - Migration backfills every vehicle that already has mods.
 
 ### Mod edit and delete
@@ -325,10 +323,10 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   installer, category, notes, privacy, and custom-part label after the
   fact. Catalogue-linked parts are shown read-only (wrong part → delete
   and re-log).
-- **Delete mod** — destructive confirmation; removes attached `media`
-  rows then the `mods` row. `posts` referencing the mod cascade away;
-  `vehicles.total_spend` and `parts.install_count` reconcile via the
-  existing aggregate trigger.
+- **Delete mod** — destructive confirmation; collects storage keys, deletes
+  the `mods` row (media cascades via migration 15), then purges mod-photos
+  and receipts from storage. `posts` referencing the mod cascade away;
+  aggregates reconcile via the existing trigger.
 - **Build profile** — each timeline card shows an **Edit** button when
   you own the vehicle.
 - **Photo management on edit** — on `/log/edit`, remove existing mod
@@ -554,10 +552,10 @@ sign-in still needs the same Apple developer configuration.
   `consumePendingVin()` in a `useFocusEffect`, so any other fields the
   user already typed are preserved. The handoff is one-shot — refocusing
   the form later won't apply the same VIN twice.
-- **Why no OCR (yet)** — the door-jamb sticker and windshield placard
-  always carry a barcode, decoded on-device in Expo Go without a model
-  download or cloud round-trip. OCR is a polish follow-up for vehicles
-  with damaged stickers.
+- **OCR fallback** — **Photograph VIN (OCR)** on the scan screen (camera
+  or library) uses `expo-text-extractor` + `extractVinFromOcrText()`.
+  Prefers lines containing "VIN"; requires a native dev build (not web).
+  Use when the barcode is damaged or missing.
 
 ### Step 6 — Ownership transfer (Spec §3.2, §9 Step 6 slice)
 
@@ -582,12 +580,11 @@ sign-in still needs the same Apple developer configuration.
 
 ## What's next
 
-- **Valuation API** — swap the heuristic for RedBook (AU) / KBB (US)
-  when API keys are available; hook stays in `recalc_vehicle_total_spend`
+- **Valuation API** — call RedBook (AU) / KBB (US) inside
+  `recalc_vehicle_total_spend` when credentials exist; set
+  `valuation_source` accordingly
 - **Multi-resolution image variants** — Supabase Edge Function on
   `mod-photos` bucket events to generate AVIF thumbnails
-- **Polish** — OCR fallback for VIN scan (damaged stickers); orphan `media`
-  rows when individual mods are deleted (FK is `on delete set null`)
 
 ## Conventions
 

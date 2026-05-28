@@ -1,4 +1,5 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import { Stack, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -10,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { extractVinFromImage } from '@/lib/vin-ocr';
 import {
   extractVinFromBarcode,
   setPendingVin,
@@ -17,19 +19,15 @@ import {
 } from '@/lib/vin-handoff';
 
 /**
- * Full-screen camera that scans VIN barcodes (Code 39 / Code 128 / QR — the
- * three formats found on door-jamb stickers + windshield placards).
- *
- * Why not OCR: tier-1 VIN sources (door jamb + windshield placard) always
- * carry a barcode. Cameras decode it on-device in Expo Go, no model
- * download, no cloud round-trip, no privacy fine-print. OCR is a polish
- * follow-up if users complain about old/missing stickers.
+ * Full-screen camera that scans VIN barcodes (Code 39 / Code 128 / QR).
+ * OCR fallback photographs the printed VIN when the barcode is damaged.
  */
 export default function ScanVinScreen() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
   const [manualOpen, setManualOpen] = useState(false);
   const [manualValue, setManualValue] = useState('');
+  const [ocrLoading, setOcrLoading] = useState(false);
   // Guards against the scanner firing 60 times/s for the same code while we
   // navigate away.
   const lockedRef = useRef(false);
@@ -65,6 +63,47 @@ export default function ScanVinScreen() {
     handleAccept(v);
   }
 
+  async function handleVinOcr(source: 'camera' | 'library') {
+    const perm =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to read the VIN sticker.');
+      return;
+    }
+
+    const result =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    setOcrLoading(true);
+    try {
+      const vin = await extractVinFromImage(result.assets[0].uri);
+      if (vin) {
+        handleAccept(vin);
+        return;
+      }
+      Alert.alert(
+        'Could not read VIN',
+        'Try a clearer photo of the printed VIN line, or enter it manually.'
+      );
+    } finally {
+      setOcrLoading(false);
+    }
+  }
+
+  function showOcrPicker() {
+    Alert.alert('Photograph VIN sticker', 'Use when the barcode is damaged or missing.', [
+      { text: 'Take photo', onPress: () => handleVinOcr('camera') },
+      { text: 'Choose from library', onPress: () => handleVinOcr('library') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
   if (!permission) {
     return (
       <View className="flex-1 items-center justify-center bg-ink-950">
@@ -89,8 +128,15 @@ export default function ScanVinScreen() {
         >
           <Text className="font-semibold text-ink-950">Allow camera</Text>
         </Pressable>
-        <Pressable onPress={() => setManualOpen(true)} className="mt-4">
-          <Text className="text-sm text-accent">Enter VIN manually</Text>
+        <Pressable onPress={showOcrPicker} disabled={ocrLoading} className="mt-4">
+          {ocrLoading ? (
+            <ActivityIndicator color="#F5A524" />
+          ) : (
+            <Text className="text-sm text-accent">Photograph VIN (OCR)</Text>
+          )}
+        </Pressable>
+        <Pressable onPress={() => setManualOpen(true)} className="mt-2">
+          <Text className="text-sm text-ink-300">Enter VIN manually</Text>
         </Pressable>
         {manualOpen ? (
           <ManualEntry
@@ -129,6 +175,19 @@ export default function ScanVinScreen() {
             </Text>
           </View>
           <View className="items-center gap-3">
+            <Pressable
+              onPress={showOcrPicker}
+              disabled={ocrLoading}
+              className="rounded-xl border border-accent/60 bg-ink-900/90 px-4 py-2.5 active:bg-ink-800 disabled:opacity-60"
+            >
+              {ocrLoading ? (
+                <ActivityIndicator color="#F5A524" />
+              ) : (
+                <Text className="font-semibold text-accent">
+                  Photograph VIN (OCR fallback)
+                </Text>
+              )}
+            </Pressable>
             <Pressable
               onPress={() => setManualOpen((v) => !v)}
               className="rounded-xl bg-ink-900/90 px-4 py-2.5 active:bg-ink-800"

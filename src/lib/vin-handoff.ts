@@ -32,3 +32,18 @@ export function extractVinFromBarcode(raw: string): string | null {
   const candidates = raw.toUpperCase().match(/[A-HJ-NPR-Z0-9]{17}/g);
   return candidates?.find((c) => VIN_PATTERN.test(c)) ?? null;
 }
+
+/**
+ * Pick a VIN out of OCR text lines. Prefers a line that mentions "VIN",
+ * then any valid 17-character run in the full text.
+ */
+export function extractVinFromOcrText(lines: string[]): string | null {
+  for (const line of lines) {
+    if (!/VIN/i.test(line)) continue;
+    const fromLine = extractVinFromBarcode(line);
+    if (fromLine) return fromLine;
+  }
+
+  const joined = lines.join(' ');
+  return extractVinFromBarcode(joined);
+}

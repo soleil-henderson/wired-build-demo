@@ -24,6 +24,7 @@ import {
   type OwnershipTransferRow,
 } from '@/lib/ownership';
 import { publicBuildUrl } from '@/lib/public-build';
+import { buildValueFootnote, buildValueLabel } from '@/lib/valuation';
 import { supabase } from '@/lib/supabase';
 import {
   listVehicleWishlist,
@@ -168,7 +169,7 @@ export default function VehicleProfileScreen() {
           <Stat label="Mods" value={String(mods.length)} />
           <Stat label="Spent" value={`$${Number(vehicle.total_spend).toLocaleString()}`} />
           <Stat
-            label="Est. value"
+            label={buildValueLabel(vehicle.valuation_source)}
             value={
               vehicle.build_value
                 ? `$${Number(vehicle.build_value).toLocaleString()}`
@@ -178,7 +179,7 @@ export default function VehicleProfileScreen() {
         </View>
         {vehicle.build_value != null && Number(vehicle.build_value) > 0 ? (
           <Text className="mt-2 text-xs text-ink-300">
-            Estimated from your logged mods — not a formal appraisal.
+            {buildValueFootnote(vehicle.valuation_source)}
           </Text>
         ) : null}
 
