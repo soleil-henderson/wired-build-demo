@@ -51,18 +51,7 @@ export async function collectVehicleStorageKeys(
     if (mediaErr) throw mediaErr;
 
     for (const row of media ?? []) {
-      if (row.kind === 'receipt') {
-        if (row.storage_key) receiptKeys.add(row.storage_key);
-        else {
-          const fromUrl = storageKeyFromReceiptUrl(row.url);
-          if (fromUrl) receiptKeys.add(fromUrl);
-        }
-      } else if (row.kind === 'photo') {
-        const key =
-          row.storage_key ||
-          (row.url ? storageKeyFromModPhotoPublicUrl(row.url) : null);
-        if (key) modPhotoKeys.add(key);
-      }
+      addMediaRowToKeys(row, modPhotoKeys, receiptKeys);
     }
   }
 
@@ -95,8 +84,66 @@ async function deleteKeysInBatches(bucket: string, keys: string[]): Promise<void
   }
 }
 
-/** Remove all mod-photo and receipt objects tied to a vehicle. */
+/** Remove mod-photo and receipt objects (vehicle delete or single mod delete). */
 export async function purgeVehicleStorage(keys: VehicleStorageKeys): Promise<void> {
   await deleteKeysInBatches('mod-photos', keys.modPhotoKeys);
   await deleteKeysInBatches('receipts', keys.receiptKeys);
+}
+
+function addMediaRowToKeys(
+  row: { storage_key: string; kind: string; url: string },
+  modPhotoKeys: Set<string>,
+  receiptKeys: Set<string>
+): void {
+  if (row.kind === 'receipt') {
+    if (row.storage_key) receiptKeys.add(row.storage_key);
+    else {
+      const fromUrl = storageKeyFromReceiptUrl(row.url);
+      if (fromUrl) receiptKeys.add(fromUrl);
+    }
+  } else if (row.kind === 'photo') {
+    const key =
+      row.storage_key ||
+      (row.url ? storageKeyFromModPhotoPublicUrl(row.url) : null);
+    if (key) modPhotoKeys.add(key);
+  }
+}
+
+/** Storage keys for one mod (photos + receipt) before the mod row is deleted. */
+export async function collectModStorageKeys(modId: string): Promise<VehicleStorageKeys> {
+  const modPhotoKeys = new Set<string>();
+  const receiptKeys = new Set<string>();
+
+  const { data: mod, error: modErr } = await supabase
+    .from('mods')
+    .select('receipt_media_id')
+    .eq('id', modId)
+    .maybeSingle();
+  if (modErr) throw modErr;
+
+  const { data: byModId, error: mediaErr } = await supabase
+    .from('media')
+    .select('id, storage_key, kind, url')
+    .eq('mod_id', modId);
+  if (mediaErr) throw mediaErr;
+
+  const seenIds = new Set<string>();
+  for (const row of byModId ?? []) {
+    seenIds.add(row.id);
+    addMediaRowToKeys(row, modPhotoKeys, receiptKeys);
+  }
+
+  if (mod?.receipt_media_id && !seenIds.has(mod.receipt_media_id)) {
+    const { data: receiptRow } = await supabase
+      .from('media')
+      .select('storage_key, kind, url')
+      .eq('id', mod.receipt_media_id)
+      .maybeSingle();
+    if (receiptRow) addMediaRowToKeys(receiptRow, modPhotoKeys, receiptKeys);
+  }
+
+  return {
+    modPhotoKeys: [...modPhotoKeys],
+    receiptKeys: [...receiptKeys],
+  };
 }

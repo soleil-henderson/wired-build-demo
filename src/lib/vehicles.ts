@@ -66,19 +66,6 @@ export async function updateVehicle(
 export async function deleteVehicle(vehicleId: string): Promise<void> {
   const storageKeys = await collectVehicleStorageKeys(vehicleId);
 
-  const { data: mods } = await supabase
-    .from('mods')
-    .select('id')
-    .eq('vehicle_id', vehicleId);
-  const modIds = (mods ?? []).map((m) => m.id);
-  if (modIds.length > 0) {
-    const { error: mediaErr } = await supabase
-      .from('media')
-      .delete()
-      .in('mod_id', modIds);
-    if (mediaErr) throw mediaErr;
-  }
-
   const { error } = await supabase.from('vehicles').delete().eq('id', vehicleId);
   if (error) throw error;
 

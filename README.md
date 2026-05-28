@@ -83,6 +83,7 @@ supabase/
     20260528000012_part_reviews.sql           part_reviews + part_clicks tables, parts.review_count + avg_rating aggregate trigger
     20260528000013_build_value.sql            build_value heuristic in recalc_vehicle_total_spend + backfill
     20260528000014_post_on_public_update.sql  feed post when mod privacy flips to public on edit
+    20260528000015_media_mod_cascade.sql      media rows cascade-delete when mod is removed
 ```
 
 ## Setup

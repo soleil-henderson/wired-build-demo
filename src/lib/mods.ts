@@ -5,6 +5,10 @@ import {
   uploadModPhoto,
   type UploadedPhoto,
 } from './storage';
+import {
+  collectModStorageKeys,
+  purgeVehicleStorage,
+} from './vehicle-storage';
 import { supabase } from './supabase';
 import type { Database } from '@/types/database';
 
@@ -218,13 +222,15 @@ export async function updateMod(modId: string, input: ModUpdateInput): Promise<v
 }
 
 /**
- * Remove a mod and its attached media rows. Posts referencing the mod
- * cascade away; vehicle spend / part install_count triggers run on delete.
+ * Remove a mod, cascade-delete attached media (migration 15), and purge
+ * mod-photos + receipts from storage. Posts referencing the mod cascade
+ * away; vehicle spend / part install_count triggers run on delete.
  */
 export async function deleteMod(modId: string): Promise<void> {
-  const { error: mediaErr } = await supabase.from('media').delete().eq('mod_id', modId);
-  if (mediaErr) throw mediaErr;
+  const storageKeys = await collectModStorageKeys(modId);
 
   const { error } = await supabase.from('mods').delete().eq('id', modId);
   if (error) throw error;
+
+  await purgeVehicleStorage(storageKeys);
 }
