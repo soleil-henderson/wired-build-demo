@@ -281,12 +281,21 @@ export default function VehicleProfileScreen() {
                       {m.date_is_approximate ? ' ~' : ''}
                     </Text>
                   </View>
-                  <Text className="mt-1 text-base font-semibold text-white">
-                    {m.part ? m.part.brand : ''}
-                  </Text>
-                  <Text className="text-ink-200">
-                    {m.part?.name ?? m.custom_part_name ?? 'Unknown part'}
-                  </Text>
+                  {m.part ? (
+                    <Pressable
+                      onPress={() => router.push(`/part/${m.part!.id}`)}
+                      className="mt-1 active:opacity-80"
+                    >
+                      <Text className="text-base font-semibold text-white">
+                        {m.part.brand}
+                      </Text>
+                      <Text className="text-ink-200">{m.part.name}</Text>
+                    </Pressable>
+                  ) : (
+                    <Text className="mt-1 text-ink-200">
+                      {m.custom_part_name ?? 'Unknown part'}
+                    </Text>
+                  )}
                   <View className="mt-3 flex-row items-center justify-between">
                     <Text className="text-sm text-ink-300">
                       {labelForInstaller(m.installer_type)}

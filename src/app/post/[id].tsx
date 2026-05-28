@@ -180,7 +180,18 @@ export default function PostDetailScreen() {
                   {post.mod.category.replace('_', ' ')}
                 </Text>
                 {partLabel ? (
-                  <Text className="mt-1 text-lg font-semibold text-white">{partLabel}</Text>
+                  post.mod.part ? (
+                    <Pressable
+                      onPress={() => router.push(`/part/${post.mod!.part!.id}`)}
+                      className="active:opacity-80"
+                    >
+                      <Text className="mt-1 text-lg font-semibold text-white">
+                        {partLabel}
+                      </Text>
+                    </Pressable>
+                  ) : (
+                    <Text className="mt-1 text-lg font-semibold text-white">{partLabel}</Text>
+                  )
                 ) : null}
                 {post.mod.cost != null ? (
                   <Text className="mt-1 text-sm text-ink-200">

@@ -4,7 +4,7 @@ import type { Database } from '@/types/database';
 export type Mod = Database['public']['Tables']['mods']['Row'];
 
 export type ModWithPart = Mod & {
-  part: { brand: string; name: string } | null;
+  part: { id: string; brand: string; name: string } | null;
   photo_url: string | null;
 };
 
@@ -19,7 +19,7 @@ export async function listVehicleMods(vehicleId: string): Promise<ModWithPart[]>
     .select(
       `
       *,
-      part:parts ( brand, name ),
+      part:parts ( id, brand, name ),
       media ( url, kind, is_sensitive )
     `
     )
@@ -30,7 +30,7 @@ export async function listVehicleMods(vehicleId: string): Promise<ModWithPart[]>
   if (error) throw error;
 
   type RawMod = Mod & {
-    part: { brand: string; name: string } | null;
+    part: { id: string; brand: string; name: string } | null;
     media: { url: string; kind: string; is_sensitive: boolean }[] | null;
   };
 

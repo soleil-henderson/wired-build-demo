@@ -29,6 +29,7 @@ src/
     post/[id].tsx            Post detail: post card + comment thread + composer
     user/[handle].tsx        Public user profile: hero, stats, follow, garage
     notifications.tsx        Inbox: follows / reactions / comments, mark-all-read on open
+    part/[id].tsx            Part detail: stats, recent installs, +Wishlist
     wishlist/index.tsx       User's complete wishlist grouped by build + General
     wishlist/new.tsx         Quick-add form for planned parts (?vehicleId= optional)
   lib/
@@ -213,19 +214,27 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 - **Trending this month** — top 6 public posts in the last 30 days,
   ordered by reaction count then recency. Tap-through opens the full post
   detail with comments.
+- **Part detail** at `/part/[id]` — drill into any catalogue part to see
+  its install count, average cost, total spent across the community,
+  DIY-vs-workshop split, last-installed timestamp, and a recent-installs
+  feed (each row links to the build and to the owner's profile). Reached
+  by tapping a popular-parts row, a part label on the post detail, or any
+  catalogued part in a build profile's mod timeline. **+ Save to wishlist**
+  saves to the user's General wishlist with one tap.
 
 ## What's next
 
-- **Part detail page** — drill into a popular part to see who's installed it,
-  reviews, average spend, and an affiliate link
+- **Part reviews + affiliate link slot** — extend `/part/[id]` with a review
+  feed and a brand-supplied affiliate URL on the part row
 - **Trending feed slice scoped to viewer's make** (Spec §4.4 bonus)
 - **Step 5** — Subscriptions, badges, verification, public web share pages
-- **Step 6** — VIN scanning, ownership transfer with notarisation, valuation API
-- **Step 3** — Plan / wishlist tables and screens
-- **Step 5** — Subscriptions, badges, public web share pages
-- **Step 6** — Cross-app hooks, VIN scanning, valuation API, search index
-- **Polish** — image resizing/AVIF conversion background job (Spec §7.2), OCR for
-  receipts, OAuth (Apple/Google) sign-in
+  (Spec §9 Step 5)
+- **Step 6** — VIN scanning, ownership transfer with notarisation,
+  valuation API, cross-app hooks (Spec §9 Step 6)
+- **Push notifications** — `users.push_token` already exists; wire Expo Push
+  registration + a server function on `notifications` insert
+- **Polish** — image resizing / AVIF conversion background job (Spec §7.2),
+  OCR for receipts, OAuth (Apple / Google) sign-in
 
 ## Conventions
 

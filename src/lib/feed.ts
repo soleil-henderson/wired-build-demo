@@ -26,7 +26,7 @@ export type FeedPost = {
     cost: number | null;
     install_date: string;
     custom_part_name: string | null;
-    part: { brand: string; name: string } | null;
+    part: { id: string; brand: string; name: string } | null;
     photo_url: string | null;
   } | null;
   liked_by_me: boolean;
@@ -56,7 +56,7 @@ export async function listFeed(
       vehicle:vehicles!posts_vehicle_id_fkey ( id, year, make, model, nickname ),
       mod:mods!posts_mod_id_fkey (
         id, category, cost, install_date, custom_part_name,
-        part:parts ( brand, name ),
+        part:parts ( id, brand, name ),
         media ( url, kind, is_sensitive )
       )
     `
@@ -121,7 +121,7 @@ export async function getPost(
       vehicle:vehicles!posts_vehicle_id_fkey ( id, year, make, model, nickname ),
       mod:mods!posts_mod_id_fkey (
         id, category, cost, install_date, custom_part_name,
-        part:parts ( brand, name ),
+        part:parts ( id, brand, name ),
         media ( url, kind, is_sensitive )
       )
     `
@@ -249,7 +249,7 @@ type RawFeedRow = {
         cost: number | null;
         install_date: string;
         custom_part_name: string | null;
-        part: { brand: string; name: string } | null;
+        part: { id: string; brand: string; name: string } | null;
         media: { url: string; kind: string; is_sensitive: boolean }[] | null;
       })
     | null;

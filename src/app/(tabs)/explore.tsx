@@ -319,9 +319,13 @@ function PartRow({
   saving: boolean;
   onSave: () => void;
 }) {
+  const router = useRouter();
   return (
     <View className="flex-row items-center gap-3 rounded-2xl border border-ink-700 bg-ink-900 px-3 py-3">
-      <View className="flex-1">
+      <Pressable
+        onPress={() => router.push(`/part/${part.id}`)}
+        className="flex-1 active:opacity-80"
+      >
         <Text className="text-[10px] uppercase tracking-wider text-ink-300">
           {part.category.replace('_', ' ')}
         </Text>
@@ -330,7 +334,7 @@ function PartRow({
         <Text className="mt-1 text-[11px] text-ink-300">
           {part.install_count} install{part.install_count === 1 ? '' : 's'}
         </Text>
-      </View>
+      </Pressable>
       <Pressable
         onPress={onSave}
         disabled={saving}
