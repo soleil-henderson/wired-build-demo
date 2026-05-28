@@ -137,7 +137,7 @@ export default function GarageScreen() {
                     value={`$${Number(v.total_spend).toLocaleString()}`}
                   />
                   <Stat
-                    label="Build value"
+                    label="Est. value"
                     value={v.build_value ? `$${Number(v.build_value).toLocaleString()}` : '—'}
                   />
                 </View>

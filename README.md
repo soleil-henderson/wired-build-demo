@@ -80,6 +80,7 @@ supabase/
     20260528000010_ownership_transfer.sql     ownership_transfers audit table + transfer_vehicle_ownership() RPC
     20260528000011_push_notifications.sql     pg_net trigger -> Expo Push API on notifications insert
     20260528000012_part_reviews.sql           part_reviews + part_clicks tables, parts.review_count + avg_rating aggregate trigger
+    20260528000013_build_value.sql            build_value heuristic in recalc_vehicle_total_spend + backfill
 ```
 
 ## Setup
@@ -300,6 +301,21 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   non-sensitive public-mod media, and ownership transfers — so the
   page literally cannot leak a private build.
 
+### Estimated build value (Spec §9 Step 6 slice)
+
+- **`vehicles.build_value`** is recomputed server-side whenever a mod is
+  inserted, updated, or deleted — same trigger path as `total_spend`.
+- **Heuristic (until RedBook / KBB):**
+  `build_value = total_spend × (1.10 + workshop_ratio × 0.20)`
+  where `workshop_ratio` is the share of mods on the build that were
+  workshop-installed. The 1.10 factor is the "documented history"
+  premium; the workshop term captures implied labour on top of parts
+  cost.
+- **UI** labels the stat **Est. value** on Garage cards, build profiles,
+  and the public share page, with a footnote that it is not a formal
+  appraisal.
+- Migration backfills every vehicle that already has mods.
+
 ### Mod edit and delete
 
 - **`/log/edit?modId=`** — vehicle owners can fix cost, install date,
@@ -518,8 +534,8 @@ the same helper — same Supabase user, swappable provider call.
 
 - **VIN scanning** via `expo-camera` + OCR — populate the Add-Vehicle form
   from the dashboard plate; biggest Step 6 win for daily UX
-- **Valuation API** — populate `vehicles.build_value` server-side
-  (Spec §9 Step 6, marketplace credibility)
+- **Valuation API** — swap the heuristic for RedBook (AU) / KBB (US)
+  when API keys are available; hook stays in `recalc_vehicle_total_spend`
 - **Multi-resolution image variants** — Supabase Edge Function on
   `mod-photos` bucket events to generate AVIF thumbnails (the
   client-side single-resize is shipped; the variants story is the next

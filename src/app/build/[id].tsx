@@ -137,7 +137,7 @@ export default function PublicBuildScreen() {
           <Stat label="Mods" value={String(mods.length)} />
           <Stat label="Spent" value={`$${Number(vehicle.total_spend).toLocaleString()}`} />
           <Stat
-            label="Build value"
+            label="Est. value"
             value={
               vehicle.build_value
                 ? `$${Number(vehicle.build_value).toLocaleString()}`

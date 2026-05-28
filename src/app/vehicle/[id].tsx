@@ -160,12 +160,19 @@ export default function VehicleProfileScreen() {
           <Stat label="Mods" value={String(mods.length)} />
           <Stat label="Spent" value={`$${Number(vehicle.total_spend).toLocaleString()}`} />
           <Stat
-            label="Build value"
+            label="Est. value"
             value={
-              vehicle.build_value ? `$${Number(vehicle.build_value).toLocaleString()}` : '—'
+              vehicle.build_value
+                ? `$${Number(vehicle.build_value).toLocaleString()}`
+                : '—'
             }
           />
         </View>
+        {vehicle.build_value != null && Number(vehicle.build_value) > 0 ? (
+          <Text className="mt-2 text-xs text-ink-300">
+            Estimated from your logged mods — not a formal appraisal.
+          </Text>
+        ) : null}
 
         <View className="mt-6 flex-row flex-wrap gap-2">
           <Pressable
