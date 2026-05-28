@@ -57,6 +57,7 @@ src/
     vin-handoff.ts           In-memory channel for scanned VIN -> Add-Vehicle
     vin-decode.ts            NHTSA vPIC lookup: VIN -> {year,make,model,trim}
     push-notifications.ts    Expo Push token registration + tap routing
+    reviews.ts               list / getMine / upsert / delete + recordPartClick
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
 supabase/
@@ -73,6 +74,7 @@ supabase/
     20260528000009_wishlist.sql               wishlist_items table + priority enum + own-only RLS
     20260528000010_ownership_transfer.sql     ownership_transfers audit table + transfer_vehicle_ownership() RPC
     20260528000011_push_notifications.sql     pg_net trigger -> Expo Push API on notifications insert
+    20260528000012_part_reviews.sql           part_reviews + part_clicks tables, parts.review_count + avg_rating aggregate trigger
 ```
 
 ## Setup
@@ -277,6 +279,42 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   non-sensitive public-mod media, and ownership transfers — so the
   page literally cannot leak a private build.
 
+### Part reviews + affiliate links (Spec §4.7, §8 revenue surface)
+
+- **One review per user per part** — `part_reviews` has a UNIQUE on
+  `(part_id, user_id)`, so the composer always `upsert`s the same row.
+  Public read RLS lets anyone (including the public share page) see
+  community sentiment; writes are gated by `user_id = auth.uid()`.
+- **Aggregate trigger** — `part_reviews_after_change()` keeps
+  `parts.avg_rating` (`numeric(3,2)`) and the new `parts.review_count`
+  in sync after every insert / update / delete. Means the stats row at
+  the top of `/part/[id]` is a one-row read, not a `GROUP BY`.
+- **Reviews UI on `/part/[id]`** — composer collapses inline, prefills
+  with the user's existing review when present, validates 1-5 stars,
+  optional notes. Each review card links to the author's profile and
+  renders their `UserBadges` so a Workshop's review carries the right
+  weight visually.
+- **Affiliate links** — `parts.affiliate_links` is free-form JSON; we
+  recognise a `{ "url": "...", "label": "..." }` shape (extendable
+  later for multi-region or per-retailer links). A "Buy from {brand}"
+  CTA appears at the top of the part page when set. Tap → opens via
+  `Linking.openURL` AND inserts a row into `part_clicks` for analytics.
+- **`part_clicks` table** — insert-only from the client (anon or auth);
+  no select policy means analytics queries run via the service role.
+  `user_id` is nullable so a logged-out viewer clicking through from a
+  public share page still gets counted.
+- **Wiring affiliate URLs**: until there's an admin UI, set them via
+  SQL:
+
+  ```sql
+  update public.parts
+  set affiliate_links = jsonb_build_object(
+    'url', 'https://shop.arb.com.au/bull-bar-200-series',
+    'label', 'Shop at ARB'
+  )
+  where brand = 'ARB' and name = 'Sahara Bar';
+  ```
+
 ### Push notifications (Spec §4.6 follow-on)
 
 - **Server-side trigger** (`20260528000011_push_notifications.sql`) —
@@ -373,8 +411,6 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 
 - **VIN scanning** via `expo-camera` + OCR — populate the Add-Vehicle form
   from the dashboard plate; biggest Step 6 win for daily UX
-- **Part reviews + affiliate link slot** — extend `/part/[id]` with a review
-  feed and a brand-supplied affiliate URL on the part row
 - **Valuation API** — populate `vehicles.build_value` server-side
   (Spec §9 Step 6, marketplace credibility)
 - **Trending feed slice scoped to viewer's make** (Spec §4.4 bonus)

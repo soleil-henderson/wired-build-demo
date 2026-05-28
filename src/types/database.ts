@@ -190,6 +190,7 @@ export type Database = {
           install_difficulty: InstallDifficulty | null;
           install_count: number;
           avg_rating: number | null;
+          review_count: number;
           source: PartSource;
           is_approved: boolean;
           created_at: string;
@@ -209,6 +210,7 @@ export type Database = {
           install_difficulty?: InstallDifficulty | null;
           install_count?: number;
           avg_rating?: number | null;
+          review_count?: number;
           source?: PartSource;
           is_approved?: boolean;
           created_at?: string;
@@ -228,10 +230,62 @@ export type Database = {
           install_difficulty?: InstallDifficulty | null;
           install_count?: number;
           avg_rating?: number | null;
+          review_count?: number;
           source?: PartSource;
           is_approved?: boolean;
           created_at?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      part_reviews: {
+        Row: {
+          id: string;
+          part_id: string;
+          user_id: string;
+          rating: number;
+          body: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          part_id: string;
+          user_id: string;
+          rating: number;
+          body?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          part_id?: string;
+          user_id?: string;
+          rating?: number;
+          body?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      part_clicks: {
+        Row: {
+          id: string;
+          part_id: string;
+          user_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          part_id: string;
+          user_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          part_id?: string;
+          user_id?: string | null;
+          created_at?: string;
         };
         Relationships: [];
       };
