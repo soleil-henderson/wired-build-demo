@@ -1,3 +1,4 @@
+import * as ImagePicker from 'expo-image-picker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -15,10 +16,13 @@ import {
 
 import { useAuth } from '@/lib/auth-context';
 import {
+  addModPhotos,
   deleteMod,
+  deleteModMedia,
   getModForEdit,
   updateMod,
   type ModForEdit,
+  type ModPhoto,
 } from '@/lib/mods';
 import type { InstallerType, ModCategory, ModPrivacy } from '@/types/database';
 
@@ -48,6 +52,15 @@ const PRIVACIES: { value: ModPrivacy; label: string }[] = [
   { value: 'private', label: 'Private' },
 ];
 
+const MAX_PHOTOS = 8;
+
+type PendingPhoto = {
+  uri: string;
+  width: number | null;
+  height: number | null;
+  mimeType: string | null;
+};
+
 export default function EditModScreen() {
   const { modId } = useLocalSearchParams<{ modId: string }>();
   const { session } = useAuth();
@@ -66,6 +79,15 @@ export default function EditModScreen() {
   const [dateIsApproximate, setDateIsApproximate] = useState(false);
   const [notes, setNotes] = useState('');
   const [privacy, setPrivacy] = useState<ModPrivacy>('public');
+  const [existingPhotos, setExistingPhotos] = useState<ModPhoto[]>([]);
+  const [removedPhotoIds, setRemovedPhotoIds] = useState<string[]>([]);
+  const [newPhotos, setNewPhotos] = useState<PendingPhoto[]>([]);
+
+  const visibleExisting = existingPhotos.filter(
+    (p) => !removedPhotoIds.includes(p.id)
+  );
+  const totalPhotoCount = visibleExisting.length + newPhotos.length;
+  const canAddMore = totalPhotoCount < MAX_PHOTOS;
 
   const load = useCallback(async () => {
     if (!modId) return;
@@ -86,6 +108,9 @@ export default function EditModScreen() {
       setDateIsApproximate(m.date_is_approximate);
       setNotes(m.notes ?? '');
       setPrivacy(m.privacy);
+      setExistingPhotos(m.photos);
+      setRemovedPhotoIds([]);
+      setNewPhotos([]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load mod';
       Alert.alert('Error', message);
@@ -97,6 +122,71 @@ export default function EditModScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const addPhotosFromResult = useCallback(
+    (result: ImagePicker.ImagePickerResult) => {
+      if (result.canceled) return;
+      const kept = existingPhotos.filter((p) => !removedPhotoIds.includes(p.id)).length;
+      setNewPhotos((current) => {
+        const room = MAX_PHOTOS - kept - current.length;
+        if (room <= 0) return current;
+        const next = result.assets.slice(0, room).map((a) => ({
+          uri: a.uri,
+          width: a.width ?? null,
+          height: a.height ?? null,
+          mimeType: a.mimeType ?? null,
+        }));
+        return [...current, ...next];
+      });
+    },
+    [existingPhotos, removedPhotoIds]
+  );
+
+  async function handlePickFromLibrary() {
+    if (!canAddMore) return;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow photo library access to attach photos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_PHOTOS - totalPhotoCount,
+      quality: 0.85,
+    });
+    addPhotosFromResult(result);
+  }
+
+  async function handleTakePhoto() {
+    if (!canAddMore) return;
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow camera access to take photos.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.85,
+    });
+    addPhotosFromResult(result);
+  }
+
+  function showPhotoPicker() {
+    Alert.alert('Add photo', undefined, [
+      { text: 'Take photo', onPress: handleTakePhoto },
+      { text: 'Choose from library', onPress: handlePickFromLibrary },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
+  function removeExistingPhoto(id: string) {
+    setRemovedPhotoIds((ids) => [...ids, id]);
+  }
+
+  function removeNewPhotoAt(index: number) {
+    setNewPhotos((current) => current.filter((_, i) => i !== index));
+  }
 
   async function handleSave() {
     if (!mod || !session) return;
@@ -124,6 +214,14 @@ export default function EditModScreen() {
         privacy,
         custom_part_name: mod.part_id ? null : customPartName.trim() || null,
       });
+
+      for (const mediaId of removedPhotoIds) {
+        await deleteModMedia(mediaId);
+      }
+      if (newPhotos.length > 0) {
+        await addModPhotos(mod.id, session.user.id, newPhotos);
+      }
+
       router.back();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not save';
@@ -207,13 +305,49 @@ export default function EditModScreen() {
           ) : null}
         </View>
 
-        {mod.photo_url ? (
-          <Image
-            source={{ uri: mod.photo_url }}
-            className="mt-4 h-48 w-full rounded-2xl bg-ink-800"
-            resizeMode="cover"
-          />
-        ) : null}
+        <View className="mt-6">
+          <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
+            Photos ({totalPhotoCount}/{MAX_PHOTOS})
+          </Text>
+          <View className="flex-row flex-wrap gap-2">
+            {visibleExisting.map((p) => (
+              <View key={p.id} className="relative">
+                <Image
+                  source={{ uri: p.url }}
+                  className="h-20 w-20 rounded-xl bg-ink-800"
+                />
+                <Pressable
+                  onPress={() => removeExistingPhoto(p.id)}
+                  className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-ink-950"
+                >
+                  <Text className="text-xs text-signal-red">✕</Text>
+                </Pressable>
+              </View>
+            ))}
+            {newPhotos.map((p, idx) => (
+              <View key={p.uri} className="relative">
+                <Image
+                  source={{ uri: p.uri }}
+                  className="h-20 w-20 rounded-xl bg-ink-800"
+                />
+                <Pressable
+                  onPress={() => removeNewPhotoAt(idx)}
+                  className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-ink-950"
+                >
+                  <Text className="text-xs text-signal-red">✕</Text>
+                </Pressable>
+              </View>
+            ))}
+            {canAddMore ? (
+              <Pressable
+                onPress={showPhotoPicker}
+                className="h-20 w-20 items-center justify-center rounded-xl border border-dashed border-ink-600 active:bg-ink-800"
+              >
+                <Text className="text-2xl text-ink-400">+</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
 
         <View className="mt-6">
           <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
@@ -327,8 +461,7 @@ export default function EditModScreen() {
             ))}
           </View>
           <Text className="mt-2 text-xs text-ink-300">
-            Changing to public will not retroactively create a feed post — only
-            new public mods auto-post.
+            Switching to public creates a feed post if one does not exist yet.
           </Text>
         </View>
 

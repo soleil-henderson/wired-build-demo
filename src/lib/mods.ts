@@ -1,3 +1,4 @@
+import { uploadModPhoto, type UploadedPhoto } from './storage';
 import { supabase } from './supabase';
 import type { Database } from '@/types/database';
 
@@ -41,8 +42,14 @@ export async function listVehicleMods(vehicleId: string): Promise<ModWithPart[]>
   }));
 }
 
+export type ModPhoto = {
+  id: string;
+  url: string;
+};
+
 export type ModForEdit = ModWithPart & {
   vehicle_id: string;
+  photos: ModPhoto[];
 };
 
 /**
@@ -56,7 +63,7 @@ export async function getModForEdit(modId: string): Promise<ModForEdit | null> {
       `
       *,
       part:parts ( id, brand, name ),
-      media ( url, kind, is_sensitive )
+      media ( id, url, kind, is_sensitive )
     `
     )
     .eq('id', modId)
@@ -66,17 +73,69 @@ export async function getModForEdit(modId: string): Promise<ModForEdit | null> {
 
   type RawMod = Mod & {
     part: { id: string; brand: string; name: string } | null;
-    media: { url: string; kind: string; is_sensitive: boolean }[] | null;
+    media: { id: string; url: string; kind: string; is_sensitive: boolean }[] | null;
   };
   const m = data as RawMod;
   const { media, ...rest } = m;
 
+  const photos: ModPhoto[] =
+    media
+      ?.filter((mm) => mm.kind === 'photo' && !mm.is_sensitive)
+      .map((mm) => ({ id: mm.id, url: mm.url })) ?? [];
+
   return {
     ...rest,
     part: m.part,
-    photo_url:
-      media?.find((mm) => mm.kind === 'photo' && !mm.is_sensitive)?.url ?? null,
+    photos,
+    photo_url: photos[0]?.url ?? null,
   };
+}
+
+/** Remove one attached photo row (owner-only via RLS). */
+export async function deleteModMedia(mediaId: string): Promise<void> {
+  const { error } = await supabase.from('media').delete().eq('id', mediaId);
+  if (error) throw error;
+}
+
+/**
+ * Upload new photos and link them to an existing mod. Failures on
+ * individual uploads are logged but do not abort the batch.
+ */
+export async function addModPhotos(
+  modId: string,
+  ownerId: string,
+  items: { uri: string; width?: number | null; height?: number | null; mimeType?: string | null }[]
+): Promise<void> {
+  const uploaded: UploadedPhoto[] = [];
+  for (const p of items) {
+    try {
+      const result = await uploadModPhoto({
+        uri: p.uri,
+        ownerId,
+        mimeType: p.mimeType,
+        width: p.width,
+        height: p.height,
+      });
+      uploaded.push(result);
+    } catch (err) {
+      console.warn('[mods] photo upload failed', err);
+    }
+  }
+  if (uploaded.length === 0) return;
+
+  const { error } = await supabase.from('media').insert(
+    uploaded.map((u) => ({
+      owner_id: ownerId,
+      mod_id: modId,
+      url: u.url,
+      storage_key: u.storage_key,
+      kind: 'photo' as const,
+      width: u.width,
+      height: u.height,
+      is_sensitive: false,
+    }))
+  );
+  if (error) throw error;
 }
 
 export type ModUpdateInput = {

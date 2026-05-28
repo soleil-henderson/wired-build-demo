@@ -81,15 +81,16 @@ supabase/
     20260528000011_push_notifications.sql     pg_net trigger -> Expo Push API on notifications insert
     20260528000012_part_reviews.sql           part_reviews + part_clicks tables, parts.review_count + avg_rating aggregate trigger
     20260528000013_build_value.sql            build_value heuristic in recalc_vehicle_total_spend + backfill
+    20260528000014_post_on_public_update.sql  feed post when mod privacy flips to public on edit
 ```
 
 ## Setup
 
 ### 1. Install dependencies
 
-```bash
-npm install
-```
+   ```bash
+   npm install
+   ```
 
 ### 2. Environment variables
 
@@ -107,7 +108,7 @@ protected by RLS).
 
 The first time on this machine you need to authenticate the Supabase CLI:
 
-```bash
+   ```bash
 npx supabase login                                  # opens a browser
 npx supabase link --project-ref oappihyoqodqaylqsoqy
 npx supabase db push                                # applies all migrations
