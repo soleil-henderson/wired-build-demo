@@ -16,17 +16,18 @@ import { supabase } from '@/lib/supabase';
 import type { Database } from '@/types/database';
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
+type VehicleWithCount = Vehicle & { mod_count: number };
 
 export default function GarageScreen() {
   const { session, signOut } = useAuth();
   const router = useRouter();
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!session) return;
-    const { data, error } = await supabase
+    const { data: rows, error } = await supabase
       .from('vehicles')
       .select('*')
       .eq('current_owner_id', session.user.id)
@@ -35,9 +36,23 @@ export default function GarageScreen() {
     if (error) {
       Alert.alert('Could not load garage', error.message);
       setVehicles([]);
-    } else {
-      setVehicles(data ?? []);
+      setLoading(false);
+      setRefreshing(false);
+      return;
     }
+
+    const list = rows ?? [];
+    const counts = await Promise.all(
+      list.map(async (v) => {
+        const { count } = await supabase
+          .from('mods')
+          .select('id', { count: 'exact', head: true })
+          .eq('vehicle_id', v.id);
+        return count ?? 0;
+      })
+    );
+
+    setVehicles(list.map((v, i) => ({ ...v, mod_count: counts[i] })));
     setLoading(false);
     setRefreshing(false);
   }, [session]);
@@ -100,9 +115,10 @@ export default function GarageScreen() {
         ) : (
           <View className="mt-6 gap-3">
             {vehicles.map((v) => (
-              <View
+              <Pressable
                 key={v.id}
-                className="rounded-2xl border border-ink-700 bg-ink-900 p-5"
+                onPress={() => router.push(`/vehicle/${v.id}`)}
+                className="rounded-2xl border border-ink-700 bg-ink-900 p-5 active:bg-ink-800"
               >
                 <Text className="text-xs uppercase tracking-wider text-ink-300">
                   {v.year} · {v.make} · {v.model}
@@ -115,13 +131,17 @@ export default function GarageScreen() {
                   VIN ····{v.vin.slice(-6)}
                 </Text>
                 <View className="mt-4 flex-row gap-6">
-                  <Stat label="Spent" value={`$${Number(v.total_spend).toLocaleString()}`} />
+                  <Stat label="Mods" value={String(v.mod_count)} />
+                  <Stat
+                    label="Spent"
+                    value={`$${Number(v.total_spend).toLocaleString()}`}
+                  />
                   <Stat
                     label="Build value"
                     value={v.build_value ? `$${Number(v.build_value).toLocaleString()}` : '—'}
                   />
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         )}

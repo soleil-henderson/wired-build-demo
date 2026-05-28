@@ -23,10 +23,14 @@ src/
     _layout.tsx              Root layout + auth gate
     (auth)/                  Sign-in / sign-up stack
     (tabs)/                  5-tab app (Feed, Explore, Log, Garage, Profile)
-    garage/                  Stack screens off the Garage tab (e.g. add-vehicle)
+    garage/add-vehicle.tsx   Manual vehicle entry off the Garage tab
+    log/new.tsx              The Log-a-Mod form (Spec §4.1) — opens with ?vehicleId=
+    vehicle/[id].tsx         Build profile: hero, stats, spend breakdown, mod timeline
   lib/
     supabase.ts              Typed Supabase client (uses AsyncStorage for sessions)
     auth-context.tsx         Session state + sign-in / sign-up / sign-out
+    parts.ts                 searchParts() + submitCustomPart() helpers
+    mods.ts                  listVehicleMods() with joined part info
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
 supabase/
@@ -34,6 +38,8 @@ supabase/
   migrations/
     20260528000001_init_core.sql   users, vehicles, parts, mods, media + enums + indexes
     20260528000002_rls.sql         RLS policies per Spec §3.3
+    20260528000003_mod_aggregates.sql  Triggers: vehicles.total_spend + parts.install_count
+  seed.sql                   ~30 popular AU 4WD parts so autocomplete has content
 ```
 
 ## Setup
@@ -63,11 +69,14 @@ The first time on this machine you need to authenticate the Supabase CLI:
 ```bash
 npx supabase login                                  # opens a browser
 npx supabase link --project-ref oappihyoqodqaylqsoqy
-npx supabase db push                                # applies both migrations
+npx supabase db push                                # applies all migrations
+psql "$(npx supabase status --output env | grep DB_URL | cut -d= -f2-)" \
+  -f supabase/seed.sql                              # optional: seed parts catalogue
 ```
 
 If you would rather avoid the CLI, paste each file in `supabase/migrations/` into the
-Supabase Studio SQL editor in order (oldest first). RLS is enabled on every table.
+Supabase Studio SQL editor in order (oldest first), then optionally paste `seed.sql`.
+RLS is enabled on every table.
 
 ### 4. (Optional) Regenerate the TypeScript types
 
@@ -86,7 +95,13 @@ npm run android   # Android emulator
 npm run web       # Browser (fastest to iterate; some native features stub out)
 ```
 
-## What works today (Step 1 — Foundations, per Spec §9)
+> Use `npm run` (not `npx expo start`) — `npx` will resolve a *fresh* global copy of
+> `expo` instead of the local one and fail with "Cannot determine the project's Expo
+> SDK version". The npm scripts call the local `node_modules/.bin/expo` correctly.
+
+## What works today
+
+### Step 1 — Foundations (Spec §9 Step 1)
 
 - Email sign-up / sign-in / sign-out backed by Supabase Auth
 - App shell with a 5-tab layout (Feed, Explore, Log, Garage, Profile)
@@ -95,9 +110,24 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 - Profile tab shows the current user's profile row (auto-created by trigger)
 - Core 5 tables with RLS so users can only read/write what they're allowed to
 
+### Step 2 — The core loop (Spec §9 Step 2)
+
+- **Log-a-Mod flow** (Spec §4.1) — single dense screen, target under 90s capture:
+  part picker with live autocomplete, "+ Add custom part" fallback that submits
+  to the moderation queue, category chips, cost (with approximate flag),
+  installer type, install date, notes, privacy
+- **Build profile** at `/vehicle/[id]` (Spec §4.3 lite) — hero with VIN/year/make/model,
+  stats (mods / spent / build value), spend-by-category breakdown, reverse-chronological
+  mod timeline with installer and date
+- **Garage tab** shows mod count per vehicle and links to the build profile
+- **SQL triggers** that keep `vehicles.total_spend` and `parts.install_count` in sync
+  whenever a mod is inserted, updated, or deleted (Spec §5.16)
+- **Seeded parts catalogue** (~30 popular AU 4WD parts) so the autocomplete works
+  from day one
+
 ## What's next
 
-- **Step 2** — Log-a-mod flow (camera, parts search, cost, confirm)
+- **Photo upload** — `expo-image-picker` + Supabase Storage buckets (deferred from Step 2)
 - **Step 3** — Plan / wishlist tables and screens
 - **Step 4** — Social: posts, comments, reactions, follows, notifications
 - **Step 5** — Subscriptions, badges, public web share pages
