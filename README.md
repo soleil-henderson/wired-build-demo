@@ -23,7 +23,8 @@ src/
     _layout.tsx              Root layout + auth gate
     (auth)/                  Sign-in / sign-up stack
     (tabs)/                  5-tab app (Feed, Explore, Log, Garage, Profile)
-    garage/add-vehicle.tsx   Manual vehicle entry off the Garage tab
+    garage/add-vehicle.tsx   Vehicle entry off the Garage tab (with VIN scan)
+    garage/scan-vin.tsx      Camera barcode scanner — Code 39 / 128 / QR
     log/new.tsx              The Log-a-Mod form (Spec §4.1) — opens with ?vehicleId=
     vehicle/[id].tsx         Build profile: hero, stats, spend breakdown, mod timeline
     post/[id].tsx            Post detail: post card + comment thread + composer
@@ -53,6 +54,7 @@ src/
     explore.ts               searchUsers / searchPartsForExplore / listPopularParts / listTrendingPosts
     ownership.ts             transferVehicleOwnership (RPC) / findRecipientByHandle / listOwnershipHistory
     public-build.ts          getPublicBuild() + publicBuildUrl() for the share page
+    vin-handoff.ts           In-memory channel for scanned VIN -> Add-Vehicle
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
 supabase/
@@ -272,6 +274,28 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   non-sensitive public-mod media, and ownership transfers — so the
   page literally cannot leak a private build.
 
+### VIN scanning (Spec §4.2, §9 Step 6)
+
+- **Camera barcode scanner** at `/garage/scan-vin` — full-screen
+  `CameraView` from `expo-camera`, listens for **Code 39**, **Code 128**
+  and **QR** payloads (the three formats found on door-jamb stickers
+  and windshield placards on Australian / US 4WDs). A scanned payload
+  is run through `extractVinFromBarcode()` which strips checksum chars
+  / JSON wrappers and returns the first 17-char run that matches the
+  VIN alphabet.
+- **Permission UX** — first-launch prompt, friendly explainer
+  ("we never store the photo, only the decoded string"), graceful
+  fallback to the manual-entry field if camera access is denied.
+- **Add-Vehicle handoff** — `setPendingVin` writes the scanned VIN to
+  an in-memory channel and `router.back()`s; Add-Vehicle reads it via
+  `consumePendingVin()` in a `useFocusEffect`, so any other fields the
+  user already typed are preserved. The handoff is one-shot — refocusing
+  the form later won't apply the same VIN twice.
+- **Why no OCR (yet)** — the door-jamb sticker and windshield placard
+  always carry a barcode, decoded on-device in Expo Go without a model
+  download or cloud round-trip. OCR is a polish follow-up for vehicles
+  with damaged stickers.
+
 ### Step 6 — Ownership transfer (Spec §3.2, §9 Step 6 slice)
 
 - **Atomic transfer RPC** — `transfer_vehicle_ownership(vehicle_id,
@@ -299,13 +323,16 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   from the dashboard plate; biggest Step 6 win for daily UX
 - **Push notifications** — `users.push_token` exists; wire Expo Push
   registration + a server function on `notifications` insert
+- **VIN-decode autofill** — call an NHTSA / equivalent VIN-decode API after
+  scan to pre-fill year / make / model / trim
 - **Part reviews + affiliate link slot** — extend `/part/[id]` with a review
   feed and a brand-supplied affiliate URL on the part row
 - **Valuation API** — populate `vehicles.build_value` server-side
   (Spec §9 Step 6, marketplace credibility)
 - **Trending feed slice scoped to viewer's make** (Spec §4.4 bonus)
-- **Polish** — image resizing / AVIF conversion background job (Spec §7.2),
-  OCR for receipts, OAuth (Apple / Google) sign-in
+- **Polish** — OCR fallback for VIN scan (damaged stickers), image resizing
+  / AVIF conversion background job (Spec §7.2), OCR for receipts, OAuth
+  (Apple / Google) sign-in
 
 ## Conventions
 

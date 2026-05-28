@@ -1,5 +1,5 @@
-import { Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,8 +14,7 @@ import {
 
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
-
-const VIN_PATTERN = /^[A-HJ-NPR-Z0-9]{17}$/;
+import { consumePendingVin, VIN_PATTERN } from '@/lib/vin-handoff';
 
 export default function AddVehicleScreen() {
   const { session } = useAuth();
@@ -27,6 +26,15 @@ export default function AddVehicleScreen() {
   const [trim, setTrim] = useState('');
   const [nickname, setNickname] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Pick up a VIN scanned in /garage/scan-vin without losing any text the
+  // user had already typed on this form.
+  useFocusEffect(
+    useCallback(() => {
+      const scanned = consumePendingVin();
+      if (scanned) setVin(scanned);
+    }, [])
+  );
 
   async function handleSubmit() {
     if (!session) {
@@ -91,16 +99,28 @@ export default function AddVehicleScreen() {
 
         <View className="mt-8 gap-4">
           <Field label="VIN (17 characters)">
-            <TextInput
-              value={vin}
-              onChangeText={(t) => setVin(t.toUpperCase())}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              maxLength={17}
-              placeholder="1HGCM82633A123456"
-              placeholderTextColor="#5A6373"
-              className="rounded-xl bg-ink-800 px-4 py-3 font-mono text-white"
-            />
+            <View className="flex-row gap-2">
+              <TextInput
+                value={vin}
+                onChangeText={(t) => setVin(t.toUpperCase())}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={17}
+                placeholder="1HGCM82633A123456"
+                placeholderTextColor="#5A6373"
+                className="flex-1 rounded-xl bg-ink-800 px-4 py-3 font-mono text-white"
+              />
+              <Pressable
+                onPress={() => router.push('/garage/scan-vin')}
+                className="items-center justify-center rounded-xl border border-accent bg-ink-800 px-4 active:bg-ink-700"
+              >
+                <Text className="text-xs font-semibold text-accent">Scan</Text>
+              </Pressable>
+            </View>
+            <Text className="mt-2 text-xs text-ink-300">
+              Tap <Text className="text-accent">Scan</Text> to read the barcode
+              on the driver&apos;s door jamb sticker.
+            </Text>
           </Field>
 
           <View className="flex-row gap-3">

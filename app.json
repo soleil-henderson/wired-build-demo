@@ -38,6 +38,13 @@
             "backgroundColor": "#08090B"
           }
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Wired Build to use the camera to scan VIN barcodes on your vehicle.",
+          "recordAudioAndroid": false
+        }
       ]
     ],
     "experiments": {
