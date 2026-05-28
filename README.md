@@ -31,6 +31,7 @@ src/
     user/[handle].tsx        Public user profile: hero, stats, follow, garage
     notifications.tsx        Inbox: follows / reactions / comments, mark-all-read on open
     part/[id].tsx            Part detail: stats, recent installs, +Wishlist
+    profile/edit.tsx         Edit handle, display name, bio, avatar photo
     profile/subscription.tsx Tier comparison (Free / Member / Pro / Workshop)
     profile/verify.tsx       Identity verification placeholder (Stripe Identity / Onfido)
     vehicle/transfer.tsx     Ownership transfer flow (handle lookup + confirm)
@@ -60,6 +61,7 @@ src/
     push-notifications.ts    Expo Push token registration + tap routing
     reviews.ts               list / getMine / upsert / delete + recordPartClick
     oauth.ts                 signInWithOAuthProvider() — WebBrowser flow + setSession
+    profile.ts               getMyProfile / updateProfile / handle validation
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
 supabase/

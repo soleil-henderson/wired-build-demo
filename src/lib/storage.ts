@@ -42,17 +42,19 @@ async function prepareImageForUpload(input: {
   uri: string;
   width?: number | null;
   height?: number | null;
+  maxEdgePx?: number;
 }): Promise<{ uri: string; width: number; height: number }> {
+  const maxEdge = input.maxEdgePx ?? MAX_EDGE_PX;
   const ctx = ImageManipulator.manipulate(input.uri);
 
   const w = input.width ?? 0;
   const h = input.height ?? 0;
   const longest = Math.max(w, h);
-  if (longest > MAX_EDGE_PX) {
+  if (longest > maxEdge) {
     if (w >= h) {
-      ctx.resize({ width: MAX_EDGE_PX });
+      ctx.resize({ width: maxEdge });
     } else {
-      ctx.resize({ height: MAX_EDGE_PX });
+      ctx.resize({ height: maxEdge });
     }
   }
 
@@ -114,6 +116,44 @@ export async function uploadModPhoto(input: {
     width: prepared.width,
     height: prepared.height,
   };
+}
+
+const AVATAR_MAX_EDGE_PX = 512;
+
+/**
+ * Profile avatar — same bucket as mod photos (public CDN), smaller cap.
+ * Key: `<ownerId>/avatar-<uuid>.jpg` so a user can rotate avatars without
+ * overwriting an in-use mod photo key.
+ */
+export async function uploadAvatar(input: {
+  uri: string;
+  ownerId: string;
+  width?: number | null;
+  height?: number | null;
+}): Promise<string> {
+  const prepared = await prepareImageForUpload({
+    uri: input.uri,
+    width: input.width,
+    height: input.height,
+    maxEdgePx: AVATAR_MAX_EDGE_PX,
+  });
+
+  const key = `${input.ownerId}/avatar-${cryptoRandomId()}.jpg`;
+  const file = new File(prepared.uri);
+  const bytes = await file.arrayBuffer();
+
+  const { error } = await supabase.storage
+    .from(MOD_PHOTOS_BUCKET)
+    .upload(key, bytes, {
+      contentType: 'image/jpeg',
+      cacheControl: '31536000',
+      upsert: false,
+    });
+
+  if (error) throw error;
+
+  const { data: pub } = supabase.storage.from(MOD_PHOTOS_BUCKET).getPublicUrl(key);
+  return pub.publicUrl;
 }
 
 function cryptoRandomId(): string {

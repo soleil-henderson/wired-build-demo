@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UserBadges } from '@/components/UserBadges';
@@ -45,15 +45,37 @@ export default function ProfileScreen() {
     <SafeAreaView className="flex-1 bg-ink-950" edges={['top']}>
       <ScrollView contentContainerClassName="px-6 pt-6 pb-24">
         <Text className="text-accent text-xs font-semibold tracking-[3px]">PROFILE</Text>
-        <View className="mt-1 flex-row flex-wrap items-center gap-2">
-          <Text className="text-3xl font-bold text-white">
-            {profile?.display_name ?? session?.user.email ?? 'Builder'}
-          </Text>
-          {profile ? <UserBadges user={profile} size="lg" /> : null}
+
+        <View className="mt-4 flex-row items-center gap-4">
+          {profile?.avatar_url ? (
+            <Image
+              source={{ uri: profile.avatar_url }}
+              className="h-16 w-16 rounded-full bg-ink-800"
+            />
+          ) : (
+            <View className="h-16 w-16 items-center justify-center rounded-full bg-ink-800">
+              <Text className="text-xl font-bold text-white">
+                {(profile?.display_name || profile?.handle || '?')[0].toUpperCase()}
+              </Text>
+            </View>
+          )}
+          <View className="flex-1">
+            <View className="flex-row flex-wrap items-center gap-2">
+              <Text className="text-2xl font-bold text-white">
+                {profile?.display_name ?? session?.user.email ?? 'Builder'}
+              </Text>
+              {profile ? <UserBadges user={profile} size="lg" /> : null}
+            </View>
+            {profile?.handle ? (
+              <Text className="mt-0.5 text-ink-300">@{profile.handle}</Text>
+            ) : null}
+            {profile?.bio ? (
+              <Text className="mt-1 text-sm text-ink-200" numberOfLines={2}>
+                {profile.bio}
+              </Text>
+            ) : null}
+          </View>
         </View>
-        {profile?.handle ? (
-          <Text className="mt-1 text-ink-300">@{profile.handle}</Text>
-        ) : null}
 
         {/* Stats */}
         <View className="mt-6 flex-row gap-6">
@@ -64,12 +86,18 @@ export default function ProfileScreen() {
 
         {/* Actions */}
         <View className="mt-6 flex-row flex-wrap gap-2">
+          <Pressable
+            onPress={() => router.push('/profile/edit')}
+            className="rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
+          >
+            <Text className="font-semibold text-ink-950">Edit profile</Text>
+          </Pressable>
           {profile?.handle ? (
             <Pressable
               onPress={() => router.push(`/user/${profile.handle}`)}
-              className="rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
+              className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
             >
-              <Text className="font-semibold text-ink-950">View public profile</Text>
+              <Text className="font-semibold text-ink-200">View public profile</Text>
             </Pressable>
           ) : null}
           <Pressable
