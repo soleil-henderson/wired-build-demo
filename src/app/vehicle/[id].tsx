@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -165,36 +166,45 @@ export default function VehicleProfileScreen() {
             {mods.map((m) => (
               <View
                 key={m.id}
-                className="rounded-2xl border border-ink-700 bg-ink-900 p-4"
+                className="overflow-hidden rounded-2xl border border-ink-700 bg-ink-900"
               >
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-[11px] uppercase tracking-wider text-ink-300">
-                    {m.category.replace('_', ' ')}
-                  </Text>
-                  <Text className="text-xs text-ink-300">
-                    {formatDate(m.install_date)}
-                    {m.date_is_approximate ? ' ~' : ''}
-                  </Text>
-                </View>
-                <Text className="mt-1 text-base font-semibold text-white">
-                  {m.part ? m.part.brand : ''}
-                </Text>
-                <Text className="text-ink-200">
-                  {m.part?.name ?? m.custom_part_name ?? 'Unknown part'}
-                </Text>
-                <View className="mt-3 flex-row items-center justify-between">
-                  <Text className="text-sm text-ink-300">
-                    {labelForInstaller(m.installer_type)}
-                  </Text>
-                  <Text className="text-sm font-semibold text-white">
-                    {m.cost == null
-                      ? '—'
-                      : `${m.cost_is_approximate ? '~' : ''}$${Number(m.cost).toLocaleString()}`}
-                  </Text>
-                </View>
-                {m.notes ? (
-                  <Text className="mt-2 text-sm text-ink-300">{m.notes}</Text>
+                {m.photo_url ? (
+                  <Image
+                    source={{ uri: m.photo_url }}
+                    className="h-48 w-full bg-ink-800"
+                    resizeMode="cover"
+                  />
                 ) : null}
+                <View className="p-4">
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-[11px] uppercase tracking-wider text-ink-300">
+                      {m.category.replace('_', ' ')}
+                    </Text>
+                    <Text className="text-xs text-ink-300">
+                      {formatDate(m.install_date)}
+                      {m.date_is_approximate ? ' ~' : ''}
+                    </Text>
+                  </View>
+                  <Text className="mt-1 text-base font-semibold text-white">
+                    {m.part ? m.part.brand : ''}
+                  </Text>
+                  <Text className="text-ink-200">
+                    {m.part?.name ?? m.custom_part_name ?? 'Unknown part'}
+                  </Text>
+                  <View className="mt-3 flex-row items-center justify-between">
+                    <Text className="text-sm text-ink-300">
+                      {labelForInstaller(m.installer_type)}
+                    </Text>
+                    <Text className="text-sm font-semibold text-white">
+                      {m.cost == null
+                        ? '—'
+                        : `${m.cost_is_approximate ? '~' : ''}$${Number(m.cost).toLocaleString()}`}
+                    </Text>
+                  </View>
+                  {m.notes ? (
+                    <Text className="mt-2 text-sm text-ink-300">{m.notes}</Text>
+                  ) : null}
+                </View>
               </View>
             ))}
           </View>

@@ -30,16 +30,18 @@ src/
     supabase.ts              Typed Supabase client (uses AsyncStorage for sessions)
     auth-context.tsx         Session state + sign-in / sign-up / sign-out
     parts.ts                 searchParts() + submitCustomPart() helpers
-    mods.ts                  listVehicleMods() with joined part info
+    mods.ts                  listVehicleMods() with joined part info + first photo
+    storage.ts               uploadModPhoto() — reads file URI -> uploads to mod-photos bucket
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
 supabase/
   config.toml                Supabase CLI config
   migrations/
-    20260528000001_init_core.sql   users, vehicles, parts, mods, media + enums + indexes
-    20260528000002_rls.sql         RLS policies per Spec §3.3
-    20260528000003_mod_aggregates.sql  Triggers: vehicles.total_spend + parts.install_count
-  seed.sql                   ~30 popular AU 4WD parts so autocomplete has content
+    20260528000001_init_core.sql         users, vehicles, parts, mods, media + enums + indexes
+    20260528000002_rls.sql               RLS policies per Spec §3.3
+    20260528000003_mod_aggregates.sql    Triggers: vehicles.total_spend + parts.install_count
+    20260528000004_seed_parts_catalogue.sql  ~30 popular AU 4WD parts
+    20260528000005_storage.sql           mod-photos / receipts buckets + storage.objects policies
 ```
 
 ## Setup
@@ -70,13 +72,14 @@ The first time on this machine you need to authenticate the Supabase CLI:
 npx supabase login                                  # opens a browser
 npx supabase link --project-ref oappihyoqodqaylqsoqy
 npx supabase db push                                # applies all migrations
-psql "$(npx supabase status --output env | grep DB_URL | cut -d= -f2-)" \
-  -f supabase/seed.sql                              # optional: seed parts catalogue
 ```
 
-If you would rather avoid the CLI, paste each file in `supabase/migrations/` into the
-Supabase Studio SQL editor in order (oldest first), then optionally paste `seed.sql`.
-RLS is enabled on every table.
+`db push` runs every migration in `supabase/migrations/` — schema, RLS, mod
+aggregate triggers, the seeded parts catalogue, **and** the storage buckets and
+their access policies. If you'd rather avoid the CLI, paste each migration file
+into the Supabase Studio SQL editor in order (oldest first). RLS is enabled on
+every public table; the storage buckets get matching policies on
+`storage.objects`.
 
 ### 4. (Optional) Regenerate the TypeScript types
 
@@ -113,25 +116,33 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 ### Step 2 — The core loop (Spec §9 Step 2)
 
 - **Log-a-Mod flow** (Spec §4.1) — single dense screen, target under 90s capture:
-  part picker with live autocomplete, "+ Add custom part" fallback that submits
-  to the moderation queue, category chips, cost (with approximate flag),
-  installer type, install date, notes, privacy
+  - **Photo step**: take with camera or pick from library (up to 8), with thumbnails
+    and per-photo remove
+  - Part picker with live autocomplete and "+ Add custom part" fallback that submits
+    to the moderation queue
+  - Category chips, cost (with approximate flag), installer type, install date
+    (with approximate flag), notes, privacy
+  - Photos upload to the `mod-photos` Supabase Storage bucket *after* the mod is
+    saved, so a flaky network can't lose the mod itself
 - **Build profile** at `/vehicle/[id]` (Spec §4.3 lite) — hero with VIN/year/make/model,
   stats (mods / spent / build value), spend-by-category breakdown, reverse-chronological
-  mod timeline with installer and date
+  mod timeline with the first attached photo as a cover image
 - **Garage tab** shows mod count per vehicle and links to the build profile
 - **SQL triggers** that keep `vehicles.total_spend` and `parts.install_count` in sync
   whenever a mod is inserted, updated, or deleted (Spec §5.16)
 - **Seeded parts catalogue** (~30 popular AU 4WD parts) so the autocomplete works
   from day one
+- **Two storage buckets** with owner-only writes and bucket-appropriate reads
+  (`mod-photos` is public for the CDN; `receipts` is restricted per Spec §7.1)
 
 ## What's next
 
-- **Photo upload** — `expo-image-picker` + Supabase Storage buckets (deferred from Step 2)
 - **Step 3** — Plan / wishlist tables and screens
-- **Step 4** — Social: posts, comments, reactions, follows, notifications
+- **Step 4** — Social: posts, comments, reactions, follows, notifications, feed
 - **Step 5** — Subscriptions, badges, public web share pages
 - **Step 6** — Cross-app hooks, VIN scanning, valuation API, search index
+- **Polish** — image resizing/AVIF conversion background job (Spec §7.2), OCR for
+  receipts, OAuth (Apple/Google) sign-in
 
 ## Conventions
 

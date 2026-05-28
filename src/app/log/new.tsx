@@ -1,8 +1,10 @@
+import * as ImagePicker from 'expo-image-picker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,9 +14,20 @@ import {
   View,
 } from 'react-native';
 
+import { useAuth } from '@/lib/auth-context';
 import { searchParts, submitCustomPart, type Part } from '@/lib/parts';
+import { uploadModPhoto, type UploadedPhoto } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import type { InstallerType, ModCategory, ModPrivacy } from '@/types/database';
+
+const MAX_PHOTOS = 8;
+
+type PendingPhoto = {
+  uri: string;
+  width: number | null;
+  height: number | null;
+  mimeType: string | null;
+};
 
 const CATEGORIES: { value: ModCategory; label: string }[] = [
   { value: 'suspension', label: 'Suspension' },
@@ -53,6 +66,10 @@ function todayISO(): string {
 export default function LogNewScreen() {
   const router = useRouter();
   const { vehicleId } = useLocalSearchParams<{ vehicleId?: string }>();
+  const { session } = useAuth();
+
+  // Photo state (Spec §4.1 step 1 — open camera/library, up to 8, or skip)
+  const [photos, setPhotos] = useState<PendingPhoto[]>([]);
 
   // Part picker state
   const [partQuery, setPartQuery] = useState('');
@@ -74,6 +91,53 @@ export default function LogNewScreen() {
   const [privacy, setPrivacy] = useState<ModPrivacy>('public');
 
   const [submitting, setSubmitting] = useState(false);
+
+  const addPhotosFromResult = useCallback((result: ImagePicker.ImagePickerResult) => {
+    if (result.canceled) return;
+    setPhotos((current) => {
+      const room = MAX_PHOTOS - current.length;
+      if (room <= 0) return current;
+      const next = result.assets.slice(0, room).map((a) => ({
+        uri: a.uri,
+        width: a.width ?? null,
+        height: a.height ?? null,
+        mimeType: a.mimeType ?? null,
+      }));
+      return [...current, ...next];
+    });
+  }, []);
+
+  async function handlePickFromLibrary() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow photo library access to attach photos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_PHOTOS - photos.length,
+      quality: 0.85,
+    });
+    addPhotosFromResult(result);
+  }
+
+  async function handleTakePhoto() {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow camera access to take photos.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.85,
+    });
+    addPhotosFromResult(result);
+  }
+
+  function removePhotoAt(index: number) {
+    setPhotos((current) => current.filter((_, i) => i !== index));
+  }
 
   // Debounced parts search
   const searchToken = useRef(0);
@@ -129,6 +193,10 @@ export default function LogNewScreen() {
   }, []);
 
   async function handleSubmit() {
+    if (!session) {
+      Alert.alert('Not signed in', 'Sign in before logging a mod.');
+      return;
+    }
     if (!vehicleId) {
       Alert.alert('Missing vehicle', 'This log flow needs a vehicle id in the URL.');
       return;
@@ -168,21 +236,65 @@ export default function LogNewScreen() {
         }
       }
 
-      const { error } = await supabase.from('mods').insert({
-        vehicle_id: vehicleId,
-        part_id: partId,
-        custom_part_name: customPartName,
-        category,
-        cost: costValue,
-        cost_is_approximate: costIsApproximate,
-        installer_type: installerType,
-        install_date: installDate,
-        date_is_approximate: dateIsApproximate,
-        notes: notes.trim() || null,
-        privacy,
-      });
+      const { data: mod, error: modErr } = await supabase
+        .from('mods')
+        .insert({
+          vehicle_id: vehicleId,
+          part_id: partId,
+          custom_part_name: customPartName,
+          category,
+          cost: costValue,
+          cost_is_approximate: costIsApproximate,
+          installer_type: installerType,
+          install_date: installDate,
+          date_is_approximate: dateIsApproximate,
+          notes: notes.trim() || null,
+          privacy,
+        })
+        .select('id')
+        .single();
 
-      if (error) throw error;
+      if (modErr) throw modErr;
+
+      // Upload photos (if any) and create media rows linked to the mod.
+      // We do this *after* the mod is saved so that if photo upload fails the
+      // mod itself is still recorded — better to have the data than to lose
+      // everything to a flaky network mid-upload.
+      if (photos.length > 0 && mod) {
+        const uploaded: UploadedPhoto[] = [];
+        for (const p of photos) {
+          try {
+            const result = await uploadModPhoto({
+              uri: p.uri,
+              ownerId: session.user.id,
+              mimeType: p.mimeType,
+              width: p.width,
+              height: p.height,
+            });
+            uploaded.push(result);
+          } catch (err) {
+            console.warn('Photo upload failed', err);
+          }
+        }
+
+        if (uploaded.length > 0) {
+          const { error: mediaErr } = await supabase.from('media').insert(
+            uploaded.map((u) => ({
+              owner_id: session.user.id,
+              mod_id: mod.id,
+              url: u.url,
+              storage_key: u.storage_key,
+              kind: 'photo' as const,
+              width: u.width,
+              height: u.height,
+              is_sensitive: false,
+            }))
+          );
+          if (mediaErr) {
+            console.warn('media insert failed', mediaErr);
+          }
+        }
+      }
 
       router.back();
     } catch (err) {
@@ -205,8 +317,46 @@ export default function LogNewScreen() {
       >
         <Text className="text-3xl font-bold text-white">Log a mod</Text>
         <Text className="mt-2 text-ink-300">
-          Target: under 90 seconds. Part → cost → confirm.
+          Target: under 90 seconds. Photo → part → cost → confirm.
         </Text>
+
+        {/* ---- Photos ---- */}
+        <SectionHeading>Photos (optional, up to {MAX_PHOTOS})</SectionHeading>
+        <View className="flex-row flex-wrap gap-2">
+          {photos.map((p, idx) => (
+            <View key={p.uri} className="relative">
+              <Image
+                source={{ uri: p.uri }}
+                className="h-20 w-20 rounded-xl bg-ink-800"
+                resizeMode="cover"
+              />
+              <Pressable
+                onPress={() => removePhotoAt(idx)}
+                className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-ink-950 border border-ink-700"
+              >
+                <Text className="text-xs font-bold text-white">×</Text>
+              </Pressable>
+            </View>
+          ))}
+          {photos.length < MAX_PHOTOS ? (
+            <>
+              <Pressable
+                onPress={handleTakePhoto}
+                className="h-20 w-20 items-center justify-center rounded-xl border border-dashed border-ink-600 bg-ink-900"
+              >
+                <Text className="text-xl text-ink-300">+</Text>
+                <Text className="text-[10px] text-ink-300">Camera</Text>
+              </Pressable>
+              <Pressable
+                onPress={handlePickFromLibrary}
+                className="h-20 w-20 items-center justify-center rounded-xl border border-dashed border-ink-600 bg-ink-900"
+              >
+                <Text className="text-xl text-ink-300">+</Text>
+                <Text className="text-[10px] text-ink-300">Library</Text>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
 
         {/* ---- Part picker ---- */}
         <SectionHeading>Part</SectionHeading>
