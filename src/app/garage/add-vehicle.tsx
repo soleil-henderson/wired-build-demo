@@ -1,5 +1,5 @@
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import {
 
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { decodeVin } from '@/lib/vin-decode';
 import { consumePendingVin, VIN_PATTERN } from '@/lib/vin-handoff';
 
 export default function AddVehicleScreen() {
@@ -26,6 +27,10 @@ export default function AddVehicleScreen() {
   const [trim, setTrim] = useState('');
   const [nickname, setNickname] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [decoding, setDecoding] = useState(false);
+  const [decodedVin, setDecodedVin] = useState<string | null>(null);
+  // Guards the decode effect against re-firing for the same VIN.
+  const lastDecodedRef = useRef<string | null>(null);
 
   // Pick up a VIN scanned in /garage/scan-vin without losing any text the
   // user had already typed on this form.
@@ -35,6 +40,42 @@ export default function AddVehicleScreen() {
       if (scanned) setVin(scanned);
     }, [])
   );
+
+  // Auto-decode the VIN whenever it reaches 17 valid characters. Only
+  // fills empty fields — anything the user already typed is preserved.
+  useEffect(() => {
+    const candidate = vin.trim().toUpperCase();
+    if (!VIN_PATTERN.test(candidate)) return;
+    if (lastDecodedRef.current === candidate) return;
+    lastDecodedRef.current = candidate;
+
+    let cancelled = false;
+    setDecoding(true);
+    decodeVin(candidate)
+      .then((result) => {
+        if (cancelled || !result) return;
+        if (!year && result.year) setYear(String(result.year));
+        if (!make && result.make) setMake(result.make);
+        if (!model && result.model) setModel(result.model);
+        if (!trim && result.trim) setTrim(result.trim);
+        // Mark the decoded VIN so we can show the "auto-filled" hint;
+        // only set if we actually got something useful.
+        if (result.year || result.make || result.model || result.trim) {
+          setDecodedVin(candidate);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDecoding(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally omit year/make/model/trim from deps — those refs are
+    // read inside the effect to decide what to fill, but a change in
+    // them shouldn't re-trigger another decode.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vin]);
 
   async function handleSubmit() {
     if (!session) {
@@ -117,10 +158,23 @@ export default function AddVehicleScreen() {
                 <Text className="text-xs font-semibold text-accent">Scan</Text>
               </Pressable>
             </View>
-            <Text className="mt-2 text-xs text-ink-300">
-              Tap <Text className="text-accent">Scan</Text> to read the barcode
-              on the driver&apos;s door jamb sticker.
-            </Text>
+            {decoding ? (
+              <View className="mt-2 flex-row items-center gap-2">
+                <ActivityIndicator color="#F5A524" size="small" />
+                <Text className="text-xs text-ink-300">
+                  Looking up vehicle from VIN…
+                </Text>
+              </View>
+            ) : decodedVin && decodedVin === vin.trim().toUpperCase() ? (
+              <Text className="mt-2 text-xs text-signal-green">
+                Auto-filled from VIN — review and edit anything that&apos;s wrong.
+              </Text>
+            ) : (
+              <Text className="mt-2 text-xs text-ink-300">
+                Tap <Text className="text-accent">Scan</Text> to read the
+                barcode on the driver&apos;s door jamb sticker.
+              </Text>
+            )}
           </Field>
 
           <View className="flex-row gap-3">

@@ -55,6 +55,7 @@ src/
     ownership.ts             transferVehicleOwnership (RPC) / findRecipientByHandle / listOwnershipHistory
     public-build.ts          getPublicBuild() + publicBuildUrl() for the share page
     vin-handoff.ts           In-memory channel for scanned VIN -> Add-Vehicle
+    vin-decode.ts            NHTSA vPIC lookup: VIN -> {year,make,model,trim}
     push-notifications.ts    Expo Push token registration + tap routing
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
@@ -308,6 +309,23 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   builds need an `eas.projectId` (set via `eas init`) and APNs / FCM
   credentials.
 
+### VIN-decode autofill (Spec §4.2 follow-on)
+
+- **Auto-lookup on 17 valid chars** — the moment `vin` matches
+  `VIN_PATTERN`, Add-Vehicle calls the NHTSA vPIC `DecodeVinValues`
+  endpoint (public, no auth). Year / make / model / trim that come
+  back land in the empty fields; anything the user already typed is
+  preserved (we never clobber manual input).
+- **Idempotent** — a ref-guarded effect tracks the last decoded VIN so
+  rapid character edits don't re-fire the request. Network failure /
+  offline / unknown VIN silently falls back to manual entry; a green
+  "Auto-filled from VIN — review and edit anything that's wrong"
+  inline hint confirms when it worked.
+- **AU-friendly** — VIN is an ISO standard, so make / year are
+  reliable even for Australian vehicles. Model + trim hit rates are
+  lower for AU-only variants, which is exactly why we never block
+  submit on what NHTSA returns.
+
 ### VIN scanning (Spec §4.2, §9 Step 6)
 
 - **Camera barcode scanner** at `/garage/scan-vin` — full-screen
@@ -355,8 +373,6 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 
 - **VIN scanning** via `expo-camera` + OCR — populate the Add-Vehicle form
   from the dashboard plate; biggest Step 6 win for daily UX
-- **VIN-decode autofill** — call an NHTSA / equivalent VIN-decode API after
-  scan to pre-fill year / make / model / trim
 - **Part reviews + affiliate link slot** — extend `/part/[id]` with a review
   feed and a brand-supplied affiliate URL on the part row
 - **Valuation API** — populate `vehicles.build_value` server-side
