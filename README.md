@@ -335,6 +335,17 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 - **Public on edit** — changing privacy to `public` now creates the
   missing feed post (migration 14); insert-only behaviour is unchanged.
 
+### Receipt capture (Spec §7.1)
+
+- **Log-a-Mod** and **Edit mod** — optional **Attach receipt** after cost.
+  Camera or library; resized JPEG uploaded to the private `receipts` bucket
+  (`<userId>/<uuid>.jpg`). A `media` row with `kind = receipt`,
+  `is_sensitive = true`, and `mods.receipt_media_id` links it to the mod.
+- **Privacy** — receipts are owner-readable only (RLS + non-public bucket).
+  They never appear on the feed or public build page; mod photos stay separate.
+- **Preview on edit** — signed URLs (1h) for the owner to verify the scan.
+  OCR to pre-fill cost is listed under What's next.
+
 ### Vehicle editing
 
 - **`/vehicle/edit?vehicleId=`** — owners update nickname, cover photo,
@@ -551,7 +562,7 @@ the same helper — same Supabase user, swappable provider call.
 
 ## What's next
 
-- **Receipt OCR** in Log-a-Mod — scan a receipt to pre-fill cost / supplier
+- **Receipt OCR** — extract total / supplier from attached receipt images
 - **Garage vehicle delete** — owner-only with confirmation + cascade rules
 - **Valuation API** — swap the heuristic for RedBook (AU) / KBB (US)
   when API keys are available; hook stays in `recalc_vehicle_total_spend`

@@ -16,6 +16,7 @@ import {
 
 import { useAuth } from '@/lib/auth-context';
 import { getPartById, searchParts, submitCustomPart, type Part } from '@/lib/parts';
+import { attachReceiptToMod } from '@/lib/receipts';
 import { uploadModPhoto, type UploadedPhoto } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { getWishlistItem, removeWishlistItem } from '@/lib/wishlist';
@@ -28,6 +29,12 @@ type PendingPhoto = {
   width: number | null;
   height: number | null;
   mimeType: string | null;
+};
+
+type PendingReceipt = {
+  uri: string;
+  width: number | null;
+  height: number | null;
 };
 
 const CATEGORIES: { value: ModCategory; label: string }[] = [
@@ -76,6 +83,7 @@ export default function LogNewScreen() {
 
   // Photo state (Spec §4.1 step 1 — open camera/library, up to 8, or skip)
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
+  const [receipt, setReceipt] = useState<PendingReceipt | null>(null);
 
   // Part picker state
   const [partQuery, setPartQuery] = useState('');
@@ -185,6 +193,44 @@ export default function LogNewScreen() {
 
   function removePhotoAt(index: number) {
     setPhotos((current) => current.filter((_, i) => i !== index));
+  }
+
+  async function pickReceipt(source: 'library' | 'camera') {
+    const permission =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to attach a receipt.');
+      return;
+    }
+
+    const result =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            quality: 0.9,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            quality: 0.9,
+          });
+
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    setReceipt({
+      uri: asset.uri,
+      width: asset.width ?? null,
+      height: asset.height ?? null,
+    });
+  }
+
+  function showReceiptPicker() {
+    Alert.alert('Receipt', 'Private — only you can view it.', [
+      { text: 'Take photo', onPress: () => pickReceipt('camera') },
+      { text: 'Choose from library', onPress: () => pickReceipt('library') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   }
 
   // Debounced parts search
@@ -352,6 +398,20 @@ export default function LogNewScreen() {
           await removeWishlistItem(wishlistId);
         } catch (err) {
           console.warn('Could not delete wishlist source row', err);
+        }
+      }
+
+      if (receipt && mod) {
+        try {
+          await attachReceiptToMod({
+            modId: mod.id,
+            ownerId: session.user.id,
+            uri: receipt.uri,
+            width: receipt.width,
+            height: receipt.height,
+          });
+        } catch (err) {
+          console.warn('Receipt upload failed', err);
         }
       }
 
@@ -557,6 +617,35 @@ export default function LogNewScreen() {
         </View>
         <Text className="mt-2 text-xs text-ink-300">
           Leave empty if it was a gift or undisclosed.
+        </Text>
+
+        {/* ---- Receipt (private) ---- */}
+        <SectionHeading>Receipt (optional, private)</SectionHeading>
+        {receipt ? (
+          <View className="relative self-start">
+            <Image
+              source={{ uri: receipt.uri }}
+              className="h-28 w-40 rounded-xl bg-ink-800"
+              resizeMode="cover"
+            />
+            <Pressable
+              onPress={() => setReceipt(null)}
+              className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-ink-950 border border-ink-700"
+            >
+              <Text className="text-xs font-bold text-white">×</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable
+            onPress={showReceiptPicker}
+            className="self-start rounded-xl border border-dashed border-ink-600 px-4 py-3 active:bg-ink-900"
+          >
+            <Text className="font-semibold text-ink-200">+ Attach receipt</Text>
+          </Pressable>
+        )}
+        <Text className="mt-2 text-xs text-ink-300">
+          Stored in your private vault — never shown on the public feed. OCR to
+          pre-fill cost is on the roadmap.
         </Text>
 
         {/* ---- Installer ---- */}

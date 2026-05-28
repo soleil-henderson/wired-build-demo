@@ -1,3 +1,4 @@
+import { getReceiptSignedUrl } from './receipts';
 import { uploadModPhoto, type UploadedPhoto } from './storage';
 import { supabase } from './supabase';
 import type { Database } from '@/types/database';
@@ -47,9 +48,15 @@ export type ModPhoto = {
   url: string;
 };
 
+export type ModReceipt = {
+  id: string;
+  previewUrl: string;
+};
+
 export type ModForEdit = ModWithPart & {
   vehicle_id: string;
   photos: ModPhoto[];
+  receipt: ModReceipt | null;
 };
 
 /**
@@ -83,11 +90,29 @@ export async function getModForEdit(modId: string): Promise<ModForEdit | null> {
       ?.filter((mm) => mm.kind === 'photo' && !mm.is_sensitive)
       .map((mm) => ({ id: mm.id, url: mm.url })) ?? [];
 
+  let receipt: ModReceipt | null = null;
+  if (m.receipt_media_id) {
+    const { data: rec } = await supabase
+      .from('media')
+      .select('id, storage_key')
+      .eq('id', m.receipt_media_id)
+      .maybeSingle();
+    if (rec) {
+      try {
+        const previewUrl = await getReceiptSignedUrl(rec.storage_key);
+        receipt = { id: rec.id, previewUrl };
+      } catch {
+        // Signed URL failure is non-fatal; edit screen hides preview.
+      }
+    }
+  }
+
   return {
     ...rest,
     part: m.part,
     photos,
     photo_url: photos[0]?.url ?? null,
+    receipt,
   };
 }
 

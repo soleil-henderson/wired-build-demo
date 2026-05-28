@@ -4,6 +4,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { supabase } from './supabase';
 
 const MOD_PHOTOS_BUCKET = 'mod-photos';
+const RECEIPTS_BUCKET = 'receipts';
 
 /**
  * Cap on the longer edge of an uploaded photo. 1920px is plenty for feed
@@ -154,6 +155,49 @@ export async function uploadAvatar(input: {
 
   const { data: pub } = supabase.storage.from(MOD_PHOTOS_BUCKET).getPublicUrl(key);
   return pub.publicUrl;
+}
+
+export type UploadedReceipt = {
+  storage_key: string;
+  width: number;
+  height: number;
+};
+
+/**
+ * Tax-sensitive receipt scan — private `receipts` bucket (Spec §7.1).
+ * Same on-device resize + JPEG path as mod photos; never public CDN.
+ */
+export async function uploadReceipt(input: {
+  uri: string;
+  ownerId: string;
+  width?: number | null;
+  height?: number | null;
+}): Promise<UploadedReceipt> {
+  const prepared = await prepareImageForUpload({
+    uri: input.uri,
+    width: input.width,
+    height: input.height,
+  });
+
+  const key = `${input.ownerId}/${cryptoRandomId()}.jpg`;
+  const file = new File(prepared.uri);
+  const bytes = await file.arrayBuffer();
+
+  const { error } = await supabase.storage
+    .from(RECEIPTS_BUCKET)
+    .upload(key, bytes, {
+      contentType: 'image/jpeg',
+      cacheControl: '3600',
+      upsert: false,
+    });
+
+  if (error) throw error;
+
+  return {
+    storage_key: key,
+    width: prepared.width,
+    height: prepared.height,
+  };
 }
 
 const COVER_MAX_EDGE_PX = 1920;

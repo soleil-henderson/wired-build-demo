@@ -24,6 +24,7 @@ import {
   type ModForEdit,
   type ModPhoto,
 } from '@/lib/mods';
+import { attachReceiptToMod, removeReceiptFromMod } from '@/lib/receipts';
 import type { InstallerType, ModCategory, ModPrivacy } from '@/types/database';
 
 const CATEGORIES: { value: ModCategory; label: string }[] = [
@@ -61,6 +62,12 @@ type PendingPhoto = {
   mimeType: string | null;
 };
 
+type PendingReceipt = {
+  uri: string;
+  width: number | null;
+  height: number | null;
+};
+
 export default function EditModScreen() {
   const { modId } = useLocalSearchParams<{ modId: string }>();
   const { session } = useAuth();
@@ -82,6 +89,9 @@ export default function EditModScreen() {
   const [existingPhotos, setExistingPhotos] = useState<ModPhoto[]>([]);
   const [removedPhotoIds, setRemovedPhotoIds] = useState<string[]>([]);
   const [newPhotos, setNewPhotos] = useState<PendingPhoto[]>([]);
+  const [existingReceipt, setExistingReceipt] = useState<ModForEdit['receipt']>(null);
+  const [removeReceipt, setRemoveReceipt] = useState(false);
+  const [newReceipt, setNewReceipt] = useState<PendingReceipt | null>(null);
 
   const visibleExisting = existingPhotos.filter(
     (p) => !removedPhotoIds.includes(p.id)
@@ -111,6 +121,9 @@ export default function EditModScreen() {
       setExistingPhotos(m.photos);
       setRemovedPhotoIds([]);
       setNewPhotos([]);
+      setExistingReceipt(m.receipt);
+      setRemoveReceipt(false);
+      setNewReceipt(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load mod';
       Alert.alert('Error', message);
@@ -188,6 +201,49 @@ export default function EditModScreen() {
     setNewPhotos((current) => current.filter((_, i) => i !== index));
   }
 
+  async function pickReceipt(source: 'library' | 'camera') {
+    const permission =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to attach a receipt.');
+      return;
+    }
+
+    const result =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            quality: 0.9,
+          })
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            quality: 0.9,
+          });
+
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    setNewReceipt({
+      uri: asset.uri,
+      width: asset.width ?? null,
+      height: asset.height ?? null,
+    });
+    setRemoveReceipt(false);
+  }
+
+  function showReceiptPicker() {
+    Alert.alert('Receipt', 'Private — only you can view it.', [
+      { text: 'Take photo', onPress: () => pickReceipt('camera') },
+      { text: 'Choose from library', onPress: () => pickReceipt('library') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
+  const receiptPreviewUri =
+    newReceipt?.uri ??
+    (!removeReceipt ? existingReceipt?.previewUrl ?? null : null);
+
   async function handleSave() {
     if (!mod || !session) return;
 
@@ -220,6 +276,21 @@ export default function EditModScreen() {
       }
       if (newPhotos.length > 0) {
         await addModPhotos(mod.id, session.user.id, newPhotos);
+      }
+
+      if (removeReceipt && existingReceipt) {
+        await removeReceiptFromMod(mod.id, existingReceipt.id);
+      } else if (newReceipt) {
+        if (existingReceipt && !removeReceipt) {
+          await removeReceiptFromMod(mod.id, existingReceipt.id);
+        }
+        await attachReceiptToMod({
+          modId: mod.id,
+          ownerId: session.user.id,
+          uri: newReceipt.uri,
+          width: newReceipt.width,
+          height: newReceipt.height,
+        });
       }
 
       router.back();
@@ -388,6 +459,43 @@ export default function EditModScreen() {
             />
             <Text className="text-sm text-ink-200">Approximate cost</Text>
           </Pressable>
+        </View>
+
+        <View className="mt-4">
+          <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
+            Receipt (private)
+          </Text>
+          {receiptPreviewUri ? (
+            <View className="relative self-start">
+              <Image
+                source={{ uri: receiptPreviewUri }}
+                className="h-28 w-40 rounded-xl bg-ink-800"
+                resizeMode="cover"
+              />
+              <Pressable
+                onPress={() => {
+                  if (newReceipt) {
+                    setNewReceipt(null);
+                  } else {
+                    setRemoveReceipt(true);
+                  }
+                }}
+                className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-ink-950"
+              >
+                <Text className="text-xs text-signal-red">✕</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              onPress={showReceiptPicker}
+              className="self-start rounded-xl border border-dashed border-ink-600 px-4 py-3 active:bg-ink-900"
+            >
+              <Text className="font-semibold text-ink-200">+ Attach receipt</Text>
+            </Pressable>
+          )}
+          <Text className="mt-2 text-xs text-ink-300">
+            Never shown on the public feed. Replace or remove anytime.
+          </Text>
         </View>
 
         <View className="mt-4">
