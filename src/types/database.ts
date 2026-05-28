@@ -40,6 +40,17 @@ export type PartSource = 'brand' | 'wired' | 'community';
 
 export type MediaKind = 'photo' | 'receipt' | 'cover' | 'avatar';
 
+export type ReactionTarget = 'post' | 'mod' | 'comment';
+
+export type ReactionType = 'like';
+
+export type NotificationType =
+  | 'reaction'
+  | 'comment'
+  | 'follow'
+  | 'price_alert'
+  | 'verification';
+
 export type Database = {
   public: {
     Tables: {
@@ -352,6 +363,209 @@ export type Database = {
           },
         ];
       };
+      posts: {
+        Row: {
+          id: string;
+          user_id: string;
+          vehicle_id: string;
+          mod_id: string | null;
+          body: string | null;
+          reaction_count: number;
+          comment_count: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          vehicle_id: string;
+          mod_id?: string | null;
+          body?: string | null;
+          reaction_count?: number;
+          comment_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          vehicle_id?: string;
+          mod_id?: string | null;
+          body?: string | null;
+          reaction_count?: number;
+          comment_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'posts_user_id_fkey';
+            columns: ['user_id'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'posts_vehicle_id_fkey';
+            columns: ['vehicle_id'];
+            referencedRelation: 'vehicles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'posts_mod_id_fkey';
+            columns: ['mod_id'];
+            referencedRelation: 'mods';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      comments: {
+        Row: {
+          id: string;
+          post_id: string;
+          user_id: string;
+          parent_comment_id: string | null;
+          body: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          user_id: string;
+          parent_comment_id?: string | null;
+          body: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          user_id?: string;
+          parent_comment_id?: string | null;
+          body?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'comments_post_id_fkey';
+            columns: ['post_id'];
+            referencedRelation: 'posts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'comments_user_id_fkey';
+            columns: ['user_id'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'comments_parent_comment_id_fkey';
+            columns: ['parent_comment_id'];
+            referencedRelation: 'comments';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      reactions: {
+        Row: {
+          id: string;
+          user_id: string;
+          target_type: ReactionTarget;
+          target_id: string;
+          type: ReactionType;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          target_type: ReactionTarget;
+          target_id: string;
+          type?: ReactionType;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          target_type?: ReactionTarget;
+          target_id?: string;
+          type?: ReactionType;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'reactions_user_id_fkey';
+            columns: ['user_id'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      follows: {
+        Row: {
+          follower_id: string;
+          followee_id: string;
+          created_at: string;
+        };
+        Insert: {
+          follower_id: string;
+          followee_id: string;
+          created_at?: string;
+        };
+        Update: {
+          follower_id?: string;
+          followee_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'follows_follower_id_fkey';
+            columns: ['follower_id'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'follows_followee_id_fkey';
+            columns: ['followee_id'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          type: NotificationType;
+          payload: Json;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          type: NotificationType;
+          payload?: Json;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          type?: NotificationType;
+          payload?: Json;
+          read_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'notifications_user_id_fkey';
+            columns: ['user_id'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -367,6 +581,9 @@ export type Database = {
       install_difficulty: InstallDifficulty;
       part_source: PartSource;
       media_kind: MediaKind;
+      reaction_target: ReactionTarget;
+      reaction_type: ReactionType;
+      notification_type: NotificationType;
     };
     CompositeTypes: {
       [_ in never]: never;

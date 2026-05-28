@@ -32,16 +32,19 @@ src/
     parts.ts                 searchParts() + submitCustomPart() helpers
     mods.ts                  listVehicleMods() with joined part info + first photo
     storage.ts               uploadModPhoto() — reads file URI -> uploads to mod-photos bucket
+    feed.ts                  listFeed() + togglePostLike() for the social timeline
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
 supabase/
   config.toml                Supabase CLI config
   migrations/
-    20260528000001_init_core.sql         users, vehicles, parts, mods, media + enums + indexes
-    20260528000002_rls.sql               RLS policies per Spec §3.3
-    20260528000003_mod_aggregates.sql    Triggers: vehicles.total_spend + parts.install_count
-    20260528000004_seed_parts_catalogue.sql  ~30 popular AU 4WD parts
-    20260528000005_storage.sql           mod-photos / receipts buckets + storage.objects policies
+    20260528000001_init_core.sql              users, vehicles, parts, mods, media + enums + indexes
+    20260528000002_rls.sql                    RLS policies per Spec §3.3
+    20260528000003_mod_aggregates.sql         Triggers: vehicles.total_spend + parts.install_count
+    20260528000004_seed_parts_catalogue.sql   ~30 popular AU 4WD parts
+    20260528000005_storage.sql                mod-photos / receipts buckets + storage.objects policies
+    20260528000006_social.sql                 posts, comments, reactions, follows, notifications + indexes
+    20260528000007_social_rls_triggers.sql    Social RLS + auto-post-on-public-mod + reaction_count trigger
 ```
 
 ## Setup
@@ -135,10 +138,28 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 - **Two storage buckets** with owner-only writes and bucket-appropriate reads
   (`mod-photos` is public for the CDN; `receipts` is restricted per Spec §7.1)
 
+### Step 4 — Social (Spec §9 Step 4, MVP slice)
+
+- **Feed tab** is real: reverse-chronological list of recent public posts across
+  the network, each card with author, vehicle, mod photo + part + cost, and a
+  tap-target that opens the build profile
+- **Posts auto-create on public mods** via a Postgres trigger — Spec §4.1's
+  "a posts row if public" is enforced server-side so the social layer can never
+  drift from the underlying mods
+- **Likes**: heart button on each post card with optimistic UI; a server-side
+  trigger keeps `posts.reaction_count` in sync regardless of the client. RLS
+  guarantees a user can only insert/delete their own reaction.
+- **All 5 social tables** in place — comments, follows, notifications schemas
+  ready for the next turn's UI
+
 ## What's next
 
+- **Comments + post detail screen** — render a thread under each post (the schema
+  and trigger are already there)
+- **Follow/unfollow + user profile route** — wires the Feed's "from followed
+  users" filter and the Profile tab's follower counts
+- **Notifications** — list screen + a small badge on the Profile tab
 - **Step 3** — Plan / wishlist tables and screens
-- **Step 4** — Social: posts, comments, reactions, follows, notifications, feed
 - **Step 5** — Subscriptions, badges, public web share pages
 - **Step 6** — Cross-app hooks, VIN scanning, valuation API, search index
 - **Polish** — image resizing/AVIF conversion background job (Spec §7.2), OCR for
