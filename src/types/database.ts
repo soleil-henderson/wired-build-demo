@@ -49,7 +49,8 @@ export type NotificationType =
   | 'comment'
   | 'follow'
   | 'price_alert'
-  | 'verification';
+  | 'verification'
+  | 'ownership_transfer';
 
 export type WishlistPriority = 'low' | 'medium' | 'high';
 
@@ -568,6 +569,52 @@ export type Database = {
           },
         ];
       };
+      ownership_transfers: {
+        Row: {
+          id: string;
+          vehicle_id: string;
+          from_user_id: string | null;
+          to_user_id: string | null;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          vehicle_id: string;
+          from_user_id: string | null;
+          to_user_id: string | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          vehicle_id?: string;
+          from_user_id?: string | null;
+          to_user_id?: string | null;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'ownership_transfers_vehicle_id_fkey';
+            columns: ['vehicle_id'];
+            referencedRelation: 'vehicles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'ownership_transfers_from_user_id_fkey';
+            columns: ['from_user_id'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'ownership_transfers_to_user_id_fkey';
+            columns: ['to_user_id'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       wishlist_items: {
         Row: {
           id: string;
@@ -634,7 +681,14 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      transfer_vehicle_ownership: {
+        Args: {
+          p_vehicle_id: string;
+          p_new_owner_id: string;
+          p_note?: string | null;
+        };
+        Returns: void;
+      };
     };
     Enums: {
       subscription_tier: SubscriptionTier;

@@ -165,6 +165,8 @@ function labelFor(row: NotificationRow): string {
       const isReply = 'is_reply' in row.payload && row.payload.is_reply;
       return isReply ? 'replied to your comment.' : 'commented on your post.';
     }
+    case 'ownership_transfer':
+      return 'transferred a build to you.';
     case 'price_alert':
       return 'price alert.';
     case 'verification':
@@ -178,12 +180,21 @@ function previewFor(row: NotificationRow): string | null {
   if (row.type === 'comment' && 'preview' in row.payload) {
     return row.payload.preview;
   }
+  if (row.type === 'ownership_transfer' && 'note' in row.payload) {
+    const note = (row.payload as { note?: string | null }).note;
+    return note ?? null;
+  }
   return null;
 }
 
-function routeFor(row: NotificationRow): `/post/${string}` | `/user/${string}` | null {
+function routeFor(
+  row: NotificationRow
+): `/post/${string}` | `/user/${string}` | `/vehicle/${string}` | null {
   if (row.type === 'follow') {
     return `/user/${row.payload.actor_handle}`;
+  }
+  if (row.type === 'ownership_transfer' && 'vehicle_id' in row.payload) {
+    return `/vehicle/${(row.payload as { vehicle_id: string }).vehicle_id}`;
   }
   if ('post_id' in row.payload) {
     return `/post/${row.payload.post_id}`;

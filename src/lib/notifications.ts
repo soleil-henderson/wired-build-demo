@@ -18,6 +18,10 @@ export type NotificationPayload =
       comment_id: string;
       preview: string;
       is_reply: boolean;
+    })
+  | (ActorPayload & {
+      vehicle_id: string;
+      note: string | null;
     });
 
 export type NotificationRow = {

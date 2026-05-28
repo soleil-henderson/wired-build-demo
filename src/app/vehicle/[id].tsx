@@ -14,6 +14,10 @@ import { useFocusEffect } from 'expo-router';
 
 import { useAuth } from '@/lib/auth-context';
 import { listVehicleMods, type ModWithPart } from '@/lib/mods';
+import {
+  listOwnershipHistory,
+  type OwnershipTransferRow,
+} from '@/lib/ownership';
 import { supabase } from '@/lib/supabase';
 import {
   listVehicleWishlist,
@@ -32,6 +36,7 @@ export default function VehicleProfileScreen() {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [mods, setMods] = useState<ModWithPart[]>([]);
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
+  const [history, setHistory] = useState<OwnershipTransferRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -40,16 +45,19 @@ export default function VehicleProfileScreen() {
   const load = useCallback(async () => {
     if (!id) return;
     try {
-      const [{ data: v, error: vErr }, modList, wishlistList] = await Promise.all([
-        supabase.from('vehicles').select('*').eq('id', id).maybeSingle(),
-        listVehicleMods(id),
-        // Wishlist is owner-only via RLS; non-owners just get an empty array.
-        listVehicleWishlist(id).catch(() => []),
-      ]);
+      const [{ data: v, error: vErr }, modList, wishlistList, historyList] =
+        await Promise.all([
+          supabase.from('vehicles').select('*').eq('id', id).maybeSingle(),
+          listVehicleMods(id),
+          // Wishlist is owner-only via RLS; non-owners just get an empty array.
+          listVehicleWishlist(id).catch(() => []),
+          listOwnershipHistory(id).catch(() => []),
+        ]);
       if (vErr) throw vErr;
       setVehicle(v);
       setMods(modList);
       setWishlist(wishlistList);
+      setHistory(historyList);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load vehicle';
       Alert.alert('Error', message);
@@ -137,12 +145,24 @@ export default function VehicleProfileScreen() {
           />
         </View>
 
-        <Pressable
-          onPress={() => router.push(`/log/new?vehicleId=${vehicle.id}`)}
-          className="mt-6 self-start rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
-        >
-          <Text className="font-semibold text-ink-950">+ Log a mod</Text>
-        </Pressable>
+        <View className="mt-6 flex-row flex-wrap gap-2">
+          <Pressable
+            onPress={() => router.push(`/log/new?vehicleId=${vehicle.id}`)}
+            className="rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
+          >
+            <Text className="font-semibold text-ink-950">+ Log a mod</Text>
+          </Pressable>
+          {isOwner ? (
+            <Pressable
+              onPress={() =>
+                router.push(`/vehicle/transfer?vehicleId=${vehicle.id}`)
+              }
+              className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
+            >
+              <Text className="font-semibold text-ink-200">Transfer</Text>
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       {/* ---- Spend breakdown ---- */}
@@ -315,7 +335,78 @@ export default function VehicleProfileScreen() {
           </View>
         )}
       </View>
+
+      {/* ---- Ownership history ---- */}
+      <OwnershipHistorySection
+        history={history}
+        onOpenUser={(handle) => router.push(`/user/${handle}`)}
+      />
     </ScrollView>
+  );
+}
+
+function OwnershipHistorySection({
+  history,
+  onOpenUser,
+}: {
+  history: OwnershipTransferRow[];
+  onOpenUser: (handle: string) => void;
+}) {
+  if (history.length === 0) {
+    return (
+      <View className="px-6 pt-6">
+        <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+          Ownership history
+        </Text>
+        <Text className="mt-3 text-sm text-ink-300">
+          One owner so far. When this build is transferred, the full chain
+          shows up here for any future buyer to audit.
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <View className="px-6 pt-6">
+      <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+        Ownership history
+      </Text>
+      <View className="mt-3 gap-2">
+        {history.map((row) => (
+          <View
+            key={row.id}
+            className="rounded-2xl border border-ink-700 bg-ink-900 p-4"
+          >
+            <Text className="text-[10px] uppercase tracking-wider text-ink-300">
+              {formatDate(row.created_at)}
+            </Text>
+            <View className="mt-1 flex-row flex-wrap items-center gap-1">
+              {row.from_user ? (
+                <Pressable onPress={() => onOpenUser(row.from_user!.handle)}>
+                  <Text className="font-semibold text-white">
+                    @{row.from_user.handle}
+                  </Text>
+                </Pressable>
+              ) : (
+                <Text className="font-semibold text-ink-300">unknown</Text>
+              )}
+              <Text className="text-ink-300">→</Text>
+              {row.to_user ? (
+                <Pressable onPress={() => onOpenUser(row.to_user!.handle)}>
+                  <Text className="font-semibold text-accent">
+                    @{row.to_user.handle}
+                  </Text>
+                </Pressable>
+              ) : (
+                <Text className="font-semibold text-ink-300">unknown</Text>
+              )}
+            </View>
+            {row.note ? (
+              <Text className="mt-1 text-sm text-ink-300">{row.note}</Text>
+            ) : null}
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }
 

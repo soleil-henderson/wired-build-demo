@@ -32,6 +32,7 @@ src/
     part/[id].tsx            Part detail: stats, recent installs, +Wishlist
     profile/subscription.tsx Tier comparison (Free / Member / Pro / Workshop)
     profile/verify.tsx       Identity verification placeholder (Stripe Identity / Onfido)
+    vehicle/transfer.tsx     Ownership transfer flow (handle lookup + confirm)
     wishlist/index.tsx       User's complete wishlist grouped by build + General
     wishlist/new.tsx         Quick-add form for planned parts (?vehicleId= optional)
   components/
@@ -49,6 +50,7 @@ src/
     notifications.ts         listNotifications / getUnreadCount / markAllRead
     wishlist.ts              listVehicleWishlist / listUserWishlist / addWishlistItem
     explore.ts               searchUsers / searchPartsForExplore / listPopularParts / listTrendingPosts
+    ownership.ts             transferVehicleOwnership (RPC) / findRecipientByHandle / listOwnershipHistory
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
 supabase/
@@ -63,6 +65,7 @@ supabase/
     20260528000007_social_rls_triggers.sql    Social RLS + auto-post-on-public-mod + reaction_count trigger
     20260528000008_notifications_triggers.sql Emit notifications on follow / reaction / comment
     20260528000009_wishlist.sql               wishlist_items table + priority enum + own-only RLS
+    20260528000010_ownership_transfer.sql     ownership_transfers audit table + transfer_vehicle_ownership() RPC
 ```
 
 ## Setup
@@ -243,6 +246,27 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   Stripe Identity / Onfido flow. Explains what the partner will ask for,
   emphasises we only persist the boolean (no documents), and shows the
   verified state when `is_identity_verified = true`.
+
+### Step 6 — Ownership transfer (Spec §3.2, §9 Step 6 slice)
+
+- **Atomic transfer RPC** — `transfer_vehicle_ownership(vehicle_id,
+  new_owner_id, note?)` is a `SECURITY DEFINER` function that swaps
+  `current_owner_id`, appends to `ownership_chain`, writes an audit row,
+  and emits a notification to the new owner — all in one transaction.
+  Direct UPDATEs that try to change `current_owner_id` away from the
+  caller still fail RLS by design, so the RPC is the only path.
+- **Transfer flow** at `/vehicle/transfer?vehicleId=…` — owner-only.
+  Handle lookup (with @ stripping), recipient preview card (with
+  badges), optional public note, destructive-styled confirmation alert
+  ("This cannot be undone from the app"). On success the user lands
+  back in their Garage (since they no longer own this build).
+- **Ownership history** section on every build profile — flat audit
+  feed from `ownership_transfers`, joined to user rows so it renders
+  with @handle tap-throughs and optional public notes. For a public
+  build, anyone can audit the chain of custody (buyers vetting a build
+  before purchase — the spec's "transferable, monetisable asset" pitch).
+- **Notifications inbox** picks up the new `ownership_transfer` type —
+  a tap routes to the build that just landed in your garage.
 
 ## What's next
 
