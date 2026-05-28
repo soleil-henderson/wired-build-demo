@@ -195,33 +195,39 @@ export default function VehicleProfileScreen() {
                   key={item.id}
                   className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-3"
                 >
-                  <View className="flex-row items-start justify-between gap-2">
-                    <View className="flex-1">
-                      <View className="flex-row items-center gap-2">
-                        <PriorityPill priority={item.priority} />
-                        {item.category ? (
-                          <Text className="text-[10px] uppercase tracking-wider text-ink-300">
-                            {item.category.replace('_', ' ')}
-                          </Text>
-                        ) : null}
-                      </View>
-                      <Text className="mt-1 text-base font-semibold text-white">
-                        {wishlistDisplayName(item)}
+                  <View className="flex-row items-center gap-2">
+                    <PriorityPill priority={item.priority} />
+                    {item.category ? (
+                      <Text className="text-[10px] uppercase tracking-wider text-ink-300">
+                        {item.category.replace('_', ' ')}
                       </Text>
-                      <View className="mt-1 flex-row items-center gap-3">
-                        {item.target_cost != null ? (
-                          <Text className="text-sm text-ink-200">
-                            Target ${Number(item.target_cost).toLocaleString()}
-                          </Text>
-                        ) : null}
-                      </View>
-                      {item.notes ? (
-                        <Text className="mt-1 text-sm text-ink-300">{item.notes}</Text>
-                      ) : null}
-                    </View>
+                    ) : null}
+                  </View>
+                  <Text className="mt-1 text-base font-semibold text-white">
+                    {wishlistDisplayName(item)}
+                  </Text>
+                  {item.target_cost != null ? (
+                    <Text className="mt-1 text-sm text-ink-200">
+                      Target ${Number(item.target_cost).toLocaleString()}
+                    </Text>
+                  ) : null}
+                  {item.notes ? (
+                    <Text className="mt-1 text-sm text-ink-300">{item.notes}</Text>
+                  ) : null}
+                  <View className="mt-3 flex-row gap-2">
+                    <Pressable
+                      onPress={() =>
+                        router.push(
+                          `/log/new?vehicleId=${vehicle.id}&wishlistId=${item.id}`
+                        )
+                      }
+                      className="rounded-lg bg-accent px-3 py-1.5 active:bg-accent-dark"
+                    >
+                      <Text className="text-xs font-semibold text-ink-950">Log it</Text>
+                    </Pressable>
                     <Pressable
                       onPress={() => handleRemoveWishlistItem(item.id)}
-                      className="rounded-lg border border-ink-700 px-2 py-1 active:bg-ink-800"
+                      className="rounded-lg border border-ink-700 px-3 py-1.5 active:bg-ink-800"
                     >
                       <Text className="text-xs text-ink-300">Remove</Text>
                     </Pressable>

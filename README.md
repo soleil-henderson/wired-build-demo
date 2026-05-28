@@ -187,14 +187,18 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   and free-text notes. Rows are sorted by priority then recency on the build
   profile, can be removed inline (optimistic), and are kept strictly private
   by RLS — RLS rejects writes that target a vehicle the user doesn't own.
+- **Promote wishlist → mod** — tap **Log it** on any wishlist row to open
+  the Log-a-Mod form pre-filled with the part, category, target cost
+  (flagged approximate) and notes. The wishlist row is deleted only after
+  the mod insert and photo uploads succeed, so a save failure leaves the
+  wishlist intact.
 
 ## What's next
 
 - **Trending feed slice** scoped to the viewer's make (Spec §4.4 bonus)
-- **Promote wishlist item → Log-a-Mod** — open `/log/new` pre-filled from a
-  wishlist row and delete the row on save
 - **General wishlist** — a tab outside any specific vehicle profile for
   cross-build planning (the schema already supports `vehicle_id = null`)
+- **Explore tab** — populate with the parts catalogue + popular-mods-by-vehicle
 - **Step 3** — Plan / wishlist tables and screens
 - **Step 5** — Subscriptions, badges, public web share pages
 - **Step 6** — Cross-app hooks, VIN scanning, valuation API, search index

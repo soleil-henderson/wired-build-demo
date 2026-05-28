@@ -27,6 +27,33 @@ function normalisePart(
   return part;
 }
 
+export async function getWishlistItem(id: string): Promise<WishlistItem | null> {
+  const { data, error } = await supabase
+    .from('wishlist_items')
+    .select(
+      `id, user_id, vehicle_id, part_id, custom_part_name, category,
+       target_cost, notes, priority, created_at,
+       part:parts ( brand, name )`
+    )
+    .eq('id', id)
+    .maybeSingle();
+  if (error || !data) return null;
+  const r = data as RawRow;
+  return {
+    id: r.id,
+    user_id: r.user_id,
+    vehicle_id: r.vehicle_id,
+    part_id: r.part_id,
+    custom_part_name: r.custom_part_name,
+    category: r.category,
+    target_cost: r.target_cost,
+    notes: r.notes,
+    priority: r.priority,
+    created_at: r.created_at,
+    part: normalisePart(r.part),
+  };
+}
+
 export async function listVehicleWishlist(vehicleId: string): Promise<WishlistItem[]> {
   const { data, error } = await supabase
     .from('wishlist_items')

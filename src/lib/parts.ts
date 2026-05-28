@@ -27,6 +27,20 @@ export async function searchParts(query: string, limit = 12): Promise<Part[]> {
 }
 
 /**
+ * Fetch one part by id. Used to pre-fill the Log-a-Mod form when promoting a
+ * wishlist row to a mod.
+ */
+export async function getPartById(id: string): Promise<Part | null> {
+  const { data, error } = await supabase
+    .from('parts')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) return null;
+  return data;
+}
+
+/**
  * "Custom part not listed" (Spec §4.1 edge case).
  * Inserts a community-submitted part as is_approved=false so it lands in the
  * moderation queue. Returns the inserted row so the caller can link the mod to it.

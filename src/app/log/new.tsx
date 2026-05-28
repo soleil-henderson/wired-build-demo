@@ -15,9 +15,10 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/lib/auth-context';
-import { searchParts, submitCustomPart, type Part } from '@/lib/parts';
+import { getPartById, searchParts, submitCustomPart, type Part } from '@/lib/parts';
 import { uploadModPhoto, type UploadedPhoto } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
+import { getWishlistItem, removeWishlistItem } from '@/lib/wishlist';
 import type { InstallerType, ModCategory, ModPrivacy } from '@/types/database';
 
 const MAX_PHOTOS = 8;
@@ -65,8 +66,13 @@ function todayISO(): string {
 
 export default function LogNewScreen() {
   const router = useRouter();
-  const { vehicleId } = useLocalSearchParams<{ vehicleId?: string }>();
+  const { vehicleId, wishlistId } = useLocalSearchParams<{
+    vehicleId?: string;
+    wishlistId?: string;
+  }>();
   const { session } = useAuth();
+  const [prefilling, setPrefilling] = useState(!!wishlistId);
+  const [promotedFromWishlist, setPromotedFromWishlist] = useState(false);
 
   // Photo state (Spec §4.1 step 1 — open camera/library, up to 8, or skip)
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
@@ -91,6 +97,48 @@ export default function LogNewScreen() {
   const [privacy, setPrivacy] = useState<ModPrivacy>('public');
 
   const [submitting, setSubmitting] = useState(false);
+
+  // Pre-fill the form when promoting a wishlist item. The wishlist row is
+  // deleted in handleSubmit *after* the mod insert succeeds, so a save failure
+  // leaves the wishlist intact.
+  useEffect(() => {
+    if (!wishlistId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const item = await getWishlistItem(wishlistId);
+        if (cancelled || !item) {
+          setPrefilling(false);
+          return;
+        }
+        if (item.part_id) {
+          const part = await getPartById(item.part_id);
+          if (!cancelled && part) {
+            setSelectedPart(part);
+            setCategory(part.category);
+          }
+        } else if (item.custom_part_name) {
+          setCustomMode(true);
+          setCustomName(item.custom_part_name);
+        }
+        if (item.category) setCategory(item.category);
+        if (item.target_cost != null) {
+          setCost(String(item.target_cost));
+          // Target cost is a plan, not a paid invoice — flag as approximate.
+          setCostIsApproximate(true);
+        }
+        if (item.notes) setNotes(item.notes);
+        setPromotedFromWishlist(true);
+      } catch {
+        // Pre-fill failure is non-fatal; user can fill manually.
+      } finally {
+        if (!cancelled) setPrefilling(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [wishlistId]);
 
   const addPhotosFromResult = useCallback((result: ImagePicker.ImagePickerResult) => {
     if (result.canceled) return;
@@ -296,6 +344,17 @@ export default function LogNewScreen() {
         }
       }
 
+      // Promoting a wishlist row -> mod: now that the mod is safely inserted
+      // (and photos uploaded), delete the source wishlist row. Failure here is
+      // non-fatal; the mod is already recorded.
+      if (wishlistId) {
+        try {
+          await removeWishlistItem(wishlistId);
+        } catch (err) {
+          console.warn('Could not delete wishlist source row', err);
+        }
+      }
+
       router.back();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not log mod';
@@ -310,15 +369,27 @@ export default function LogNewScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       className="flex-1 bg-ink-950"
     >
-      <Stack.Screen options={{ title: 'Log a mod' }} />
+      <Stack.Screen
+        options={{ title: promotedFromWishlist ? 'Log from wishlist' : 'Log a mod' }}
+      />
       <ScrollView
         contentContainerClassName="px-6 pt-6 pb-24"
         keyboardShouldPersistTaps="handled"
       >
-        <Text className="text-3xl font-bold text-white">Log a mod</Text>
-        <Text className="mt-2 text-ink-300">
-          Target: under 90 seconds. Photo → part → cost → confirm.
+        <Text className="text-3xl font-bold text-white">
+          {promotedFromWishlist ? 'Install it' : 'Log a mod'}
         </Text>
+        <Text className="mt-2 text-ink-300">
+          {promotedFromWishlist
+            ? 'Confirm the install details. We pre-filled what we could from your wishlist; this entry will replace the wishlist row.'
+            : 'Target: under 90 seconds. Photo → part → cost → confirm.'}
+        </Text>
+        {prefilling ? (
+          <View className="mt-4 flex-row items-center gap-2">
+            <ActivityIndicator color="#F5A524" />
+            <Text className="text-sm text-ink-300">Loading wishlist details…</Text>
+          </View>
+        ) : null}
 
         {/* ---- Photos ---- */}
         <SectionHeading>Photos (optional, up to {MAX_PHOTOS})</SectionHeading>
