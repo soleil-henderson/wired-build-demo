@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, Text, View } from 'react-native';
 
-import { signInWithOAuthProvider, type OAuthProvider } from '@/lib/oauth';
+import {
+  signInWithApple,
+  signInWithOAuthProvider,
+  type OAuthProvider,
+} from '@/lib/oauth';
 
 type Props = {
   /** Disable the buttons while another auth action is in progress. */
@@ -20,7 +24,11 @@ export function OAuthButtons({ disabled }: Props) {
   async function handle(provider: OAuthProvider) {
     setWorking(provider);
     try {
-      await signInWithOAuthProvider(provider);
+      if (provider === 'apple') {
+        await signInWithApple();
+      } else {
+        await signInWithOAuthProvider(provider);
+      }
       // Successful auth lands in AuthProvider's onAuthStateChange and
       // the root layout redirects to the tabs.
     } catch (err) {

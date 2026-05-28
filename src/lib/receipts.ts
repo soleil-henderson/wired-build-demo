@@ -1,4 +1,4 @@
-import { uploadReceipt } from './storage';
+import { deleteStorageObjects, uploadReceipt } from './storage';
 import { supabase } from './supabase';
 
 /** Internal URL convention for private receipt objects (not a fetchable URL). */
@@ -74,6 +74,12 @@ export async function removeReceiptFromMod(
   modId: string,
   receiptMediaId: string
 ): Promise<void> {
+  const { data: row } = await supabase
+    .from('media')
+    .select('storage_key')
+    .eq('id', receiptMediaId)
+    .maybeSingle();
+
   const { error: unlinkErr } = await supabase
     .from('mods')
     .update({ receipt_media_id: null })
@@ -82,4 +88,8 @@ export async function removeReceiptFromMod(
 
   const { error } = await supabase.from('media').delete().eq('id', receiptMediaId);
   if (error) throw error;
+
+  if (row?.storage_key) {
+    await deleteStorageObjects('receipts', [row.storage_key]);
+  }
 }

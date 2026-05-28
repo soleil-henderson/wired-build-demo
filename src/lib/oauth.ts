@@ -1,4 +1,6 @@
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { makeRedirectUri } from 'expo-auth-session';
+import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
 import { supabase } from './supabase';
@@ -26,6 +28,40 @@ import { supabase } from './supabase';
 WebBrowser.maybeCompleteAuthSession();
 
 export type OAuthProvider = 'apple' | 'google';
+
+/**
+ * Sign in with Apple — native `ASAuthorization` on iOS when available
+ * (App Store requirement when Google sign-in is offered), otherwise the
+ * web OAuth flow used in Expo Go.
+ */
+export async function signInWithApple(): Promise<boolean> {
+  if (Platform.OS === 'ios' && (await AppleAuthentication.isAvailableAsync())) {
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        throw new Error('Apple Sign In did not return an identity token.');
+      }
+
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken,
+      });
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      if (isAppleAuthCanceled(err)) return false;
+      throw err;
+    }
+  }
+
+  return signInWithOAuthProvider('apple');
+}
 
 /**
  * Open the provider's consent page in a sandboxed browser, then exchange
@@ -74,6 +110,15 @@ export async function signInWithOAuthProvider(
   if (setErr) throw setErr;
 
   return true;
+}
+
+function isAppleAuthCanceled(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code: string }).code === 'ERR_REQUEST_CANCELED'
+  );
 }
 
 function parseAuthTokensFromUrl(url: string): {

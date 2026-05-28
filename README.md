@@ -61,7 +61,7 @@ src/
     vin-decode.ts            NHTSA vPIC lookup: VIN -> {year,make,model,trim}
     push-notifications.ts    Expo Push token registration + tap routing
     reviews.ts               list / getMine / upsert / delete + recordPartClick
-    oauth.ts                 signInWithOAuthProvider() — WebBrowser flow + setSession
+    oauth.ts                 signInWithApple() native + signInWithOAuthProvider() web
     profile.ts               getMyProfile / updateProfile / handle validation
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
@@ -343,6 +343,9 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   `is_sensitive = true`, and `mods.receipt_media_id` links it to the mod.
 - **Privacy** — receipts are owner-readable only (RLS + non-public bucket).
   They never appear on the feed or public build page; mod photos stay separate.
+- **Storage cleanup** — removing a mod photo, receipt, or vehicle cover
+  deletes the backing object from `mod-photos` / `receipts` when we know
+  the key (best-effort; failures are logged, not blocking).
 - **Preview on edit** — signed URLs (1h) for the owner to verify the scan.
 - **Receipt OCR (cost hint)** — `expo-text-extractor` (ML Kit / Apple Vision)
   runs on-device when you attach a receipt and cost is still empty.
@@ -364,8 +367,11 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   after add-vehicle.
 - **Cover upload** — 16:9 crop from camera or library, resized on-device,
   stored as `<userId>/cover-<uuid>.jpg` in `mod-photos`, written to
-  `vehicles.cover_photo_url`. Remove cover clears the URL without deleting
-  old storage objects (orphan cleanup is a follow-up).
+  `vehicles.cover_photo_url`. Replacing or removing a cover deletes the
+  previous object from `mod-photos` when the URL is one we uploaded.
+- **Delete build** — destructive confirmation on `/vehicle/edit`; deletes
+  the vehicle row (cascades mods, wishlist, posts, ownership history).
+  Best-effort cover cleanup from storage before the DB delete.
 - **Build profile** shows the cover hero when set; **Edit** sits next to
   Transfer for owners. Public builds get **Share**; private builds hide
   the share link until you flip visibility on edit.
@@ -392,12 +398,13 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   on subsequent ones. The existing `handle_new_auth_user` trigger
   already deals with OAuth-provisioned rows (falls back to a
   uuid-based handle when the provider gives a private-relay email).
-- **WebBrowser-driven flow** in `src/lib/oauth.ts`: ask Supabase for
-  the consent URL with `skipBrowserRedirect: true`, hand it to
-  `WebBrowser.openAuthSessionAsync(url, redirectTo)`, parse the
-  `#access_token` / `#refresh_token` out of the returned redirect URL,
-  then `setSession`. Works inside Expo Go because `makeRedirectUri`
-  rewrites the redirect to the dev-client scheme on the fly.
+- **Native Apple on iOS** — `signInWithApple()` uses
+  `expo-apple-authentication` + `signInWithIdToken` when the native
+  module is available (production / dev builds). User cancel is silent.
+  Falls back to the web OAuth flow in Expo Go or on Android.
+- **WebBrowser-driven OAuth** in `src/lib/oauth.ts` for Google (and Apple
+  fallback): `skipBrowserRedirect`, `openAuthSessionAsync`, parse tokens,
+  `setSession`. Works in Expo Go via `makeRedirectUri`.
 - **Push-notification token registration** in `auth-context` reacts
   to the new session and registers automatically — no extra wiring
   needed for OAuth.
@@ -417,11 +424,9 @@ end-to-end):**
    same Supabase callback URL to the OAuth client's authorised
    redirect URIs.
 
-**Native Apple on iOS (App Store-ready):** Apple requires native
-sign-in whenever third-party social sign-in is offered. The web-based
-flow above is the demo path; for production, layer
-`expo-apple-authentication` + Supabase's `signInWithIdToken` on top of
-the same helper — same Supabase user, swappable provider call.
+**iOS entitlement:** `app.json` sets `ios.usesAppleSignIn: true`. Enable
+the Apple provider in Supabase with your Service ID / key; native
+sign-in still needs the same Apple developer configuration.
 
 ### On-device image processing (Spec §7.2 slice)
 
@@ -573,21 +578,13 @@ the same helper — same Supabase user, swappable provider call.
 
 ## What's next
 
-- **Native Apple sign-in** — App Store requirement when Google OAuth ships
-- **Garage vehicle delete** — owner-only with confirmation + cascade rules
-- **Storage cleanup** — remove orphaned cover / receipt / avatar objects on replace
-- **Garage vehicle delete** — owner-only with confirmation + cascade rules
 - **Valuation API** — swap the heuristic for RedBook (AU) / KBB (US)
   when API keys are available; hook stays in `recalc_vehicle_total_spend`
 - **Multi-resolution image variants** — Supabase Edge Function on
-  `mod-photos` bucket events to generate AVIF thumbnails (the
-  client-side single-resize is shipped; the variants story is the next
-  step up)
-- **Native Apple sign-in** (`expo-apple-authentication` +
-  `signInWithIdToken`) — required for App Store builds; web-based
-  Apple OAuth via WebBrowser is already wired
-- **Polish** — OCR fallback for VIN scan (damaged stickers), OCR for
-  receipts
+  `mod-photos` bucket events to generate AVIF thumbnails
+- **Avatar storage cleanup** on profile photo replace
+- **Polish** — OCR fallback for VIN scan (damaged stickers); bulk-delete
+  mod storage when a whole vehicle is removed
 
 ## Conventions
 

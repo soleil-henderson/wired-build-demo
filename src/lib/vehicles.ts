@@ -53,3 +53,12 @@ export async function updateVehicle(
     .eq('id', vehicleId);
   if (error) throw error;
 }
+
+/**
+ * Permanently remove a vehicle the caller owns. Cascades delete mods,
+ * wishlist rows, posts, and ownership history via FK rules. Irreversible.
+ */
+export async function deleteVehicle(vehicleId: string): Promise<void> {
+  const { error } = await supabase.from('vehicles').delete().eq('id', vehicleId);
+  if (error) throw error;
+}

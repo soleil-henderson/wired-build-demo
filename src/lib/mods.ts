@@ -1,5 +1,10 @@
 import { getReceiptSignedUrl } from './receipts';
-import { uploadModPhoto, type UploadedPhoto } from './storage';
+import {
+  deleteStorageObjects,
+  storageKeyFromModPhotoPublicUrl,
+  uploadModPhoto,
+  type UploadedPhoto,
+} from './storage';
 import { supabase } from './supabase';
 import type { Database } from '@/types/database';
 
@@ -118,8 +123,21 @@ export async function getModForEdit(modId: string): Promise<ModForEdit | null> {
 
 /** Remove one attached photo row (owner-only via RLS). */
 export async function deleteModMedia(mediaId: string): Promise<void> {
+  const { data: row } = await supabase
+    .from('media')
+    .select('storage_key, url, kind')
+    .eq('id', mediaId)
+    .maybeSingle();
+
   const { error } = await supabase.from('media').delete().eq('id', mediaId);
   if (error) throw error;
+
+  if (row?.kind === 'photo') {
+    const key =
+      row.storage_key ||
+      (row.url ? storageKeyFromModPhotoPublicUrl(row.url) : null);
+    if (key) await deleteStorageObjects('mod-photos', [key]);
+  }
 }
 
 /**

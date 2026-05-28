@@ -237,6 +237,27 @@ export async function uploadCoverPhoto(input: {
   return pub.publicUrl;
 }
 
+/**
+ * Extract object path from a public mod-photos CDN URL, if we uploaded it.
+ * Returns null for external URLs or unparseable paths.
+ */
+export function storageKeyFromModPhotoPublicUrl(publicUrl: string): string | null {
+  const marker = '/mod-photos/';
+  const idx = publicUrl.indexOf(marker);
+  if (idx < 0) return null;
+  return publicUrl.slice(idx + marker.length).split('?')[0] || null;
+}
+
+/** Best-effort delete — storage cleanup should not block DB updates. */
+export async function deleteStorageObjects(
+  bucket: string,
+  storageKeys: string[]
+): Promise<void> {
+  if (storageKeys.length === 0) return;
+  const { error } = await supabase.storage.from(bucket).remove(storageKeys);
+  if (error) console.warn(`[storage] delete from ${bucket} failed`, error.message);
+}
+
 function cryptoRandomId(): string {
   // expo / RN provides global crypto.randomUUID() on SDK 49+.
   if (typeof globalThis.crypto?.randomUUID === 'function') {

@@ -15,8 +15,12 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/lib/auth-context';
-import { uploadCoverPhoto } from '@/lib/storage';
-import { getVehicleForEdit, updateVehicle } from '@/lib/vehicles';
+import {
+  deleteStorageObjects,
+  storageKeyFromModPhotoPublicUrl,
+  uploadCoverPhoto,
+} from '@/lib/storage';
+import { deleteVehicle, getVehicleForEdit, updateVehicle } from '@/lib/vehicles';
 
 type LocalCover = {
   uri: string;
@@ -132,6 +136,11 @@ export default function EditVehicleScreen() {
 
     setSubmitting(true);
     try {
+      const previousCoverKey =
+        coverUrl && (removeCover || localCover)
+          ? storageKeyFromModPhotoPublicUrl(coverUrl)
+          : null;
+
       let nextCoverUrl = coverUrl;
       if (removeCover) {
         nextCoverUrl = null;
@@ -150,6 +159,10 @@ export default function EditVehicleScreen() {
         is_public: isPublic,
       });
 
+      if (previousCoverKey) {
+        await deleteStorageObjects('mod-photos', [previousCoverKey]);
+      }
+
       router.back();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not save build';
@@ -160,6 +173,38 @@ export default function EditVehicleScreen() {
   }
 
   const previewUri = removeCover ? null : (localCover?.uri ?? coverUrl);
+
+  function handleDelete() {
+    if (!vehicleId) return;
+    Alert.alert(
+      'Delete this build?',
+      `This removes ${title} and every mod, photo, and wishlist item on it. You cannot undo this from the app.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete build',
+          style: 'destructive',
+          onPress: async () => {
+            setSubmitting(true);
+            try {
+              if (coverUrl) {
+                const key = storageKeyFromModPhotoPublicUrl(coverUrl);
+                if (key) await deleteStorageObjects('mod-photos', [key]);
+              }
+              await deleteVehicle(vehicleId);
+              router.replace('/(tabs)/garage');
+            } catch (err) {
+              const message =
+                err instanceof Error ? err.message : 'Could not delete build';
+              Alert.alert('Delete failed', message);
+            } finally {
+              setSubmitting(false);
+            }
+          },
+        },
+      ]
+    );
+  }
 
   if (loading) {
     return (
@@ -270,6 +315,16 @@ export default function EditVehicleScreen() {
               Save changes
             </Text>
           )}
+        </Pressable>
+
+        <Pressable
+          onPress={handleDelete}
+          disabled={submitting}
+          className="mt-6 rounded-xl border border-signal-red/40 py-3 active:bg-ink-900 disabled:opacity-60"
+        >
+          <Text className="text-center text-base font-semibold text-signal-red">
+            Delete build
+          </Text>
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
