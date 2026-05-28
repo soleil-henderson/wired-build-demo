@@ -44,7 +44,7 @@ src/
     auth-context.tsx         Session state + sign-in / sign-up / sign-out
     parts.ts                 searchParts() + submitCustomPart() helpers
     mods.ts                  listVehicleMods() with joined part info + first photo
-    storage.ts               uploadModPhoto() — reads file URI -> uploads to mod-photos bucket
+    storage.ts               uploadModPhoto() — resize + re-encode to JPEG, then uploads to mod-photos bucket
     feed.ts                  listFeed() / getPost() / togglePostLike()
     comments.ts              listComments() + addComment()
     follows.ts               isFollowing / toggleFollow / getFollowCounts
@@ -279,6 +279,26 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   non-sensitive public-mod media, and ownership transfers — so the
   page literally cannot leak a private build.
 
+### On-device image processing (Spec §7.2 slice)
+
+- **Resize + re-encode before upload** — every mod photo runs through
+  `expo-image-manipulator` in `uploadModPhoto`: if the longer edge is
+  over 1920px we downscale (preserving aspect ratio), then re-encode to
+  JPEG at quality 0.85. A typical 5-8MB iPhone HEIC ends up 300-600KB.
+- **EXIF stripped** — re-encoding through ImageManipulator drops the
+  embedded EXIF, including GPS coordinates, so we never accidentally
+  leak where the photo was taken.
+- **Format normalised** — storage keys always end in `.jpg` with
+  `Content-Type: image/jpeg`. The CDN doesn't have to negotiate HEIC
+  support and feed cards render fast on any client (including the web
+  share page).
+- **Actual dimensions persisted** — the `media` row's width / height
+  reflect the resized image, not the picker's original numbers, so
+  downstream layout (aspect-ratio placeholders) is accurate.
+- AVIF + multi-resolution variants are still on the "What's next" list
+  (would need a Supabase Edge Function on bucket events) — the
+  client-side pass above is the 80/20 win without any new infra.
+
 ### Part reviews + affiliate links (Spec §4.7, §8 revenue surface)
 
 - **One review per user per part** — `part_reviews` has a UNIQUE on
@@ -414,9 +434,12 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 - **Valuation API** — populate `vehicles.build_value` server-side
   (Spec §9 Step 6, marketplace credibility)
 - **Trending feed slice scoped to viewer's make** (Spec §4.4 bonus)
-- **Polish** — OCR fallback for VIN scan (damaged stickers), image resizing
-  / AVIF conversion background job (Spec §7.2), OCR for receipts, OAuth
-  (Apple / Google) sign-in
+- **Multi-resolution image variants** — Supabase Edge Function on
+  `mod-photos` bucket events to generate AVIF thumbnails (the
+  client-side single-resize is shipped; the variants story is the next
+  step up)
+- **Polish** — OCR fallback for VIN scan (damaged stickers), OCR for
+  receipts, OAuth (Apple / Google) sign-in
 
 ## Conventions
 

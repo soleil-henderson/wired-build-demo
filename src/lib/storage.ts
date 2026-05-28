@@ -1,8 +1,22 @@
 import { File } from 'expo-file-system';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
 import { supabase } from './supabase';
 
 const MOD_PHOTOS_BUCKET = 'mod-photos';
+
+/**
+ * Cap on the longer edge of an uploaded photo. 1920px is plenty for feed
+ * cards and the build-profile hero; anything bigger is wasted bandwidth.
+ */
+const MAX_EDGE_PX = 1920;
+
+/**
+ * JPEG quality for re-encoded uploads. 0.85 is the visual sweet spot —
+ * indistinguishable from source on mod-photo content, ~5-10x smaller
+ * than the iPhone HEIC original.
+ */
+const JPEG_QUALITY = 0.85;
 
 export type UploadedPhoto = {
   url: string;
@@ -11,39 +25,57 @@ export type UploadedPhoto = {
   height: number | null;
 };
 
-function extensionFor(uri: string, mimeType?: string | null): string {
-  if (mimeType) {
-    if (mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'jpg';
-    if (mimeType.includes('png')) return 'png';
-    if (mimeType.includes('webp')) return 'webp';
-    if (mimeType.includes('heic')) return 'heic';
-    if (mimeType.includes('avif')) return 'avif';
-  }
-  const fromUri = uri.split('?')[0].split('.').pop()?.toLowerCase();
-  if (fromUri && fromUri.length <= 5) return fromUri;
-  return 'jpg';
-}
+/**
+ * Resize + recompress on-device before upload.
+ *
+ * Why: iPhones produce 4-8MB HEIC files per shot. Uploading raw was
+ * killing the Log-a-Mod UX over LTE, and the originals contain EXIF
+ * with GPS coords we don't want to leak. Re-encoding through
+ * expo-image-manipulator strips EXIF as a side effect.
+ *
+ * We only downscale when the longer edge exceeds MAX_EDGE_PX; smaller
+ * inputs get re-encoded in place. Format is normalised to JPEG so the
+ * CDN doesn't have to negotiate HEIC support, and the storage key
+ * always ends in `.jpg`.
+ */
+async function prepareImageForUpload(input: {
+  uri: string;
+  width?: number | null;
+  height?: number | null;
+}): Promise<{ uri: string; width: number; height: number }> {
+  const ctx = ImageManipulator.manipulate(input.uri);
 
-function mimeFor(ext: string): string {
-  switch (ext) {
-    case 'png':
-      return 'image/png';
-    case 'webp':
-      return 'image/webp';
-    case 'heic':
-      return 'image/heic';
-    case 'avif':
-      return 'image/avif';
-    default:
-      return 'image/jpeg';
+  const w = input.width ?? 0;
+  const h = input.height ?? 0;
+  const longest = Math.max(w, h);
+  if (longest > MAX_EDGE_PX) {
+    if (w >= h) {
+      ctx.resize({ width: MAX_EDGE_PX });
+    } else {
+      ctx.resize({ height: MAX_EDGE_PX });
+    }
   }
+
+  const img = await ctx.renderAsync();
+  const result = await img.saveAsync({
+    format: SaveFormat.JPEG,
+    compress: JPEG_QUALITY,
+  });
+
+  return {
+    uri: result.uri,
+    width: result.width,
+    height: result.height,
+  };
 }
 
 /**
  * Upload a single mod photo from a local URI (as returned by
- * expo-image-picker) to the public `mod-photos` bucket.
+ * expo-image-picker) to the public `mod-photos` bucket. The image is
+ * resized + recompressed to JPEG on-device before the network call —
+ * see prepareImageForUpload() for the why.
  *
- * Storage key shape: `<ownerId>/<random-uuid>.<ext>` — the leading owner-id
+ * Storage key shape: `<ownerId>/<random-uuid>.jpg` — the leading owner-id
  * segment is what the bucket policies in migration 0005 check against
  * auth.uid().
  */
@@ -54,17 +86,20 @@ export async function uploadModPhoto(input: {
   width?: number | null;
   height?: number | null;
 }): Promise<UploadedPhoto> {
-  const ext = extensionFor(input.uri, input.mimeType);
-  const contentType = mimeFor(ext);
-  const key = `${input.ownerId}/${cryptoRandomId()}.${ext}`;
+  const prepared = await prepareImageForUpload({
+    uri: input.uri,
+    width: input.width,
+    height: input.height,
+  });
 
-  const file = new File(input.uri);
+  const key = `${input.ownerId}/${cryptoRandomId()}.jpg`;
+  const file = new File(prepared.uri);
   const bytes = await file.arrayBuffer();
 
   const { error } = await supabase.storage
     .from(MOD_PHOTOS_BUCKET)
     .upload(key, bytes, {
-      contentType,
+      contentType: 'image/jpeg',
       cacheControl: '31536000',
       upsert: false,
     });
@@ -76,8 +111,8 @@ export async function uploadModPhoto(input: {
   return {
     url: pub.publicUrl,
     storage_key: key,
-    width: input.width ?? null,
-    height: input.height ?? null,
+    width: prepared.width,
+    height: prepared.height,
   };
 }
 
