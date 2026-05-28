@@ -163,6 +163,15 @@ export default function FeedScreen() {
                 setMode('following');
               }}
             />
+            <ModeTab
+              label="My make"
+              active={mode === 'my-make'}
+              onPress={() => {
+                if (mode === 'my-make') return;
+                setLoading(true);
+                setMode('my-make');
+              }}
+            />
           </View>
         ) : null}
 
@@ -180,6 +189,17 @@ export default function FeedScreen() {
                 <Text className="mt-1 text-ink-300">
                   Tap a username on any post to open their profile and follow
                   them — their next mod will land here.
+                </Text>
+              </>
+            ) : mode === 'my-make' ? (
+              <>
+                <Text className="text-ink-200 text-base font-semibold">
+                  Nothing from your platform yet
+                </Text>
+                <Text className="mt-1 text-ink-300">
+                  Posts here are filtered to the makes in your garage. Add a
+                  vehicle (Garage tab) or check back when someone else logs a
+                  mod on the same platform.
                 </Text>
               </>
             ) : (

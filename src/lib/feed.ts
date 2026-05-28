@@ -39,19 +39,26 @@ export type FeedPost = {
 
 const PAGE_SIZE = 30;
 
-export type FeedMode = 'all' | 'following';
+export type FeedMode = 'all' | 'following' | 'my-make';
 
 /**
  * Reverse-chronological feed of recent public posts (Spec §4.4).
  *
  * - mode='all'        Posts from anyone whose vehicle is public.
  * - mode='following'  Only posts authored by users the viewer follows.
- *   If the viewer is signed out, falls back to 'all'.
+ *   If the viewer has no follows yet, returns [].
+ * - mode='my-make'    Only posts whose vehicle.make matches one of the
+ *   viewer's own garage makes. If the viewer has no vehicles yet,
+ *   returns []. Uses a `!inner` join + foreign-table filter so we
+ *   don't have to round-trip vehicle ids.
  */
 export async function listFeed(
   viewerId: string | null,
   mode: FeedMode = 'all'
 ): Promise<FeedPost[]> {
+  // `!inner` is a no-op for the existing modes (posts.vehicle_id is NOT
+  // NULL) but is required for `my-make` so the foreign-table filter on
+  // vehicle.make actually restricts the parent set.
   let query = supabase
     .from('posts')
     .select(
@@ -61,7 +68,7 @@ export async function listFeed(
         id, handle, display_name, avatar_url,
         subscription_tier, is_identity_verified, is_workshop
       ),
-      vehicle:vehicles!posts_vehicle_id_fkey ( id, year, make, model, nickname ),
+      vehicle:vehicles!posts_vehicle_id_fkey!inner ( id, year, make, model, nickname ),
       mod:mods!posts_mod_id_fkey (
         id, category, cost, install_date, custom_part_name,
         part:parts ( id, brand, name ),
@@ -72,10 +79,19 @@ export async function listFeed(
     .order('created_at', { ascending: false })
     .limit(PAGE_SIZE);
 
-  if (mode === 'following' && viewerId) {
+  if (mode === 'following') {
+    if (!viewerId) return [];
     const followeeIds = await fetchFolloweeIds(viewerId);
     if (followeeIds.length === 0) return [];
     query = query.in('user_id', followeeIds);
+  } else if (mode === 'my-make') {
+    if (!viewerId) return [];
+    const makes = await fetchViewerMakes(viewerId);
+    if (makes.length === 0) return [];
+    // Foreign-table filter via the embedded path. supabase-js threads
+    // this through as `vehicles.make=in.(...)` in the request, which
+    // PostgREST applies as part of the inner join.
+    query = query.in('vehicles.make', makes);
   }
 
   const { data, error } = await query;
@@ -177,6 +193,24 @@ async function fetchFolloweeIds(viewerId: string): Promise<string[]> {
     .eq('follower_id', viewerId);
   if (error) return [];
   return (data ?? []).map((r) => r.followee_id);
+}
+
+/**
+ * Distinct makes from the viewer's own garage. Used to scope the feed to
+ * "vehicles like mine" — a 4WD owner mostly cares about other 4WDs of the
+ * same platform.
+ */
+async function fetchViewerMakes(viewerId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('vehicles')
+    .select('make')
+    .eq('current_owner_id', viewerId);
+  if (error || !data) return [];
+  const set = new Set<string>();
+  for (const row of data) {
+    if (row.make) set.add(row.make);
+  }
+  return [...set];
 }
 
 async function fetchLikedPostIds(

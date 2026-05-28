@@ -193,10 +193,17 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   rendering, self-actions are skipped, and unliking / unfollowing cleans up the
   matching notification. Visiting the inbox marks everything as read; the bell
   in the Feed header shows an unread count.
-- **Feed mode toggle** — segmented "For you" / "Following" control at the top
-  of the Feed. Following-mode lists posts authored by users the viewer follows
-  (one extra round-trip to fetch followee ids); empty state nudges them to
-  follow someone.
+- **Feed mode toggle** — three-segment "For you" / "Following" /
+  "My make" control at the top of the Feed.
+  - **Following** lists posts authored by users the viewer follows
+    (one extra round-trip to fetch followee ids).
+  - **My make** lists posts whose vehicle make matches one of the
+    viewer's garage makes — the spec §4.4 "platform community" slice
+    (Patrol owners see other Patrols). Uses a `vehicles!inner` join
+    so the foreign-table `make=in.(…)` filter restricts the parent
+    set, no vehicle-id round-trip needed.
+  Each mode has its own empty state nudging the right next action
+  (follow someone, add a vehicle to your garage, etc.).
 
 ### Step 3 — Plan / Wishlist (Spec §9 Step 3)
 
@@ -433,7 +440,6 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   from the dashboard plate; biggest Step 6 win for daily UX
 - **Valuation API** — populate `vehicles.build_value` server-side
   (Spec §9 Step 6, marketplace credibility)
-- **Trending feed slice scoped to viewer's make** (Spec §4.4 bonus)
 - **Multi-resolution image variants** — Supabase Edge Function on
   `mod-photos` bucket events to generate AVIF thumbnails (the
   client-side single-resize is shipped; the variants story is the next
