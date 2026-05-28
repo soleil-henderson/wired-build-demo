@@ -344,7 +344,18 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 - **Privacy** — receipts are owner-readable only (RLS + non-public bucket).
   They never appear on the feed or public build page; mod photos stay separate.
 - **Preview on edit** — signed URLs (1h) for the owner to verify the scan.
-  OCR to pre-fill cost is listed under What's next.
+- **Receipt OCR (cost hint)** — `expo-text-extractor` (ML Kit / Apple Vision)
+  runs on-device when you attach a receipt and cost is still empty.
+  `receipt-parse.ts` picks the line that looks like TOTAL / AMOUNT DUE;
+  low-confidence guesses flag **Approximate cost**. Requires a dev build
+  on device (not web); fails open to manual entry.
+
+### Add vehicle visibility
+
+- **Add vehicle** — Public / Private toggle before submit (defaults to
+  **Public**, matching the DB default). Private builds hide the share link
+  until you flip visibility on the build profile.
+- **Garage cards** — small **Public** / **Private** badge on each vehicle.
 
 ### Vehicle editing
 
@@ -562,7 +573,9 @@ the same helper — same Supabase user, swappable provider call.
 
 ## What's next
 
-- **Receipt OCR** — extract total / supplier from attached receipt images
+- **Native Apple sign-in** — App Store requirement when Google OAuth ships
+- **Garage vehicle delete** — owner-only with confirmation + cascade rules
+- **Storage cleanup** — remove orphaned cover / receipt / avatar objects on replace
 - **Garage vehicle delete** — owner-only with confirmation + cascade rules
 - **Valuation API** — swap the heuristic for RedBook (AU) / KBB (US)
   when API keys are available; hook stays in `recalc_vehicle_total_spend`

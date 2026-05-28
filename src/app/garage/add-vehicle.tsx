@@ -26,6 +26,7 @@ export default function AddVehicleScreen() {
   const [model, setModel] = useState('');
   const [trim, setTrim] = useState('');
   const [nickname, setNickname] = useState('');
+  const [isPublic, setIsPublic] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [decoding, setDecoding] = useState(false);
   const [decodedVin, setDecodedVin] = useState<string | null>(null);
@@ -108,6 +109,7 @@ export default function AddVehicleScreen() {
       model: model.trim(),
       trim: trim.trim() || null,
       nickname: nickname.trim() || null,
+      is_public: isPublic,
       ownership_chain: [
         { owner_id: session.user.id, started_at: new Date().toISOString() },
       ],
@@ -237,6 +239,49 @@ export default function AddVehicleScreen() {
               placeholderTextColor="#5A6373"
               className="rounded-xl bg-ink-800 px-4 py-3 text-white"
             />
+          </Field>
+
+          <Field label="Visibility">
+            <View className="flex-row gap-2">
+              <Pressable
+                onPress={() => setIsPublic(true)}
+                className={`flex-1 rounded-xl border px-4 py-3 ${
+                  isPublic
+                    ? 'border-accent bg-accent/15'
+                    : 'border-ink-700 bg-ink-900'
+                }`}
+              >
+                <Text
+                  className={`text-center font-semibold ${
+                    isPublic ? 'text-accent' : 'text-ink-200'
+                  }`}
+                >
+                  Public
+                </Text>
+                <Text className="mt-1 text-center text-xs text-ink-300">
+                  Share link when you&apos;re ready
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setIsPublic(false)}
+                className={`flex-1 rounded-xl border px-4 py-3 ${
+                  !isPublic
+                    ? 'border-accent bg-accent/15'
+                    : 'border-ink-700 bg-ink-900'
+                }`}
+              >
+                <Text
+                  className={`text-center font-semibold ${
+                    !isPublic ? 'text-accent' : 'text-ink-200'
+                  }`}
+                >
+                  Private
+                </Text>
+                <Text className="mt-1 text-center text-xs text-ink-300">
+                  Only you until you change it
+                </Text>
+              </Pressable>
+            </View>
           </Field>
         </View>
 

@@ -16,6 +16,7 @@ import {
 
 import { useAuth } from '@/lib/auth-context';
 import { getPartById, searchParts, submitCustomPart, type Part } from '@/lib/parts';
+import { extractReceiptCostFromImage } from '@/lib/receipt-ocr';
 import { attachReceiptToMod } from '@/lib/receipts';
 import { uploadModPhoto, type UploadedPhoto } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
@@ -84,6 +85,8 @@ export default function LogNewScreen() {
   // Photo state (Spec §4.1 step 1 — open camera/library, up to 8, or skip)
   const [photos, setPhotos] = useState<PendingPhoto[]>([]);
   const [receipt, setReceipt] = useState<PendingReceipt | null>(null);
+  const [receiptCostHint, setReceiptCostHint] = useState<string | null>(null);
+  const [scanningReceipt, setScanningReceipt] = useState(false);
 
   // Part picker state
   const [partQuery, setPartQuery] = useState('');
@@ -223,6 +226,27 @@ export default function LogNewScreen() {
       width: asset.width ?? null,
       height: asset.height ?? null,
     });
+    setReceiptCostHint(null);
+
+    if (!cost.trim()) {
+      setScanningReceipt(true);
+      try {
+        const parsed = await extractReceiptCostFromImage(asset.uri);
+        if (parsed) {
+          setCost(String(parsed.amount));
+          setCostIsApproximate(parsed.confidence === 'low');
+          setReceiptCostHint(
+            parsed.confidence === 'high'
+              ? `Detected $${parsed.amount.toLocaleString()} from receipt — review before saving.`
+              : `Guessed $${parsed.amount.toLocaleString()} from receipt — double-check the total.`
+          );
+        }
+      } catch {
+        // OCR unavailable or failed — manual entry still works.
+      } finally {
+        setScanningReceipt(false);
+      }
+    }
   }
 
   function showReceiptPicker() {
@@ -629,7 +653,10 @@ export default function LogNewScreen() {
               resizeMode="cover"
             />
             <Pressable
-              onPress={() => setReceipt(null)}
+              onPress={() => {
+                setReceipt(null);
+                setReceiptCostHint(null);
+              }}
               className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-ink-950 border border-ink-700"
             >
               <Text className="text-xs font-bold text-white">×</Text>
@@ -643,10 +670,20 @@ export default function LogNewScreen() {
             <Text className="font-semibold text-ink-200">+ Attach receipt</Text>
           </Pressable>
         )}
-        <Text className="mt-2 text-xs text-ink-300">
-          Stored in your private vault — never shown on the public feed. OCR to
-          pre-fill cost is on the roadmap.
-        </Text>
+        {scanningReceipt ? (
+          <View className="mt-2 flex-row items-center gap-2">
+            <ActivityIndicator color="#F5A524" size="small" />
+            <Text className="text-xs text-ink-300">Reading receipt…</Text>
+          </View>
+        ) : receiptCostHint ? (
+          <Text className="mt-2 text-xs text-signal-green">{receiptCostHint}</Text>
+        ) : (
+          <Text className="mt-2 text-xs text-ink-300">
+            Stored privately — never on the public feed. We try to read the
+            total when cost is empty (device OCR; may need a dev build, not Expo
+            Go web).
+          </Text>
+        )}
 
         {/* ---- Installer ---- */}
         <SectionHeading>Who installed it</SectionHeading>

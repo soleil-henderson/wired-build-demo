@@ -124,9 +124,20 @@ export default function GarageScreen() {
                   {v.year} · {v.make} · {v.model}
                   {v.trim ? ` · ${v.trim}` : ''}
                 </Text>
-                <Text className="mt-1 text-xl font-bold text-white">
-                  {v.nickname ?? `${v.make} ${v.model}`}
-                </Text>
+                <View className="mt-1 flex-row items-center gap-2">
+                  <Text className="flex-1 text-xl font-bold text-white">
+                    {v.nickname ?? `${v.make} ${v.model}`}
+                  </Text>
+                  <Text
+                    className={`rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                      v.is_public
+                        ? 'bg-accent/20 text-accent'
+                        : 'bg-ink-800 text-ink-300'
+                    }`}
+                  >
+                    {v.is_public ? 'Public' : 'Private'}
+                  </Text>
+                </View>
                 <Text className="mt-2 font-mono text-xs text-ink-300">
                   VIN ····{v.vin.slice(-6)}
                 </Text>
