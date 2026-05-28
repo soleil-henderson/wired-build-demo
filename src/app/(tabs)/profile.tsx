@@ -58,15 +58,23 @@ export default function ProfileScreen() {
           <Stat label="Following" value={String(counts.following)} />
         </View>
 
-        {/* View as others see you */}
-        {profile?.handle ? (
+        {/* Actions */}
+        <View className="mt-6 flex-row flex-wrap gap-2">
+          {profile?.handle ? (
+            <Pressable
+              onPress={() => router.push(`/user/${profile.handle}`)}
+              className="rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
+            >
+              <Text className="font-semibold text-ink-950">View public profile</Text>
+            </Pressable>
+          ) : null}
           <Pressable
-            onPress={() => router.push(`/user/${profile.handle}`)}
-            className="mt-6 self-start rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
+            onPress={() => router.push('/wishlist')}
+            className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
           >
-            <Text className="font-semibold text-ink-950">View public profile</Text>
+            <Text className="font-semibold text-ink-200">My wishlist</Text>
           </Pressable>
-        ) : null}
+        </View>
 
         <View className="mt-8 rounded-2xl border border-ink-700 bg-ink-900 p-6">
           <Text className="text-xs uppercase tracking-wider text-ink-300">Subscription</Text>

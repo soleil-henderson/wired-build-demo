@@ -29,6 +29,7 @@ src/
     post/[id].tsx            Post detail: post card + comment thread + composer
     user/[handle].tsx        Public user profile: hero, stats, follow, garage
     notifications.tsx        Inbox: follows / reactions / comments, mark-all-read on open
+    wishlist/index.tsx       User's complete wishlist grouped by build + General
     wishlist/new.tsx         Quick-add form for planned parts (?vehicleId= optional)
   lib/
     supabase.ts              Typed Supabase client (uses AsyncStorage for sessions)
@@ -41,7 +42,8 @@ src/
     follows.ts               isFollowing / toggleFollow / getFollowCounts
     users.ts                 getUserByHandle / getUserById / listUserVehicles
     notifications.ts         listNotifications / getUnreadCount / markAllRead
-    wishlist.ts              listVehicleWishlist / addWishlistItem / removeWishlistItem
+    wishlist.ts              listVehicleWishlist / listUserWishlist / addWishlistItem
+    explore.ts               searchUsers / searchPartsForExplore / listPopularParts / listTrendingPosts
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
 supabase/
@@ -192,13 +194,33 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   (flagged approximate) and notes. The wishlist row is deleted only after
   the mod insert and photo uploads succeed, so a save failure leaves the
   wishlist intact.
+- **My wishlist** at `/wishlist` — top-level screen that lists every
+  wishlist item the signed-in user owns, grouped by vehicle with a
+  separate "General" group for items not yet assigned to a build. Reached
+  from the Profile tab. Each row keeps the same **Log it** / **Remove**
+  affordances as the per-vehicle wishlist; the **Log it** button is hidden
+  for General items (no vehicle to log against yet).
+
+### Explore tab (Spec §4.7)
+
+- **Search bar** at the top: debounced live search across people (by handle
+  or display name) and parts (by brand or name). Results are split into
+  "People" and "Parts" sections; tapping a person opens their public
+  profile, tapping a part offers **+ Wishlist** straight from the row.
+- **Popular parts** — top 12 parts in the catalogue by `install_count`,
+  with a one-tap **+ Wishlist** that saves to the user's General wishlist
+  (since there's no vehicle context on Explore).
+- **Trending this month** — top 6 public posts in the last 30 days,
+  ordered by reaction count then recency. Tap-through opens the full post
+  detail with comments.
 
 ## What's next
 
-- **Trending feed slice** scoped to the viewer's make (Spec §4.4 bonus)
-- **General wishlist** — a tab outside any specific vehicle profile for
-  cross-build planning (the schema already supports `vehicle_id = null`)
-- **Explore tab** — populate with the parts catalogue + popular-mods-by-vehicle
+- **Part detail page** — drill into a popular part to see who's installed it,
+  reviews, average spend, and an affiliate link
+- **Trending feed slice scoped to viewer's make** (Spec §4.4 bonus)
+- **Step 5** — Subscriptions, badges, verification, public web share pages
+- **Step 6** — VIN scanning, ownership transfer with notarisation, valuation API
 - **Step 3** — Plan / wishlist tables and screens
 - **Step 5** — Subscriptions, badges, public web share pages
 - **Step 6** — Cross-app hooks, VIN scanning, valuation API, search index
