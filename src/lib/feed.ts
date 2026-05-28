@@ -37,25 +37,40 @@ export type FeedPost = {
   liked_by_me: boolean;
 };
 
-const PAGE_SIZE = 30;
+export const FEED_PAGE_SIZE = 20;
 
 export type FeedMode = 'all' | 'following' | 'my-make';
+
+export type FeedPage = {
+  posts: FeedPost[];
+  /**
+   * Pass this back into the next `listFeed` call to get the following
+   * page. `null` means we've reached the end.
+   */
+  nextCursor: string | null;
+};
 
 /**
  * Reverse-chronological feed of recent public posts (Spec §4.4).
  *
  * - mode='all'        Posts from anyone whose vehicle is public.
  * - mode='following'  Only posts authored by users the viewer follows.
- *   If the viewer has no follows yet, returns [].
+ *   If the viewer has no follows yet, returns an empty page.
  * - mode='my-make'    Only posts whose vehicle.make matches one of the
  *   viewer's own garage makes. If the viewer has no vehicles yet,
- *   returns []. Uses a `!inner` join + foreign-table filter so we
- *   don't have to round-trip vehicle ids.
+ *   returns an empty page. Uses a `!inner` join + foreign-table filter
+ *   so we don't have to round-trip vehicle ids.
+ *
+ * Pagination is keyset on `created_at` — we ask for rows strictly older
+ * than the cursor and return the oldest one in the page as the next
+ * cursor. Keyset is stable under new inserts (unlike offset), which is
+ * critical when fresh mods land in the feed every few seconds.
  */
 export async function listFeed(
   viewerId: string | null,
-  mode: FeedMode = 'all'
-): Promise<FeedPost[]> {
+  mode: FeedMode = 'all',
+  cursor: string | null = null
+): Promise<FeedPage> {
   // `!inner` is a no-op for the existing modes (posts.vehicle_id is NOT
   // NULL) but is required for `my-make` so the foreign-table filter on
   // vehicle.make actually restricts the parent set.
@@ -77,17 +92,21 @@ export async function listFeed(
     `
     )
     .order('created_at', { ascending: false })
-    .limit(PAGE_SIZE);
+    .limit(FEED_PAGE_SIZE);
+
+  if (cursor) {
+    query = query.lt('created_at', cursor);
+  }
 
   if (mode === 'following') {
-    if (!viewerId) return [];
+    if (!viewerId) return { posts: [], nextCursor: null };
     const followeeIds = await fetchFolloweeIds(viewerId);
-    if (followeeIds.length === 0) return [];
+    if (followeeIds.length === 0) return { posts: [], nextCursor: null };
     query = query.in('user_id', followeeIds);
   } else if (mode === 'my-make') {
-    if (!viewerId) return [];
+    if (!viewerId) return { posts: [], nextCursor: null };
     const makes = await fetchViewerMakes(viewerId);
-    if (makes.length === 0) return [];
+    if (makes.length === 0) return { posts: [], nextCursor: null };
     // Foreign-table filter via the embedded path. supabase-js threads
     // this through as `vehicles.make=in.(...)` in the request, which
     // PostgREST applies as part of the inner join.
@@ -102,7 +121,7 @@ export async function listFeed(
   const postIds = rows.map((r) => r.id);
   const likedSet = viewerId ? await fetchLikedPostIds(viewerId, postIds) : new Set<string>();
 
-  return rows
+  const posts = rows
     .filter((r) => r.author && r.vehicle) // RLS should already guarantee these
     .map((r) => ({
       id: r.id,
@@ -126,6 +145,15 @@ export async function listFeed(
         : null,
       liked_by_me: likedSet.has(r.id),
     }));
+
+  // A short page means we've hit the end. Otherwise the last item's
+  // timestamp is the cursor for the next request.
+  const nextCursor =
+    rows.length === FEED_PAGE_SIZE && posts.length > 0
+      ? posts[posts.length - 1].created_at
+      : null;
+
+  return { posts, nextCursor };
 }
 
 /**

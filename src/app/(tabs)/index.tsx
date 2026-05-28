@@ -3,10 +3,10 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   Image,
   Pressable,
   RefreshControl,
-  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -26,18 +26,22 @@ export default function FeedScreen() {
   const { session } = useAuth();
   const router = useRouter();
   const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
   const [mode, setMode] = useState<FeedMode>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const load = useCallback(async () => {
+  // Fresh load: page 1, no cursor. Also refreshes the bell count.
+  const loadFresh = useCallback(async () => {
     try {
-      const [data, unreadCount] = await Promise.all([
-        listFeed(session?.user.id ?? null, mode),
+      const [page, unreadCount] = await Promise.all([
+        listFeed(session?.user.id ?? null, mode, null),
         session ? getUnreadCount(session.user.id) : Promise.resolve(0),
       ]);
-      setPosts(data);
+      setPosts(page.posts);
+      setCursor(page.nextCursor);
       setUnread(unreadCount);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load feed';
@@ -48,10 +52,33 @@ export default function FeedScreen() {
     }
   }, [session, mode]);
 
+  // Subsequent pages. No-op if we've already reached the end (cursor null)
+  // or are mid-fetch.
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !cursor) return;
+    setLoadingMore(true);
+    try {
+      const page = await listFeed(session?.user.id ?? null, mode, cursor);
+      setPosts((prev) => {
+        // Defend against the same post landing twice (e.g. a new mod
+        // posted between page 1 and 2 would shift things).
+        const seen = new Set(prev.map((p) => p.id));
+        const fresh = page.posts.filter((p) => !seen.has(p.id));
+        return [...prev, ...fresh];
+      });
+      setCursor(page.nextCursor);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not load more';
+      Alert.alert('Load more failed', message);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [cursor, loadingMore, session, mode]);
+
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      loadFresh();
+    }, [loadFresh])
   );
 
   async function handleToggleLike(post: FeedPost) {
@@ -99,132 +126,148 @@ export default function FeedScreen() {
     }
   }
 
+  function switchMode(next: FeedMode) {
+    if (next === mode) return;
+    setLoading(true);
+    setPosts([]);
+    setCursor(null);
+    setMode(next);
+  }
+
+  const ListHeader = (
+    <View>
+      <View className="flex-row items-start justify-between px-6 pt-6">
+        <View className="flex-1 pr-4">
+          <Text className="text-accent text-xs font-semibold tracking-[3px]">FEED</Text>
+          <Text className="mt-1 text-3xl font-bold text-white">
+            What&apos;s being built
+          </Text>
+          <Text className="mt-2 text-ink-300">
+            Recent mods logged across the network.
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => {
+            router.push('/notifications');
+            setUnread(0);
+          }}
+          className="mt-1 h-10 w-10 items-center justify-center rounded-full bg-ink-900 active:bg-ink-800"
+        >
+          <Text className="text-xl text-ink-200">🔔</Text>
+          {unread > 0 ? (
+            <View className="absolute -right-1 -top-1 min-w-[18px] items-center justify-center rounded-full bg-accent px-1">
+              <Text className="text-[10px] font-bold text-ink-950">
+                {unread > 99 ? '99+' : unread}
+              </Text>
+            </View>
+          ) : null}
+        </Pressable>
+      </View>
+
+      {session ? (
+        <View className="mx-6 mt-5 mb-1 flex-row self-start rounded-xl bg-ink-900 p-1">
+          <ModeTab label="For you" active={mode === 'all'} onPress={() => switchMode('all')} />
+          <ModeTab
+            label="Following"
+            active={mode === 'following'}
+            onPress={() => switchMode('following')}
+          />
+          <ModeTab
+            label="My make"
+            active={mode === 'my-make'}
+            onPress={() => switchMode('my-make')}
+          />
+        </View>
+      ) : null}
+    </View>
+  );
+
+  const ListEmpty = loading ? (
+    <View className="mt-12 items-center">
+      <ActivityIndicator color="#F5A524" />
+    </View>
+  ) : (
+    <View className="mx-6 mt-6 rounded-2xl border border-ink-700 bg-ink-900 p-6">
+      {mode === 'following' ? (
+        <>
+          <Text className="text-ink-200 text-base font-semibold">
+            Nothing from your follows yet
+          </Text>
+          <Text className="mt-1 text-ink-300">
+            Tap a username on any post to open their profile and follow them —
+            their next mod will land here.
+          </Text>
+        </>
+      ) : mode === 'my-make' ? (
+        <>
+          <Text className="text-ink-200 text-base font-semibold">
+            Nothing from your platform yet
+          </Text>
+          <Text className="mt-1 text-ink-300">
+            Posts here are filtered to the makes in your garage. Add a vehicle
+            (Garage tab) or check back when someone else logs a mod on the same
+            platform.
+          </Text>
+        </>
+      ) : (
+        <>
+          <Text className="text-ink-200 text-base font-semibold">
+            Quiet around here
+          </Text>
+          <Text className="mt-1 text-ink-300">
+            No public mods yet. Log one and it&apos;ll show up here for everyone.
+          </Text>
+        </>
+      )}
+    </View>
+  );
+
+  const ListFooter =
+    loadingMore ? (
+      <View className="py-6 items-center">
+        <ActivityIndicator color="#F5A524" />
+      </View>
+    ) : !cursor && posts.length > 0 ? (
+      <View className="py-6 items-center">
+        <Text className="text-xs text-ink-300">You&apos;re all caught up.</Text>
+      </View>
+    ) : null;
+
   return (
     <SafeAreaView className="flex-1 bg-ink-950" edges={['top']}>
-      <ScrollView
-        contentContainerClassName="pb-24"
+      <FlatList
+        data={posts}
+        keyExtractor={(p) => p.id}
+        renderItem={({ item }) => (
+          <View className="px-3 pb-3 pt-1">
+            <PostCard
+              post={item}
+              onToggleLike={() => handleToggleLike(item)}
+              onOpenPost={() => router.push(`/post/${item.id}`)}
+              onOpenAuthor={() => router.push(`/user/${item.author.handle}`)}
+            />
+          </View>
+        )}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={ListEmpty}
+        ListFooterComponent={ListFooter}
+        // Trigger loadMore well before the user actually reaches the
+        // bottom — keeps scrolling feeling endless on a fast connection.
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.6}
         refreshControl={
           <RefreshControl
             tintColor="#F5A524"
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
-              load();
+              setCursor(null);
+              loadFresh();
             }}
           />
         }
-      >
-        <View className="flex-row items-start justify-between px-6 pt-6">
-          <View className="flex-1 pr-4">
-            <Text className="text-accent text-xs font-semibold tracking-[3px]">FEED</Text>
-            <Text className="mt-1 text-3xl font-bold text-white">
-              What&apos;s being built
-            </Text>
-            <Text className="mt-2 text-ink-300">
-              Recent mods logged across the network.
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => {
-              router.push('/notifications');
-              setUnread(0);
-            }}
-            className="mt-1 h-10 w-10 items-center justify-center rounded-full bg-ink-900 active:bg-ink-800"
-          >
-            <Text className="text-xl text-ink-200">🔔</Text>
-            {unread > 0 ? (
-              <View className="absolute -right-1 -top-1 min-w-[18px] items-center justify-center rounded-full bg-accent px-1">
-                <Text className="text-[10px] font-bold text-ink-950">
-                  {unread > 99 ? '99+' : unread}
-                </Text>
-              </View>
-            ) : null}
-          </Pressable>
-        </View>
-
-        {/* Mode toggle */}
-        {session ? (
-          <View className="mx-6 mt-5 flex-row self-start rounded-xl bg-ink-900 p-1">
-            <ModeTab
-              label="For you"
-              active={mode === 'all'}
-              onPress={() => {
-                if (mode === 'all') return;
-                setLoading(true);
-                setMode('all');
-              }}
-            />
-            <ModeTab
-              label="Following"
-              active={mode === 'following'}
-              onPress={() => {
-                if (mode === 'following') return;
-                setLoading(true);
-                setMode('following');
-              }}
-            />
-            <ModeTab
-              label="My make"
-              active={mode === 'my-make'}
-              onPress={() => {
-                if (mode === 'my-make') return;
-                setLoading(true);
-                setMode('my-make');
-              }}
-            />
-          </View>
-        ) : null}
-
-        {loading ? (
-          <View className="mt-12 items-center">
-            <ActivityIndicator color="#F5A524" />
-          </View>
-        ) : posts.length === 0 ? (
-          <View className="mx-6 mt-8 rounded-2xl border border-ink-700 bg-ink-900 p-6">
-            {mode === 'following' ? (
-              <>
-                <Text className="text-ink-200 text-base font-semibold">
-                  Nothing from your follows yet
-                </Text>
-                <Text className="mt-1 text-ink-300">
-                  Tap a username on any post to open their profile and follow
-                  them — their next mod will land here.
-                </Text>
-              </>
-            ) : mode === 'my-make' ? (
-              <>
-                <Text className="text-ink-200 text-base font-semibold">
-                  Nothing from your platform yet
-                </Text>
-                <Text className="mt-1 text-ink-300">
-                  Posts here are filtered to the makes in your garage. Add a
-                  vehicle (Garage tab) or check back when someone else logs a
-                  mod on the same platform.
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text className="text-ink-200 text-base font-semibold">Quiet around here</Text>
-                <Text className="mt-1 text-ink-300">
-                  No public mods yet. Log one and it&apos;ll show up here for everyone.
-                </Text>
-              </>
-            )}
-          </View>
-        ) : (
-          <View className="mt-4 gap-3 px-3">
-            {posts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                onToggleLike={() => handleToggleLike(post)}
-                onOpenPost={() => router.push(`/post/${post.id}`)}
-                onOpenAuthor={() => router.push(`/user/${post.author.handle}`)}
-              />
-            ))}
-          </View>
-        )}
-      </ScrollView>
+        contentContainerStyle={{ paddingBottom: 96 }}
+      />
     </SafeAreaView>
   );
 }

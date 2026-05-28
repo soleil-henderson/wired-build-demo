@@ -46,7 +46,7 @@ src/
     parts.ts                 searchParts() + submitCustomPart() helpers
     mods.ts                  listVehicleMods() with joined part info + first photo
     storage.ts               uploadModPhoto() — resize + re-encode to JPEG, then uploads to mod-photos bucket
-    feed.ts                  listFeed() / getPost() / togglePostLike()
+    feed.ts                  listFeed (keyset paginated) / getPost / togglePostLike
     comments.ts              listComments() + addComment()
     follows.ts               isFollowing / toggleFollow / getFollowCounts
     users.ts                 getUserByHandle / getUserById / listUserVehicles
@@ -195,6 +195,15 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   rendering, self-actions are skipped, and unliking / unfollowing cleans up the
   matching notification. Visiting the inbox marks everything as read; the bell
   in the Feed header shows an unread count.
+- **Infinite-scroll feed** — Feed is a virtualised `FlatList` with
+  keyset pagination on `posts.created_at` (page size 20). `listFeed`
+  returns `{ posts, nextCursor }`; the screen appends pages as you
+  scroll, deduping by post id in case fresh mods land between pages.
+  Keyset over offset is intentional — it stays stable under new
+  inserts, which is critical when public mods auto-post via trigger
+  every few seconds. Footer shows a spinner during the in-flight
+  request and switches to "You're all caught up." when `nextCursor`
+  is null.
 - **Feed mode toggle** — three-segment "For you" / "Following" /
   "My make" control at the top of the Feed.
   - **Following** lists posts authored by users the viewer follows
@@ -488,8 +497,6 @@ the same helper — same Supabase user, swappable provider call.
 - **Native Apple sign-in** (`expo-apple-authentication` +
   `signInWithIdToken`) — required for App Store builds; web-based
   Apple OAuth via WebBrowser is already wired
-- **Pagination on the Feed** — cursor-based on `created_at`, replacing
-  the current 30-row hard cap
 - **Polish** — OCR fallback for VIN scan (damaged stickers), OCR for
   receipts
 
