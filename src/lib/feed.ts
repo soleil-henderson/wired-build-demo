@@ -1,5 +1,15 @@
 import { supabase } from './supabase';
-import type { Database } from '@/types/database';
+import type { Database, SubscriptionTier } from '@/types/database';
+
+export type FeedAuthor = {
+  id: string;
+  handle: string;
+  display_name: string;
+  avatar_url: string | null;
+  subscription_tier: SubscriptionTier;
+  is_identity_verified: boolean;
+  is_workshop: boolean;
+};
 
 export type FeedPost = {
   id: string;
@@ -7,12 +17,7 @@ export type FeedPost = {
   reaction_count: number;
   comment_count: number;
   created_at: string;
-  author: {
-    id: string;
-    handle: string;
-    display_name: string;
-    avatar_url: string | null;
-  };
+  author: FeedAuthor;
   vehicle: {
     id: string;
     year: number;
@@ -52,7 +57,10 @@ export async function listFeed(
     .select(
       `
       id, body, reaction_count, comment_count, created_at,
-      author:users!posts_user_id_fkey ( id, handle, display_name, avatar_url ),
+      author:users!posts_user_id_fkey (
+        id, handle, display_name, avatar_url,
+        subscription_tier, is_identity_verified, is_workshop
+      ),
       vehicle:vehicles!posts_vehicle_id_fkey ( id, year, make, model, nickname ),
       mod:mods!posts_mod_id_fkey (
         id, category, cost, install_date, custom_part_name,
@@ -117,7 +125,10 @@ export async function getPost(
     .select(
       `
       id, body, reaction_count, comment_count, created_at,
-      author:users!posts_user_id_fkey ( id, handle, display_name, avatar_url ),
+      author:users!posts_user_id_fkey (
+        id, handle, display_name, avatar_url,
+        subscription_tier, is_identity_verified, is_workshop
+      ),
       vehicle:vehicles!posts_vehicle_id_fkey ( id, year, make, model, nickname ),
       mod:mods!posts_mod_id_fkey (
         id, category, cost, install_date, custom_part_name,
@@ -225,14 +236,7 @@ type RawFeedRow = {
   reaction_count: number;
   comment_count: number;
   created_at: string;
-  author:
-    | {
-        id: string;
-        handle: string;
-        display_name: string;
-        avatar_url: string | null;
-      }
-    | null;
+  author: FeedAuthor | null;
   vehicle:
     | {
         id: string;

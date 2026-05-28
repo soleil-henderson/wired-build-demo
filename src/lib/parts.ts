@@ -32,6 +32,9 @@ export type PartInstall = {
     handle: string;
     display_name: string;
     avatar_url: string | null;
+    subscription_tier: Database['public']['Tables']['users']['Row']['subscription_tier'];
+    is_identity_verified: boolean;
+    is_workshop: boolean;
   } | null;
 };
 
@@ -136,7 +139,10 @@ export async function listPartInstalls(
       id, cost, cost_is_approximate, install_date, date_is_approximate, installer_type,
       vehicle:vehicles!mods_vehicle_id_fkey (
         id, year, make, model, nickname,
-        owner:users!vehicles_current_owner_id_fkey ( id, handle, display_name, avatar_url )
+        owner:users!vehicles_current_owner_id_fkey (
+          id, handle, display_name, avatar_url,
+          subscription_tier, is_identity_verified, is_workshop
+        )
       ),
       media ( url, kind, is_sensitive )
     `
@@ -167,6 +173,9 @@ export async function listPartInstalls(
                 handle: string;
                 display_name: string;
                 avatar_url: string | null;
+                subscription_tier: Database['public']['Tables']['users']['Row']['subscription_tier'];
+                is_identity_verified: boolean;
+                is_workshop: boolean;
               }
             | null;
         }

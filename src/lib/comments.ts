@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import type { SubscriptionTier } from '@/types/database';
 
 export type CommentWithAuthor = {
   id: string;
@@ -11,6 +12,9 @@ export type CommentWithAuthor = {
     handle: string;
     display_name: string;
     avatar_url: string | null;
+    subscription_tier: SubscriptionTier;
+    is_identity_verified: boolean;
+    is_workshop: boolean;
   };
 };
 
@@ -20,7 +24,10 @@ export async function listComments(postId: string): Promise<CommentWithAuthor[]>
     .select(
       `
       id, post_id, parent_comment_id, body, created_at,
-      author:users!comments_user_id_fkey ( id, handle, display_name, avatar_url )
+      author:users!comments_user_id_fkey (
+        id, handle, display_name, avatar_url,
+        subscription_tier, is_identity_verified, is_workshop
+      )
     `
     )
     .eq('post_id', postId)

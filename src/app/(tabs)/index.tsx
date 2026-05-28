@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { UserBadges } from '@/components/UserBadges';
 import { useAuth } from '@/lib/auth-context';
 import {
   listFeed,
@@ -244,13 +245,15 @@ function PostCard({
             </View>
           )}
           <View className="flex-1">
-            <Text className="font-semibold text-white" numberOfLines={1}>
-              {post.author.display_name}{' '}
-              <Text className="font-normal text-ink-300">@{post.author.handle}</Text>
-            </Text>
+            <View className="flex-row items-center gap-1.5">
+              <Text className="font-semibold text-white" numberOfLines={1}>
+                {post.author.display_name}
+              </Text>
+              <UserBadges user={post.author} />
+            </View>
             <Text className="text-xs text-ink-300" numberOfLines={1}>
-              {vehicleTitle} · {post.vehicle.year} {post.vehicle.make}{' '}
-              {post.vehicle.model}
+              @{post.author.handle} · {vehicleTitle} · {post.vehicle.year}{' '}
+              {post.vehicle.make} {post.vehicle.model}
             </Text>
           </View>
         </View>

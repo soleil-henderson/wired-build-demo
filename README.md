@@ -30,8 +30,12 @@ src/
     user/[handle].tsx        Public user profile: hero, stats, follow, garage
     notifications.tsx        Inbox: follows / reactions / comments, mark-all-read on open
     part/[id].tsx            Part detail: stats, recent installs, +Wishlist
+    profile/subscription.tsx Tier comparison (Free / Member / Pro / Workshop)
+    profile/verify.tsx       Identity verification placeholder (Stripe Identity / Onfido)
     wishlist/index.tsx       User's complete wishlist grouped by build + General
     wishlist/new.tsx         Quick-add form for planned parts (?vehicleId= optional)
+  components/
+    UserBadges.tsx           Verified / Pro / Workshop pills, two sizes
   lib/
     supabase.ts              Typed Supabase client (uses AsyncStorage for sessions)
     auth-context.tsx         Session state + sign-in / sign-up / sign-out
@@ -221,6 +225,24 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   by tapping a popular-parts row, a part label on the post detail, or any
   catalogued part in a build profile's mod timeline. **+ Save to wishlist**
   saves to the user's General wishlist with one tap.
+
+### Step 5 — Subscription tiers + identity (Spec §9 Step 5)
+
+- **Status badges everywhere** — three small pills (`✓ Verified`, `PRO`,
+  `WORKSHOP`) shown next to the user's name on the profile hero, Profile
+  tab, Feed cards, post detail, comments, Explore people search, and the
+  part detail's recent installs. Source-of-truth is the user row:
+  `is_identity_verified`, `subscription_tier` and `is_workshop` — all
+  server-controlled, never trusted from the client.
+- **Subscription tiers** at `/profile/subscription` — Free / Member / Pro /
+  Workshop with their perks side-by-side and a placeholder upgrade button
+  per tier. The Alert explains that checkout will route through
+  Stripe / App Store webhooks and that `subscription_tier` only flips
+  server-side.
+- **Identity verification** at `/profile/verify` — placeholder for a
+  Stripe Identity / Onfido flow. Explains what the partner will ask for,
+  emphasises we only persist the boolean (no documents), and shows the
+  verified state when `is_identity_verified = true`.
 
 ## What's next
 

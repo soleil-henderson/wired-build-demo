@@ -1,10 +1,16 @@
 import { supabase } from './supabase';
 import type { Database } from '@/types/database';
-import type { FeedPost } from './feed';
+import type { FeedAuthor, FeedPost } from './feed';
 
 export type UserSearchResult = Pick<
   Database['public']['Tables']['users']['Row'],
-  'id' | 'handle' | 'display_name' | 'avatar_url' | 'is_workshop'
+  | 'id'
+  | 'handle'
+  | 'display_name'
+  | 'avatar_url'
+  | 'is_workshop'
+  | 'is_identity_verified'
+  | 'subscription_tier'
 >;
 
 export type PartSearchResult = Pick<
@@ -22,7 +28,9 @@ export async function searchUsers(
   const pattern = `%${escaped}%`;
   const { data, error } = await supabase
     .from('users')
-    .select('id, handle, display_name, avatar_url, is_workshop')
+    .select(
+      'id, handle, display_name, avatar_url, is_workshop, is_identity_verified, subscription_tier'
+    )
     .or(`handle.ilike.${pattern},display_name.ilike.${pattern}`)
     .limit(limit);
   if (error) return [];
@@ -76,7 +84,10 @@ export async function listTrendingPosts(
     .select(
       `
       id, body, reaction_count, comment_count, created_at,
-      author:users!posts_user_id_fkey ( id, handle, display_name, avatar_url ),
+      author:users!posts_user_id_fkey (
+        id, handle, display_name, avatar_url,
+        subscription_tier, is_identity_verified, is_workshop
+      ),
       vehicle:vehicles!posts_vehicle_id_fkey ( id, year, make, model, nickname ),
       mod:mods!posts_mod_id_fkey (
         id, category, cost, install_date, custom_part_name,
@@ -98,14 +109,7 @@ export async function listTrendingPosts(
     reaction_count: number;
     comment_count: number;
     created_at: string;
-    author:
-      | {
-          id: string;
-          handle: string;
-          display_name: string;
-          avatar_url: string | null;
-        }
-      | null;
+    author: FeedAuthor | null;
     vehicle:
       | {
           id: string;

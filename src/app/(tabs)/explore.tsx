@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { UserBadges } from '@/components/UserBadges';
 import { useAuth } from '@/lib/auth-context';
 import type { FeedPost } from '@/lib/feed';
 import {
@@ -198,16 +199,14 @@ export default function ExploreScreen() {
                             </View>
                           )}
                           <View className="flex-1">
-                            <Text className="font-semibold text-white">{u.display_name}</Text>
+                            <View className="flex-row items-center gap-1.5">
+                              <Text className="font-semibold text-white">
+                                {u.display_name}
+                              </Text>
+                              <UserBadges user={u} />
+                            </View>
                             <Text className="text-xs text-ink-300">@{u.handle}</Text>
                           </View>
-                          {u.is_workshop ? (
-                            <View className="rounded-full bg-accent/20 px-2 py-0.5">
-                              <Text className="text-[10px] font-bold uppercase text-accent">
-                                Workshop
-                              </Text>
-                            </View>
-                          ) : null}
                         </Pressable>
                       ))}
                     </View>

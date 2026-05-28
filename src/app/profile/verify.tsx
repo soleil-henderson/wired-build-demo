@@ -1,0 +1,113 @@
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+
+import { useAuth } from '@/lib/auth-context';
+import { supabase } from '@/lib/supabase';
+
+export default function VerifyScreen() {
+  const { session } = useAuth();
+  const router = useRouter();
+  const [verified, setVerified] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!session) return;
+    const { data } = await supabase
+      .from('users')
+      .select('is_identity_verified')
+      .eq('id', session.user.id)
+      .maybeSingle();
+    setVerified(!!data?.is_identity_verified);
+  }, [session]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  function handleStart() {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      Alert.alert(
+        'Coming soon',
+        'Identity verification will run through a partner (Stripe Identity / Onfido). The is_identity_verified flag is set server-side on webhook success — the client never writes it. For now, ping support@wiredautogroup.com to request manual review.'
+      );
+    }, 600);
+  }
+
+  return (
+    <ScrollView className="flex-1 bg-ink-950" contentContainerClassName="pb-12">
+      <Stack.Screen options={{ title: 'Identity verification' }} />
+
+      <View className="px-6 pt-6">
+        <Text className="text-accent text-xs font-semibold tracking-[3px]">
+          VERIFY
+        </Text>
+        <Text className="mt-1 text-3xl font-bold text-white">
+          {verified ? "You're verified" : 'Get the verified tick'}
+        </Text>
+        <Text className="mt-2 text-ink-300">
+          Verified accounts get a ✓ next to their name on every post, comment,
+          and profile. It signals real-builder identity to buyers, sellers and
+          workshops on the platform.
+        </Text>
+
+        {verified ? (
+          <View className="mt-6 rounded-2xl border border-cyan-500/40 bg-cyan-500/10 p-5">
+            <Text className="text-base font-semibold text-cyan-200">
+              ✓ Identity verified
+            </Text>
+            <Text className="mt-1 text-sm text-cyan-100/80">
+              The Verified badge is live on your public profile. It can be
+              removed if our trust + safety team needs to re-run review.
+            </Text>
+          </View>
+        ) : (
+          <View className="mt-6 rounded-2xl border border-ink-700 bg-ink-900 p-5">
+            <Text className="text-base font-semibold text-ink-200">
+              What we&apos;ll ask for
+            </Text>
+            <View className="mt-3 gap-2">
+              {[
+                'A photo of your government-issued ID',
+                'A short selfie video to match the ID',
+                'Your legal name and date of birth',
+              ].map((row) => (
+                <View key={row} className="flex-row gap-2">
+                  <Text className="text-accent">·</Text>
+                  <Text className="flex-1 text-sm text-ink-200">{row}</Text>
+                </View>
+              ))}
+            </View>
+            <Text className="mt-3 text-xs text-ink-300">
+              We never store the raw documents — verification runs through a
+              partner that returns a pass/fail signal. Only the boolean flag
+              hits our database.
+            </Text>
+            <Pressable
+              onPress={handleStart}
+              disabled={loading}
+              className="mt-5 self-start rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark disabled:opacity-60"
+            >
+              <Text className="font-semibold text-ink-950">
+                {loading ? 'Starting…' : 'Start verification'}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        <Pressable
+          onPress={() => router.push('/profile/subscription')}
+          className="mt-6 self-start"
+        >
+          <Text className="text-sm font-semibold text-accent">
+            Subscription tiers →
+          </Text>
+        </Pressable>
+      </View>
+    </ScrollView>
+  );
+}

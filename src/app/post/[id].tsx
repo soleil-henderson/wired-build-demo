@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import { UserBadges } from '@/components/UserBadges';
 import { useAuth } from '@/lib/auth-context';
 import { addComment, listComments, type CommentWithAuthor } from '@/lib/comments';
 import { getPost, togglePostLike, type FeedPost } from '@/lib/feed';
@@ -151,7 +152,10 @@ export default function PostDetailScreen() {
               </View>
             )}
             <View className="flex-1">
-              <Text className="font-semibold text-white">{post.author.display_name}</Text>
+              <View className="flex-row items-center gap-1.5">
+                <Text className="font-semibold text-white">{post.author.display_name}</Text>
+                <UserBadges user={post.author} />
+              </View>
               <Text className="text-xs text-ink-300">@{post.author.handle}</Text>
             </View>
           </Pressable>
@@ -254,10 +258,15 @@ export default function PostDetailScreen() {
                         </Text>
                       </View>
                     )}
-                    <Text className="text-sm font-semibold text-white">
-                      {c.author.display_name}{' '}
-                      <Text className="font-normal text-ink-300">@{c.author.handle}</Text>
-                    </Text>
+                    <View className="flex-row items-center gap-1.5">
+                      <Text className="text-sm font-semibold text-white">
+                        {c.author.display_name}
+                      </Text>
+                      <UserBadges user={c.author} />
+                      <Text className="text-xs font-normal text-ink-300">
+                        @{c.author.handle}
+                      </Text>
+                    </View>
                     <Text className="ml-auto text-[10px] text-ink-300">
                       {formatRelative(c.created_at)}
                     </Text>

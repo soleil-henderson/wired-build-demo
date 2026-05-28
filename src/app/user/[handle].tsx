@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { UserBadges } from '@/components/UserBadges';
 import { useAuth } from '@/lib/auth-context';
 import {
   getFollowCounts,
@@ -149,9 +150,12 @@ export default function UserProfileScreen() {
           <View className="flex-1">
             <Text className="text-xl font-bold text-white">{user.display_name}</Text>
             <Text className="text-ink-300">@{user.handle}</Text>
-            <Text className="mt-0.5 text-[11px] uppercase tracking-wider text-ink-300">
-              {user.subscription_tier} tier
-            </Text>
+            <View className="mt-1.5 flex-row flex-wrap items-center gap-1.5">
+              <UserBadges user={user} size="lg" />
+              <Text className="text-[11px] uppercase tracking-wider text-ink-300">
+                {user.subscription_tier} tier
+              </Text>
+            </View>
           </View>
         </View>
 

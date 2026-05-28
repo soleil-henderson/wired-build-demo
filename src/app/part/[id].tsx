@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { UserBadges } from '@/components/UserBadges';
 import { useAuth } from '@/lib/auth-context';
 import {
   getPartById,
@@ -247,6 +248,7 @@ export default function PartDetailScreen() {
                         <Text className="text-sm font-semibold text-white">
                           @{row.owner.handle}
                         </Text>
+                        <UserBadges user={row.owner} />
                       </Pressable>
                     ) : null}
                     <Text className="ml-auto text-[11px] text-ink-300">
