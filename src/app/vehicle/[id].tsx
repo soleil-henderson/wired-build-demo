@@ -12,8 +12,15 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
+import { useAuth } from '@/lib/auth-context';
 import { listVehicleMods, type ModWithPart } from '@/lib/mods';
 import { supabase } from '@/lib/supabase';
+import {
+  listVehicleWishlist,
+  removeWishlistItem,
+  wishlistDisplayName,
+  type WishlistItem,
+} from '@/lib/wishlist';
 import type { Database } from '@/types/database';
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
@@ -21,21 +28,28 @@ type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 export default function VehicleProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { session } = useAuth();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [mods, setMods] = useState<ModWithPart[]>([]);
+  const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const isOwner = !!(session && vehicle && session.user.id === vehicle.current_owner_id);
 
   const load = useCallback(async () => {
     if (!id) return;
     try {
-      const [{ data: v, error: vErr }, modList] = await Promise.all([
+      const [{ data: v, error: vErr }, modList, wishlistList] = await Promise.all([
         supabase.from('vehicles').select('*').eq('id', id).maybeSingle(),
         listVehicleMods(id),
+        // Wishlist is owner-only via RLS; non-owners just get an empty array.
+        listVehicleWishlist(id).catch(() => []),
       ]);
       if (vErr) throw vErr;
       setVehicle(v);
       setMods(modList);
+      setWishlist(wishlistList);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load vehicle';
       Alert.alert('Error', message);
@@ -44,6 +58,18 @@ export default function VehicleProfileScreen() {
       setRefreshing(false);
     }
   }, [id]);
+
+  async function handleRemoveWishlistItem(itemId: string) {
+    const previous = wishlist;
+    setWishlist((items) => items.filter((i) => i.id !== itemId));
+    try {
+      await removeWishlistItem(itemId);
+    } catch (err) {
+      setWishlist(previous);
+      const message = err instanceof Error ? err.message : 'Could not remove item';
+      Alert.alert('Remove failed', message);
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -143,6 +169,70 @@ export default function VehicleProfileScreen() {
         </View>
       ) : null}
 
+      {/* ---- Wishlist (owner-only) ---- */}
+      {isOwner ? (
+        <View className="px-6 pt-6">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+              Wishlist
+            </Text>
+            <Pressable
+              onPress={() => router.push(`/wishlist/new?vehicleId=${vehicle.id}`)}
+              className="rounded-lg border border-ink-700 px-2.5 py-1 active:bg-ink-800"
+            >
+              <Text className="text-xs font-semibold text-accent">+ Add</Text>
+            </Pressable>
+          </View>
+          {wishlist.length === 0 ? (
+            <Text className="mt-3 text-sm text-ink-300">
+              Nothing planned yet. Tap <Text className="text-accent">+ Add</Text> to start
+              building a parts list.
+            </Text>
+          ) : (
+            <View className="mt-3 gap-2">
+              {wishlist.map((item) => (
+                <View
+                  key={item.id}
+                  className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-3"
+                >
+                  <View className="flex-row items-start justify-between gap-2">
+                    <View className="flex-1">
+                      <View className="flex-row items-center gap-2">
+                        <PriorityPill priority={item.priority} />
+                        {item.category ? (
+                          <Text className="text-[10px] uppercase tracking-wider text-ink-300">
+                            {item.category.replace('_', ' ')}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Text className="mt-1 text-base font-semibold text-white">
+                        {wishlistDisplayName(item)}
+                      </Text>
+                      <View className="mt-1 flex-row items-center gap-3">
+                        {item.target_cost != null ? (
+                          <Text className="text-sm text-ink-200">
+                            Target ${Number(item.target_cost).toLocaleString()}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {item.notes ? (
+                        <Text className="mt-1 text-sm text-ink-300">{item.notes}</Text>
+                      ) : null}
+                    </View>
+                    <Pressable
+                      onPress={() => handleRemoveWishlistItem(item.id)}
+                      className="rounded-lg border border-ink-700 px-2 py-1 active:bg-ink-800"
+                    >
+                      <Text className="text-xs text-ink-300">Remove</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      ) : null}
+
       {/* ---- Mods timeline ---- */}
       <View className="px-6 pt-6">
         <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
@@ -211,6 +301,25 @@ export default function VehicleProfileScreen() {
         )}
       </View>
     </ScrollView>
+  );
+}
+
+function PriorityPill({ priority }: { priority: 'low' | 'medium' | 'high' }) {
+  const styles = {
+    low: 'bg-ink-700 text-ink-200',
+    medium: 'bg-accent/20 text-accent',
+    high: 'bg-accent text-ink-950',
+  } as const;
+  return (
+    <View className={`rounded-full px-2 py-0.5 ${styles[priority].split(' ')[0]}`}>
+      <Text
+        className={`text-[10px] font-bold uppercase tracking-wider ${
+          styles[priority].split(' ')[1]
+        }`}
+      >
+        {priority}
+      </Text>
+    </View>
   );
 }
 

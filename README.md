@@ -29,6 +29,7 @@ src/
     post/[id].tsx            Post detail: post card + comment thread + composer
     user/[handle].tsx        Public user profile: hero, stats, follow, garage
     notifications.tsx        Inbox: follows / reactions / comments, mark-all-read on open
+    wishlist/new.tsx         Quick-add form for planned parts (?vehicleId= optional)
   lib/
     supabase.ts              Typed Supabase client (uses AsyncStorage for sessions)
     auth-context.tsx         Session state + sign-in / sign-up / sign-out
@@ -40,6 +41,7 @@ src/
     follows.ts               isFollowing / toggleFollow / getFollowCounts
     users.ts                 getUserByHandle / getUserById / listUserVehicles
     notifications.ts         listNotifications / getUnreadCount / markAllRead
+    wishlist.ts              listVehicleWishlist / addWishlistItem / removeWishlistItem
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
 supabase/
@@ -53,6 +55,7 @@ supabase/
     20260528000006_social.sql                 posts, comments, reactions, follows, notifications + indexes
     20260528000007_social_rls_triggers.sql    Social RLS + auto-post-on-public-mod + reaction_count trigger
     20260528000008_notifications_triggers.sql Emit notifications on follow / reaction / comment
+    20260528000009_wishlist.sql               wishlist_items table + priority enum + own-only RLS
 ```
 
 ## Setup
@@ -171,10 +174,27 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   rendering, self-actions are skipped, and unliking / unfollowing cleans up the
   matching notification. Visiting the inbox marks everything as read; the bell
   in the Feed header shows an unread count.
+- **Feed mode toggle** — segmented "For you" / "Following" control at the top
+  of the Feed. Following-mode lists posts authored by users the viewer follows
+  (one extra round-trip to fetch followee ids); empty state nudges them to
+  follow someone.
+
+### Step 3 — Plan / Wishlist (Spec §9 Step 3)
+
+- **Wishlist** (Spec §4.5) — owner-only "what's next" list on each build
+  profile. Quick-add form at `/wishlist/new` accepts a catalogue part or
+  custom name, target cost (AUD), category, priority (low / medium / high)
+  and free-text notes. Rows are sorted by priority then recency on the build
+  profile, can be removed inline (optimistic), and are kept strictly private
+  by RLS — RLS rejects writes that target a vehicle the user doesn't own.
 
 ## What's next
 
-- **Followed-only feed filter** — toggle between "Everyone" and "Following"
+- **Trending feed slice** scoped to the viewer's make (Spec §4.4 bonus)
+- **Promote wishlist item → Log-a-Mod** — open `/log/new` pre-filled from a
+  wishlist row and delete the row on save
+- **General wishlist** — a tab outside any specific vehicle profile for
+  cross-build planning (the schema already supports `vehicle_id = null`)
 - **Step 3** — Plan / wishlist tables and screens
 - **Step 5** — Subscriptions, badges, public web share pages
 - **Step 6** — Cross-app hooks, VIN scanning, valuation API, search index

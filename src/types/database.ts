@@ -51,6 +51,8 @@ export type NotificationType =
   | 'price_alert'
   | 'verification';
 
+export type WishlistPriority = 'low' | 'medium' | 'high';
+
 export type Database = {
   public: {
     Tables: {
@@ -566,6 +568,67 @@ export type Database = {
           },
         ];
       };
+      wishlist_items: {
+        Row: {
+          id: string;
+          user_id: string;
+          vehicle_id: string | null;
+          part_id: string | null;
+          custom_part_name: string | null;
+          category: ModCategory | null;
+          target_cost: number | null;
+          notes: string | null;
+          priority: WishlistPriority;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          vehicle_id?: string | null;
+          part_id?: string | null;
+          custom_part_name?: string | null;
+          category?: ModCategory | null;
+          target_cost?: number | null;
+          notes?: string | null;
+          priority?: WishlistPriority;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          vehicle_id?: string | null;
+          part_id?: string | null;
+          custom_part_name?: string | null;
+          category?: ModCategory | null;
+          target_cost?: number | null;
+          notes?: string | null;
+          priority?: WishlistPriority;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'wishlist_items_user_id_fkey';
+            columns: ['user_id'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'wishlist_items_vehicle_id_fkey';
+            columns: ['vehicle_id'];
+            referencedRelation: 'vehicles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'wishlist_items_part_id_fkey';
+            columns: ['part_id'];
+            referencedRelation: 'parts';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -584,6 +647,7 @@ export type Database = {
       reaction_target: ReactionTarget;
       reaction_type: ReactionType;
       notification_type: NotificationType;
+      wishlist_priority: WishlistPriority;
     };
     CompositeTypes: {
       [_ in never]: never;
