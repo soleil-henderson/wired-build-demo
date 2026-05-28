@@ -33,6 +33,7 @@ src/
     profile/subscription.tsx Tier comparison (Free / Member / Pro / Workshop)
     profile/verify.tsx       Identity verification placeholder (Stripe Identity / Onfido)
     vehicle/transfer.tsx     Ownership transfer flow (handle lookup + confirm)
+    build/[id].tsx           Public share page (no auth required, web + native)
     wishlist/index.tsx       User's complete wishlist grouped by build + General
     wishlist/new.tsx         Quick-add form for planned parts (?vehicleId= optional)
   components/
@@ -51,6 +52,7 @@ src/
     wishlist.ts              listVehicleWishlist / listUserWishlist / addWishlistItem
     explore.ts               searchUsers / searchPartsForExplore / listPopularParts / listTrendingPosts
     ownership.ts             transferVehicleOwnership (RPC) / findRecipientByHandle / listOwnershipHistory
+    public-build.ts          getPublicBuild() + publicBuildUrl() for the share page
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
 supabase/
@@ -247,6 +249,29 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   emphasises we only persist the boolean (no documents), and shows the
   verified state when `is_identity_verified = true`.
 
+### Public share page (Spec §3.2, §4.3 "transferable, monetisable asset")
+
+- **`/build/[id]`** is reachable without an account — the root auth gate
+  exempts the `build` segment so the URL works for a logged-out buyer
+  evaluating the build. Expo Router serves the same file on web
+  (`wiredbuild.app/build/<uuid>`) and native (deep-link), with one
+  helper (`getPublicBuild`) doing all three queries (vehicle + mods +
+  ownership history) in parallel.
+- Page composition: hero (year/make/model, masked VIN, mod count, total
+  spent, build value), owner card with badges and tap-through to
+  `/user/[handle]`, spend-by-category breakdown, full public mods
+  timeline (links to `/part/[id]`), and the **ownership chain**
+  rendered straight from `ownership_transfers`. For logged-out viewers
+  the page wraps a "Sign up" banner top and a marketplace-pitch CTA at
+  the bottom; logged-in viewers see a clean profile.
+- Native **Share** button on `/vehicle/[id]` (owner or public-viewer)
+  invokes the OS share sheet with the canonical share URL via
+  `EXPO_PUBLIC_SITE_URL` (defaults to `https://wiredbuild.app`).
+- RLS does the heavy lifting: anon can only read vehicles flagged
+  `is_public`, their owners (`users` allow anon read), public mods,
+  non-sensitive public-mod media, and ownership transfers — so the
+  page literally cannot leak a private build.
+
 ### Step 6 — Ownership transfer (Spec §3.2, §9 Step 6 slice)
 
 - **Atomic transfer RPC** — `transfer_vehicle_ownership(vehicle_id,
@@ -270,15 +295,15 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 
 ## What's next
 
+- **VIN scanning** via `expo-camera` + OCR — populate the Add-Vehicle form
+  from the dashboard plate; biggest Step 6 win for daily UX
+- **Push notifications** — `users.push_token` exists; wire Expo Push
+  registration + a server function on `notifications` insert
 - **Part reviews + affiliate link slot** — extend `/part/[id]` with a review
   feed and a brand-supplied affiliate URL on the part row
+- **Valuation API** — populate `vehicles.build_value` server-side
+  (Spec §9 Step 6, marketplace credibility)
 - **Trending feed slice scoped to viewer's make** (Spec §4.4 bonus)
-- **Step 5** — Subscriptions, badges, verification, public web share pages
-  (Spec §9 Step 5)
-- **Step 6** — VIN scanning, ownership transfer with notarisation,
-  valuation API, cross-app hooks (Spec §9 Step 6)
-- **Push notifications** — `users.push_token` already exists; wire Expo Push
-  registration + a server function on `notifications` insert
 - **Polish** — image resizing / AVIF conversion background job (Spec §7.2),
   OCR for receipts, OAuth (Apple / Google) sign-in
 

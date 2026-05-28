@@ -1,6 +1,6 @@
 import '../global.css';
 
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
@@ -8,7 +8,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/lib/auth-context';
-import { useRouter, useSegments } from 'expo-router';
 
 function RootStack() {
   const { session, isLoading } = useAuth();
@@ -20,8 +19,11 @@ function RootStack() {
 
     const firstSegment = segments[0] ?? '';
     const inAuthGroup = firstSegment === '(auth)';
+    // Public share routes are reachable without an account — they're the
+    // whole point of the "transferable, monetisable asset" pitch.
+    const isPublicRoute = firstSegment === 'build';
 
-    if (!session && !inAuthGroup) {
+    if (!session && !inAuthGroup && !isPublicRoute) {
       router.replace('/(auth)/sign-in');
     } else if (session && inAuthGroup) {
       router.replace('/(tabs)');
@@ -43,6 +45,7 @@ function RootStack() {
           contentStyle: { backgroundColor: '#08090B' },
         }}
       />
+      <Stack.Screen name="build" />
     </Stack>
   );
 }

@@ -1,4 +1,9 @@
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  Stack,
+  useFocusEffect,
+  useLocalSearchParams,
+  useRouter,
+} from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -7,10 +12,10 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
+  Share,
   Text,
   View,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 
 import { useAuth } from '@/lib/auth-context';
 import { listVehicleMods, type ModWithPart } from '@/lib/mods';
@@ -18,6 +23,7 @@ import {
   listOwnershipHistory,
   type OwnershipTransferRow,
 } from '@/lib/ownership';
+import { publicBuildUrl } from '@/lib/public-build';
 import { supabase } from '@/lib/supabase';
 import {
   listVehicleWishlist,
@@ -66,6 +72,22 @@ export default function VehicleProfileScreen() {
       setRefreshing(false);
     }
   }, [id]);
+
+  async function handleShare() {
+    if (!vehicle) return;
+    const shareTitle =
+      vehicle.nickname ?? `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+    const url = publicBuildUrl(vehicle.id);
+    try {
+      await Share.share({
+        message: `Check out this build on Wired Build: ${shareTitle} — ${url}`,
+        url,
+        title: shareTitle,
+      });
+    } catch {
+      // user dismissed
+    }
+  }
 
   async function handleRemoveWishlistItem(itemId: string) {
     const previous = wishlist;
@@ -152,6 +174,14 @@ export default function VehicleProfileScreen() {
           >
             <Text className="font-semibold text-ink-950">+ Log a mod</Text>
           </Pressable>
+          {vehicle.is_public ? (
+            <Pressable
+              onPress={handleShare}
+              className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
+            >
+              <Text className="font-semibold text-ink-200">Share</Text>
+            </Pressable>
+          ) : null}
           {isOwner ? (
             <Pressable
               onPress={() =>
