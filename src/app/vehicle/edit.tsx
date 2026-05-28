@@ -187,10 +187,6 @@ export default function EditVehicleScreen() {
           onPress: async () => {
             setSubmitting(true);
             try {
-              if (coverUrl) {
-                const key = storageKeyFromModPhotoPublicUrl(coverUrl);
-                if (key) await deleteStorageObjects('mod-photos', [key]);
-              }
               await deleteVehicle(vehicleId);
               router.replace('/(tabs)/garage');
             } catch (err) {

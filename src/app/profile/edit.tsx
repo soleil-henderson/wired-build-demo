@@ -21,7 +21,11 @@ import {
   updateProfile,
   validateHandle,
 } from '@/lib/profile';
-import { uploadAvatar } from '@/lib/storage';
+import {
+  deleteStorageObjects,
+  storageKeyFromModPhotoPublicUrl,
+  uploadAvatar,
+} from '@/lib/storage';
 
 type LocalAvatar = {
   uri: string;
@@ -125,6 +129,11 @@ export default function EditProfileScreen() {
 
     setSubmitting(true);
     try {
+      const previousAvatarKey =
+        localAvatar && avatarUrl
+          ? storageKeyFromModPhotoPublicUrl(avatarUrl)
+          : null;
+
       let nextAvatarUrl = avatarUrl;
       if (localAvatar) {
         nextAvatarUrl = await uploadAvatar({
@@ -141,6 +150,10 @@ export default function EditProfileScreen() {
         bio: bio.trim() || null,
         avatar_url: nextAvatarUrl,
       });
+
+      if (previousAvatarKey) {
+        await deleteStorageObjects('mod-photos', [previousAvatarKey]);
+      }
 
       router.back();
     } catch (err) {

@@ -62,6 +62,7 @@ src/
     push-notifications.ts    Expo Push token registration + tap routing
     reviews.ts               list / getMine / upsert / delete + recordPartClick
     oauth.ts                 signInWithApple() native + signInWithOAuthProvider() web
+    vehicle-storage.ts       collectVehicleStorageKeys + purge on delete build
     profile.ts               getMyProfile / updateProfile / handle validation
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
@@ -370,8 +371,9 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   `vehicles.cover_photo_url`. Replacing or removing a cover deletes the
   previous object from `mod-photos` when the URL is one we uploaded.
 - **Delete build** — destructive confirmation on `/vehicle/edit`; deletes
-  the vehicle row (cascades mods, wishlist, posts, ownership history).
-  Best-effort cover cleanup from storage before the DB delete.
+  attached `media` rows, the vehicle (cascades mods, wishlist, posts,
+  ownership history), then purges all mod-photos + receipts for that build
+  from storage in batches.
 - **Build profile** shows the cover hero when set; **Edit** sits next to
   Transfer for owners. Public builds get **Share**; private builds hide
   the share link until you flip visibility on edit.
@@ -385,7 +387,8 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 - **Avatar upload** — camera or library picker with square crop, resized to
   512px on-device, uploaded to the public `mod-photos` bucket as
   `<userId>/avatar-<uuid>.jpg`, then `users.avatar_url` is updated. Same
-  EXIF-stripping path as mod photos.
+  EXIF-stripping path as mod photos. Replacing the avatar deletes the
+  previous object from `mod-photos` when the URL is one we uploaded.
 - **Profile tab** shows avatar, bio snippet, and an **Edit profile** CTA.
   OAuth-provisioned users with auto-generated handles can claim a real one
   here without re-signing up.
@@ -582,9 +585,8 @@ sign-in still needs the same Apple developer configuration.
   when API keys are available; hook stays in `recalc_vehicle_total_spend`
 - **Multi-resolution image variants** — Supabase Edge Function on
   `mod-photos` bucket events to generate AVIF thumbnails
-- **Avatar storage cleanup** on profile photo replace
-- **Polish** — OCR fallback for VIN scan (damaged stickers); bulk-delete
-  mod storage when a whole vehicle is removed
+- **Polish** — OCR fallback for VIN scan (damaged stickers); orphan `media`
+  rows when individual mods are deleted (FK is `on delete set null`)
 
 ## Conventions
 
