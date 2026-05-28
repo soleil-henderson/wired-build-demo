@@ -156,6 +156,43 @@ export async function uploadAvatar(input: {
   return pub.publicUrl;
 }
 
+const COVER_MAX_EDGE_PX = 1920;
+
+/**
+ * Vehicle cover hero — public CDN, same bucket as mod photos.
+ * Key: `<ownerId>/cover-<uuid>.jpg`
+ */
+export async function uploadCoverPhoto(input: {
+  uri: string;
+  ownerId: string;
+  width?: number | null;
+  height?: number | null;
+}): Promise<string> {
+  const prepared = await prepareImageForUpload({
+    uri: input.uri,
+    width: input.width,
+    height: input.height,
+    maxEdgePx: COVER_MAX_EDGE_PX,
+  });
+
+  const key = `${input.ownerId}/cover-${cryptoRandomId()}.jpg`;
+  const file = new File(prepared.uri);
+  const bytes = await file.arrayBuffer();
+
+  const { error } = await supabase.storage
+    .from(MOD_PHOTOS_BUCKET)
+    .upload(key, bytes, {
+      contentType: 'image/jpeg',
+      cacheControl: '31536000',
+      upsert: false,
+    });
+
+  if (error) throw error;
+
+  const { data: pub } = supabase.storage.from(MOD_PHOTOS_BUCKET).getPublicUrl(key);
+  return pub.publicUrl;
+}
+
 function cryptoRandomId(): string {
   // expo / RN provides global crypto.randomUUID() on SDK 49+.
   if (typeof globalThis.crypto?.randomUUID === 'function') {

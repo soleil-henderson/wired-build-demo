@@ -322,13 +322,31 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 - **`/log/edit?modId=`** — vehicle owners can fix cost, install date,
   installer, category, notes, privacy, and custom-part label after the
   fact. Catalogue-linked parts are shown read-only (wrong part → delete
-  and re-log). Existing photo is display-only in v1.
+  and re-log).
 - **Delete mod** — destructive confirmation; removes attached `media`
   rows then the `mods` row. `posts` referencing the mod cascade away;
   `vehicles.total_spend` and `parts.install_count` reconcile via the
   existing aggregate trigger.
 - **Build profile** — each timeline card shows an **Edit** button when
   you own the vehicle.
+- **Photo management on edit** — on `/log/edit`, remove existing mod
+  photos (✕ on thumbnail), add new ones from camera or library (up to 8
+  total). Saves delete `media` rows then upload + insert new photos.
+- **Public on edit** — changing privacy to `public` now creates the
+  missing feed post (migration 14); insert-only behaviour is unchanged.
+
+### Vehicle editing
+
+- **`/vehicle/edit?vehicleId=`** — owners update nickname, cover photo,
+  and public/private visibility. VIN and factory details stay read-only
+  after add-vehicle.
+- **Cover upload** — 16:9 crop from camera or library, resized on-device,
+  stored as `<userId>/cover-<uuid>.jpg` in `mod-photos`, written to
+  `vehicles.cover_photo_url`. Remove cover clears the URL without deleting
+  old storage objects (orphan cleanup is a follow-up).
+- **Build profile** shows the cover hero when set; **Edit** sits next to
+  Transfer for owners. Public builds get **Share**; private builds hide
+  the share link until you flip visibility on edit.
 
 ### Profile editing
 
@@ -533,8 +551,8 @@ the same helper — same Supabase user, swappable provider call.
 
 ## What's next
 
-- **VIN scanning** via `expo-camera` + OCR — populate the Add-Vehicle form
-  from the dashboard plate; biggest Step 6 win for daily UX
+- **Receipt OCR** in Log-a-Mod — scan a receipt to pre-fill cost / supplier
+- **Garage vehicle delete** — owner-only with confirmation + cascade rules
 - **Valuation API** — swap the heuristic for RedBook (AU) / KBB (US)
   when API keys are available; hook stays in `recalc_vehicle_total_spend`
 - **Multi-resolution image variants** — Supabase Edge Function on

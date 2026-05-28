@@ -147,6 +147,14 @@ export default function VehicleProfileScreen() {
 
       {/* ---- Hero ---- */}
       <View className="bg-ink-900 px-6 pt-6 pb-8">
+        {vehicle.cover_photo_url ? (
+          <Image
+            source={{ uri: vehicle.cover_photo_url }}
+            className="mb-5 h-48 w-full rounded-2xl bg-ink-800"
+            resizeMode="cover"
+          />
+        ) : null}
+
         <Text className="text-xs uppercase tracking-wider text-ink-300">
           {vehicle.year} · {vehicle.make} · {vehicle.model}
           {vehicle.trim ? ` · ${vehicle.trim}` : ''}
@@ -190,14 +198,24 @@ export default function VehicleProfileScreen() {
             </Pressable>
           ) : null}
           {isOwner ? (
-            <Pressable
-              onPress={() =>
-                router.push(`/vehicle/transfer?vehicleId=${vehicle.id}`)
-              }
-              className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
-            >
-              <Text className="font-semibold text-ink-200">Transfer</Text>
-            </Pressable>
+            <>
+              <Pressable
+                onPress={() =>
+                  router.push(`/vehicle/edit?vehicleId=${vehicle.id}`)
+                }
+                className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
+              >
+                <Text className="font-semibold text-ink-200">Edit</Text>
+              </Pressable>
+              <Pressable
+                onPress={() =>
+                  router.push(`/vehicle/transfer?vehicleId=${vehicle.id}`)
+                }
+                className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
+              >
+                <Text className="font-semibold text-ink-200">Transfer</Text>
+              </Pressable>
+            </>
           ) : null}
         </View>
       </View>
