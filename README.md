@@ -26,6 +26,7 @@ src/
     garage/add-vehicle.tsx   Vehicle entry off the Garage tab (with VIN scan)
     garage/scan-vin.tsx      Camera barcode scanner — Code 39 / 128 / QR
     log/new.tsx              The Log-a-Mod form (Spec §4.1) — opens with ?vehicleId=
+    log/edit.tsx             Edit or delete an existing mod (?modId=)
     vehicle/[id].tsx         Build profile: hero, stats, spend breakdown, mod timeline
     post/[id].tsx            Post detail: post card + comment thread + composer
     user/[handle].tsx        Public user profile: hero, stats, follow, garage
@@ -45,7 +46,7 @@ src/
     supabase.ts              Typed Supabase client (uses AsyncStorage for sessions)
     auth-context.tsx         Session state + sign-in / sign-up / sign-out
     parts.ts                 searchParts() + submitCustomPart() helpers
-    mods.ts                  listVehicleMods() with joined part info + first photo
+    mods.ts                  listVehicleMods / getModForEdit / updateMod / deleteMod
     storage.ts               uploadModPhoto() — resize + re-encode to JPEG, then uploads to mod-photos bucket
     feed.ts                  listFeed (keyset paginated) / getPost / togglePostLike
     comments.ts              listComments() + addComment()
@@ -298,6 +299,33 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
   `is_public`, their owners (`users` allow anon read), public mods,
   non-sensitive public-mod media, and ownership transfers — so the
   page literally cannot leak a private build.
+
+### Mod edit and delete
+
+- **`/log/edit?modId=`** — vehicle owners can fix cost, install date,
+  installer, category, notes, privacy, and custom-part label after the
+  fact. Catalogue-linked parts are shown read-only (wrong part → delete
+  and re-log). Existing photo is display-only in v1.
+- **Delete mod** — destructive confirmation; removes attached `media`
+  rows then the `mods` row. `posts` referencing the mod cascade away;
+  `vehicles.total_spend` and `parts.install_count` reconcile via the
+  existing aggregate trigger.
+- **Build profile** — each timeline card shows an **Edit** button when
+  you own the vehicle.
+
+### Profile editing
+
+- **`/profile/edit`** — change handle (`@handle`, 3–30 chars, schema-enforced),
+  display name, bio, and profile photo. Handle normalisation strips invalid
+  characters as you type; uniqueness errors from Postgres map to a friendly
+  "already taken" message.
+- **Avatar upload** — camera or library picker with square crop, resized to
+  512px on-device, uploaded to the public `mod-photos` bucket as
+  `<userId>/avatar-<uuid>.jpg`, then `users.avatar_url` is updated. Same
+  EXIF-stripping path as mod photos.
+- **Profile tab** shows avatar, bio snippet, and an **Edit profile** CTA.
+  OAuth-provisioned users with auto-generated handles can claim a real one
+  here without re-signing up.
 
 ### OAuth sign-in (Apple / Google)
 

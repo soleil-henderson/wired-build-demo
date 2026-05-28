@@ -359,6 +359,20 @@ export default function VehicleProfileScreen() {
                   {m.notes ? (
                     <Text className="mt-2 text-sm text-ink-300">{m.notes}</Text>
                   ) : null}
+                  {isOwner ? (
+                    <View className="mt-4 flex-row gap-2">
+                      <Pressable
+                        onPress={() =>
+                          router.push(`/log/edit?modId=${m.id}`)
+                        }
+                        className="rounded-lg border border-ink-700 px-3 py-1.5 active:bg-ink-800"
+                      >
+                        <Text className="text-xs font-semibold text-ink-200">
+                          Edit
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
                 </View>
               </View>
             ))}
