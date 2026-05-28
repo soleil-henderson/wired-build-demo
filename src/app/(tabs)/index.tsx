@@ -129,7 +129,8 @@ export default function FeedScreen() {
                 key={post.id}
                 post={post}
                 onToggleLike={() => handleToggleLike(post)}
-                onOpenVehicle={() => router.push(`/vehicle/${post.vehicle.id}`)}
+                onOpenPost={() => router.push(`/post/${post.id}`)}
+                onOpenAuthor={() => router.push(`/user/${post.author.handle}`)}
               />
             ))}
           </View>
@@ -142,11 +143,13 @@ export default function FeedScreen() {
 function PostCard({
   post,
   onToggleLike,
-  onOpenVehicle,
+  onOpenPost,
+  onOpenAuthor,
 }: {
   post: FeedPost;
   onToggleLike: () => void;
-  onOpenVehicle: () => void;
+  onOpenPost: () => void;
+  onOpenAuthor: () => void;
 }) {
   const vehicleTitle =
     post.vehicle.nickname ?? `${post.vehicle.make} ${post.vehicle.model}`;
@@ -158,7 +161,7 @@ function PostCard({
   return (
     <View className="overflow-hidden rounded-2xl border border-ink-700 bg-ink-900">
       {/* Header */}
-      <Pressable onPress={onOpenVehicle} className="px-4 pt-4 active:opacity-80">
+      <Pressable onPress={onOpenAuthor} className="px-4 pt-4 active:opacity-80">
         <View className="flex-row items-center gap-3">
           {post.author.avatar_url ? (
             <Image
@@ -187,7 +190,7 @@ function PostCard({
 
       {/* Photo */}
       {post.mod?.photo_url ? (
-        <Pressable onPress={onOpenVehicle} className="mt-3 active:opacity-90">
+        <Pressable onPress={onOpenPost} className="mt-3 active:opacity-90">
           <Image
             source={{ uri: post.mod.photo_url }}
             className="h-72 w-full bg-ink-800"
@@ -197,7 +200,7 @@ function PostCard({
       ) : null}
 
       {/* Body */}
-      <View className="p-4">
+      <Pressable onPress={onOpenPost} className="p-4 active:opacity-80">
         {post.mod ? (
           <>
             <Text className="text-[11px] uppercase tracking-wider text-ink-300">
@@ -243,14 +246,14 @@ function PostCard({
               {post.reaction_count}
             </Text>
           </Pressable>
-          <View className="flex-row items-center gap-2 opacity-60">
+          <Pressable onPress={onOpenPost} className="flex-row items-center gap-2">
             <Text className="text-base text-ink-300">💬</Text>
             <Text className="text-sm font-semibold text-ink-200">
               {post.comment_count}
             </Text>
-          </View>
+          </Pressable>
         </View>
-      </View>
+      </Pressable>
     </View>
   );
 }

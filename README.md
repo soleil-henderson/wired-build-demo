@@ -26,13 +26,18 @@ src/
     garage/add-vehicle.tsx   Manual vehicle entry off the Garage tab
     log/new.tsx              The Log-a-Mod form (Spec §4.1) — opens with ?vehicleId=
     vehicle/[id].tsx         Build profile: hero, stats, spend breakdown, mod timeline
+    post/[id].tsx            Post detail: post card + comment thread + composer
+    user/[handle].tsx        Public user profile: hero, stats, follow, garage
   lib/
     supabase.ts              Typed Supabase client (uses AsyncStorage for sessions)
     auth-context.tsx         Session state + sign-in / sign-up / sign-out
     parts.ts                 searchParts() + submitCustomPart() helpers
     mods.ts                  listVehicleMods() with joined part info + first photo
     storage.ts               uploadModPhoto() — reads file URI -> uploads to mod-photos bucket
-    feed.ts                  listFeed() + togglePostLike() for the social timeline
+    feed.ts                  listFeed() / getPost() / togglePostLike()
+    comments.ts              listComments() + addComment()
+    follows.ts               isFollowing / toggleFollow / getFollowCounts
+    users.ts                 getUserByHandle / getUserById / listUserVehicles
   types/
     database.ts              Hand-typed Database type (regenerate from CLI when ready)
 supabase/
@@ -149,15 +154,17 @@ npm run web       # Browser (fastest to iterate; some native features stub out)
 - **Likes**: heart button on each post card with optimistic UI; a server-side
   trigger keeps `posts.reaction_count` in sync regardless of the client. RLS
   guarantees a user can only insert/delete their own reaction.
-- **All 5 social tables** in place — comments, follows, notifications schemas
-  ready for the next turn's UI
+- **Post detail** at `/post/[id]` — full post + threaded comments + a sticky
+  composer at the bottom. `comment_count` stays in sync via a Postgres trigger.
+- **User profiles** at `/user/[handle]` — avatar, bio, vehicle / follower /
+  following counts, public garage, **Follow / Following** toggle (with
+  optimistic updates and self-follow blocked). Feed cards and comment author
+  rows tap-through to the right user.
+- **Profile tab** shows the signed-in user's real follower / following / vehicle
+  counts and links to their own public profile.
 
 ## What's next
 
-- **Comments + post detail screen** — render a thread under each post (the schema
-  and trigger are already there)
-- **Follow/unfollow + user profile route** — wires the Feed's "from followed
-  users" filter and the Profile tab's follower counts
 - **Notifications** — list screen + a small badge on the Profile tab
 - **Step 3** — Plan / wishlist tables and screens
 - **Step 5** — Subscriptions, badges, public web share pages

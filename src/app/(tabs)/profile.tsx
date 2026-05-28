@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth-context';
+import { getFollowCounts, type FollowCounts } from '@/lib/follows';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/types/database';
 
@@ -10,25 +12,33 @@ type Profile = Database['public']['Tables']['users']['Row'];
 
 export default function ProfileScreen() {
   const { session, signOut } = useAuth();
+  const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
+  const [vehicleCount, setVehicleCount] = useState<number>(0);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!session) return;
-    let cancelled = false;
-    supabase
-      .from('users')
-      .select('*')
-      .eq('id', session.user.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error) Alert.alert('Could not load profile', error.message);
-        setProfile(data);
-      });
-    return () => {
-      cancelled = true;
-    };
+    const userId = session.user.id;
+    const [{ data: p, error }, fc, { count: vc }] = await Promise.all([
+      supabase.from('users').select('*').eq('id', userId).maybeSingle(),
+      getFollowCounts(userId),
+      supabase
+        .from('vehicles')
+        .select('id', { count: 'exact', head: true })
+        .eq('current_owner_id', userId),
+    ]);
+    if (error) Alert.alert('Could not load profile', error.message);
+    setProfile(p);
+    setCounts(fc);
+    setVehicleCount(vc ?? 0);
   }, [session]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-ink-950" edges={['top']}>
@@ -39,6 +49,23 @@ export default function ProfileScreen() {
         </Text>
         {profile?.handle ? (
           <Text className="mt-1 text-ink-300">@{profile.handle}</Text>
+        ) : null}
+
+        {/* Stats */}
+        <View className="mt-6 flex-row gap-6">
+          <Stat label="Vehicles" value={String(vehicleCount)} />
+          <Stat label="Followers" value={String(counts.followers)} />
+          <Stat label="Following" value={String(counts.following)} />
+        </View>
+
+        {/* View as others see you */}
+        {profile?.handle ? (
+          <Pressable
+            onPress={() => router.push(`/user/${profile.handle}`)}
+            className="mt-6 self-start rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
+          >
+            <Text className="font-semibold text-ink-950">View public profile</Text>
+          </Pressable>
         ) : null}
 
         <View className="mt-8 rounded-2xl border border-ink-700 bg-ink-900 p-6">
@@ -59,5 +86,14 @@ export default function ProfileScreen() {
         </Pressable>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <View>
+      <Text className="text-[10px] uppercase tracking-wider text-ink-300">{label}</Text>
+      <Text className="mt-1 text-base font-semibold text-white">{value}</Text>
+    </View>
   );
 }

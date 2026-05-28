@@ -91,6 +91,61 @@ export async function listFeed(viewerId: string | null): Promise<FeedPost[]> {
     }));
 }
 
+/**
+ * Fetch a single post with the same shape as the feed. Used by the post
+ * detail screen.
+ */
+export async function getPost(
+  postId: string,
+  viewerId: string | null
+): Promise<FeedPost | null> {
+  const { data, error } = await supabase
+    .from('posts')
+    .select(
+      `
+      id, body, reaction_count, comment_count, created_at,
+      author:users!posts_user_id_fkey ( id, handle, display_name, avatar_url ),
+      vehicle:vehicles!posts_vehicle_id_fkey ( id, year, make, model, nickname ),
+      mod:mods!posts_mod_id_fkey (
+        id, category, cost, install_date, custom_part_name,
+        part:parts ( brand, name ),
+        media ( url, kind, is_sensitive )
+      )
+    `
+    )
+    .eq('id', postId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  const r = data as RawFeedRow;
+  if (!r.author || !r.vehicle) return null;
+
+  const likedSet = viewerId ? await fetchLikedPostIds(viewerId, [r.id]) : new Set<string>();
+
+  return {
+    id: r.id,
+    body: r.body,
+    reaction_count: r.reaction_count,
+    comment_count: r.comment_count,
+    created_at: r.created_at,
+    author: r.author,
+    vehicle: r.vehicle,
+    mod: r.mod
+      ? {
+          id: r.mod.id,
+          category: r.mod.category,
+          cost: r.mod.cost,
+          install_date: r.mod.install_date,
+          custom_part_name: r.mod.custom_part_name,
+          part: r.mod.part ?? null,
+          photo_url:
+            r.mod.media?.find((m) => m.kind === 'photo' && !m.is_sensitive)?.url ?? null,
+        }
+      : null,
+    liked_by_me: likedSet.has(r.id),
+  };
+}
+
 async function fetchLikedPostIds(
   viewerId: string,
   postIds: string[]
