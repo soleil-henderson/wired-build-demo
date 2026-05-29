@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { isTextExtractorSupported } from '@/lib/text-extractor';
 import { extractVinFromImage } from '@/lib/vin-ocr';
 import {
   extractVinFromBarcode,
@@ -97,6 +98,14 @@ export default function ScanVinScreen() {
   }
 
   function showOcrPicker() {
+    if (!isTextExtractorSupported()) {
+      Alert.alert(
+        'OCR not available in Expo Go',
+        'Barcode scan and manual entry work here. For VIN photo OCR, use an EAS development or App Store build.',
+        [{ text: 'Enter manually', onPress: () => setManualOpen(true) }, { text: 'OK' }]
+      );
+      return;
+    }
     Alert.alert('Photograph VIN sticker', 'Use when the barcode is damaged or missing.', [
       { text: 'Take photo', onPress: () => handleVinOcr('camera') },
       { text: 'Choose from library', onPress: () => handleVinOcr('library') },

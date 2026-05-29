@@ -24,8 +24,11 @@ import {
   type ModForEdit,
   type ModPhoto,
 } from '@/lib/mods';
+import { InstallDateField } from '@/components/InstallDateField';
 import { extractReceiptCostFromImage } from '@/lib/receipt-ocr';
 import { attachReceiptToMod, removeReceiptFromMod } from '@/lib/receipts';
+import { canUseReceiptOcr, getUserSubscriptionTier } from '@/lib/subscription';
+import { searchWorkshops, type WorkshopUser } from '@/lib/workshops';
 import type { InstallerType, ModCategory, ModPrivacy } from '@/types/database';
 
 const CATEGORIES: { value: ModCategory; label: string }[] = [
@@ -83,7 +86,11 @@ export default function EditModScreen() {
   const [cost, setCost] = useState('');
   const [costIsApproximate, setCostIsApproximate] = useState(false);
   const [installerType, setInstallerType] = useState<InstallerType>('self');
+  const [installerWorkshopId, setInstallerWorkshopId] = useState<string | null>(null);
+  const [workshopQuery, setWorkshopQuery] = useState('');
+  const [workshopHits, setWorkshopHits] = useState<WorkshopUser[]>([]);
   const [installDate, setInstallDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateIsApproximate, setDateIsApproximate] = useState(false);
   const [notes, setNotes] = useState('');
   const [privacy, setPrivacy] = useState<ModPrivacy>('public');
@@ -117,6 +124,7 @@ export default function EditModScreen() {
       setCost(m.cost != null ? String(m.cost) : '');
       setCostIsApproximate(m.cost_is_approximate);
       setInstallerType(m.installer_type);
+      setInstallerWorkshopId(m.installer_workshop_id);
       setInstallDate(m.install_date);
       setDateIsApproximate(m.date_is_approximate);
       setNotes(m.notes ?? '');
@@ -235,7 +243,12 @@ export default function EditModScreen() {
     setRemoveReceipt(false);
     setReceiptCostHint(null);
 
-    if (!cost.trim()) {
+    if (!cost.trim() && session) {
+      const tier = await getUserSubscriptionTier(session.user.id);
+      if (!canUseReceiptOcr(tier)) {
+        setReceiptCostHint('Receipt OCR is a Pro feature — enter cost manually or upgrade.');
+        return;
+      }
       setScanningReceipt(true);
       try {
         const parsed = await extractReceiptCostFromImage(asset.uri);
@@ -288,6 +301,8 @@ export default function EditModScreen() {
         cost: costValue,
         cost_is_approximate: costIsApproximate,
         installer_type: installerType,
+        installer_workshop_id:
+          installerType === 'workshop' ? installerWorkshopId : null,
         install_date: installDate,
         date_is_approximate: dateIsApproximate,
         notes: notes.trim() || null,
@@ -544,22 +559,55 @@ export default function EditModScreen() {
                 key={i.value}
                 label={i.label}
                 active={installerType === i.value}
-                onPress={() => setInstallerType(i.value)}
+                onPress={() => {
+                  setInstallerType(i.value);
+                  if (i.value !== 'workshop') setInstallerWorkshopId(null);
+                }}
               />
             ))}
           </View>
+          {installerType === 'workshop' ? (
+            <View className="mt-3">
+              <TextInput
+                value={workshopQuery}
+                onChangeText={async (text) => {
+                  setWorkshopQuery(text);
+                  try {
+                    setWorkshopHits(await searchWorkshops(text));
+                  } catch {
+                    setWorkshopHits([]);
+                  }
+                }}
+                placeholder="Search workshop"
+                placeholderTextColor="#5A6373"
+                className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+              />
+              {workshopHits.map((w) => (
+                <Pressable
+                  key={w.id}
+                  onPress={() => setInstallerWorkshopId(w.id)}
+                  className={`mt-2 rounded-xl border px-4 py-3 ${
+                    installerWorkshopId === w.id
+                      ? 'border-accent bg-accent/10'
+                      : 'border-ink-700'
+                  }`}
+                >
+                  <Text className="text-white">{w.workshop_name ?? w.display_name}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
         </View>
 
         <View className="mt-4">
           <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
             Install date
           </Text>
-          <TextInput
+          <InstallDateField
             value={installDate}
-            onChangeText={setInstallDate}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor="#5A6373"
-            className="rounded-xl bg-ink-800 px-4 py-3 font-mono text-white"
+            onChange={setInstallDate}
+            showPicker={showDatePicker}
+            onTogglePicker={() => setShowDatePicker((v) => !v)}
           />
           <Pressable
             onPress={() => setDateIsApproximate((v) => !v)}

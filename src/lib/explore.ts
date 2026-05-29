@@ -11,6 +11,8 @@ export type UserSearchResult = Pick<
   | 'is_workshop'
   | 'is_identity_verified'
   | 'subscription_tier'
+  | 'workshop_name'
+  | 'workshop_phone'
 >;
 
 export type PartSearchResult = Pick<
@@ -29,9 +31,11 @@ export async function searchUsers(
   const { data, error } = await supabase
     .from('users')
     .select(
-      'id, handle, display_name, avatar_url, is_workshop, is_identity_verified, subscription_tier'
+      'id, handle, display_name, avatar_url, is_workshop, is_identity_verified, subscription_tier, workshop_name, workshop_phone'
     )
-    .or(`handle.ilike.${pattern},display_name.ilike.${pattern}`)
+    .or(
+      `handle.ilike.${pattern},display_name.ilike.${pattern},workshop_name.ilike.${pattern}`
+    )
     .limit(limit);
   if (error) return [];
   return data ?? [];
@@ -73,6 +77,28 @@ export async function listPopularParts(limit = 12): Promise<PartSearchResult[]> 
  * Reuses the same FeedPost shape as the Feed so we can render it with the
  * same card later if we want.
  */
+export type BuildForSale = {
+  id: string;
+  year: number;
+  make: string;
+  model: string;
+  nickname: string | null;
+  cover_photo_url: string | null;
+  asking_price: number | null;
+};
+
+export async function listBuildsForSale(limit = 12): Promise<BuildForSale[]> {
+  const { data, error } = await supabase
+    .from('vehicles')
+    .select('id, year, make, model, nickname, cover_photo_url, asking_price')
+    .eq('is_public', true)
+    .eq('is_for_sale', true)
+    .order('updated_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function listTrendingPosts(
   viewerId: string | null,
   days = 30,
@@ -92,7 +118,7 @@ export async function listTrendingPosts(
       mod:mods!posts_mod_id_fkey (
         id, category, cost, install_date, custom_part_name,
         part:parts ( id, brand, name ),
-        media ( url, kind, is_sensitive )
+        media!media_mod_id_fkey ( url, kind, is_sensitive )
       )
     `
     )

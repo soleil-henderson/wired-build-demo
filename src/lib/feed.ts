@@ -1,3 +1,5 @@
+import { displayImageUrl } from './image-url';
+import { listBlockedUserIds } from './blocks';
 import { supabase } from './supabase';
 import type { Database, SubscriptionTier } from '@/types/database';
 
@@ -87,7 +89,7 @@ export async function listFeed(
       mod:mods!posts_mod_id_fkey (
         id, category, cost, install_date, custom_part_name,
         part:parts ( id, brand, name ),
-        media ( url, kind, is_sensitive )
+        media!media_mod_id_fkey ( url, thumbnail_url, kind, is_sensitive )
       )
     `
     )
@@ -96,6 +98,13 @@ export async function listFeed(
 
   if (cursor) {
     query = query.lt('created_at', cursor);
+  }
+
+  if (viewerId) {
+    const blockedIds = await listBlockedUserIds(viewerId);
+    if (blockedIds.length > 0) {
+      query = query.not('user_id', 'in', `(${blockedIds.join(',')})`);
+    }
   }
 
   if (mode === 'following') {
@@ -139,8 +148,10 @@ export async function listFeed(
             install_date: r.mod.install_date,
             custom_part_name: r.mod.custom_part_name,
             part: r.mod.part ?? null,
-            photo_url:
-              r.mod.media?.find((m) => m.kind === 'photo' && !m.is_sensitive)?.url ?? null,
+            photo_url: (() => {
+              const m = r.mod.media?.find((mm) => mm.kind === 'photo' && !mm.is_sensitive);
+              return displayImageUrl(m?.url ?? null, m?.thumbnail_url ?? null);
+            })(),
           }
         : null,
       liked_by_me: likedSet.has(r.id),
@@ -177,7 +188,7 @@ export async function getPost(
       mod:mods!posts_mod_id_fkey (
         id, category, cost, install_date, custom_part_name,
         part:parts ( id, brand, name ),
-        media ( url, kind, is_sensitive )
+        media!media_mod_id_fkey ( url, thumbnail_url, kind, is_sensitive )
       )
     `
     )
@@ -206,8 +217,10 @@ export async function getPost(
           install_date: r.mod.install_date,
           custom_part_name: r.mod.custom_part_name,
           part: r.mod.part ?? null,
-          photo_url:
-            r.mod.media?.find((m) => m.kind === 'photo' && !m.is_sensitive)?.url ?? null,
+          photo_url: (() => {
+            const m = r.mod.media?.find((mm) => mm.kind === 'photo' && !mm.is_sensitive);
+            return displayImageUrl(m?.url ?? null, m?.thumbnail_url ?? null);
+          })(),
         }
       : null,
     liked_by_me: likedSet.has(r.id),
@@ -316,7 +329,12 @@ type RawFeedRow = {
         install_date: string;
         custom_part_name: string | null;
         part: { id: string; brand: string; name: string } | null;
-        media: { url: string; kind: string; is_sensitive: boolean }[] | null;
+        media: {
+          url: string;
+          thumbnail_url: string | null;
+          kind: string;
+          is_sensitive: boolean;
+        }[] | null;
       })
     | null;
 };

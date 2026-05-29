@@ -17,6 +17,12 @@ export type VehicleEditRow = Pick<
   | 'trim'
   | 'vin'
   | 'current_owner_id'
+  | 'is_for_sale'
+  | 'asking_price'
+  | 'manual_build_value'
+  | 'manual_build_value_note'
+  | 'build_value'
+  | 'valuation_source'
 >;
 
 export async function getVehicleForEdit(
@@ -25,7 +31,7 @@ export async function getVehicleForEdit(
   const { data, error } = await supabase
     .from('vehicles')
     .select(
-      'id, nickname, cover_photo_url, is_public, year, make, model, trim, vin, current_owner_id'
+      'id, nickname, cover_photo_url, is_public, is_for_sale, asking_price, year, make, model, trim, vin, current_owner_id, manual_build_value, manual_build_value_note, build_value, valuation_source'
     )
     .eq('id', vehicleId)
     .maybeSingle();
@@ -37,6 +43,10 @@ export type VehicleUpdateInput = {
   nickname: string | null;
   cover_photo_url: string | null;
   is_public: boolean;
+  is_for_sale: boolean;
+  asking_price: number | null;
+  manual_build_value: number | null;
+  manual_build_value_note: string | null;
 };
 
 /**
@@ -47,15 +57,38 @@ export async function updateVehicle(
   vehicleId: string,
   input: VehicleUpdateInput
 ): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('vehicles')
     .update({
       nickname: input.nickname,
       cover_photo_url: input.cover_photo_url,
       is_public: input.is_public,
+      is_for_sale: input.is_for_sale,
+      asking_price: input.asking_price,
+      manual_build_value: input.manual_build_value,
+      manual_build_value_note: input.manual_build_value_note,
+      manual_build_value_at:
+        input.manual_build_value != null && input.manual_build_value > 0
+          ? new Date().toISOString()
+          : null,
     })
-    .eq('id', vehicleId);
+    .eq('id', vehicleId)
+    .select('id')
+    .maybeSingle();
+
   if (error) throw error;
+  if (!data) {
+    throw new Error(
+      'Could not save changes. Sign in again or confirm you still own this build.'
+    );
+  }
+
+  const { error: recalcError } = await supabase.rpc('recalc_vehicle_total_spend', {
+    p_vehicle_id: vehicleId,
+  });
+  if (recalcError) {
+    console.warn('[vehicles] recalc_vehicle_total_spend failed', recalcError.message);
+  }
 }
 
 /**

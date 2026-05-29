@@ -16,8 +16,13 @@ import {
 
 import { useAuth } from '@/lib/auth-context';
 import { getPartById, searchParts, submitCustomPart, type Part } from '@/lib/parts';
+import { InstallDateField } from '@/components/InstallDateField';
 import { extractReceiptCostFromImage } from '@/lib/receipt-ocr';
 import { attachReceiptToMod } from '@/lib/receipts';
+import { enqueueModPhotoUpload } from '@/lib/offline-queue';
+import { markPlanItemComplete } from '@/lib/plan-items';
+import { canUseReceiptOcr, getUserSubscriptionTier } from '@/lib/subscription';
+import { searchWorkshops, type WorkshopUser } from '@/lib/workshops';
 import { uploadModPhoto, type UploadedPhoto } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { getWishlistItem, removeWishlistItem } from '@/lib/wishlist';
@@ -74,9 +79,10 @@ function todayISO(): string {
 
 export default function LogNewScreen() {
   const router = useRouter();
-  const { vehicleId, wishlistId } = useLocalSearchParams<{
+  const { vehicleId, wishlistId, planItemId } = useLocalSearchParams<{
     vehicleId?: string;
     wishlistId?: string;
+    planItemId?: string;
   }>();
   const { session } = useAuth();
   const [prefilling, setPrefilling] = useState(!!wishlistId);
@@ -87,6 +93,7 @@ export default function LogNewScreen() {
   const [receipt, setReceipt] = useState<PendingReceipt | null>(null);
   const [receiptCostHint, setReceiptCostHint] = useState<string | null>(null);
   const [scanningReceipt, setScanningReceipt] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Part picker state
   const [partQuery, setPartQuery] = useState('');
@@ -102,6 +109,9 @@ export default function LogNewScreen() {
   const [cost, setCost] = useState('');
   const [costIsApproximate, setCostIsApproximate] = useState(false);
   const [installerType, setInstallerType] = useState<InstallerType>('self');
+  const [installerWorkshopId, setInstallerWorkshopId] = useState<string | null>(null);
+  const [workshopQuery, setWorkshopQuery] = useState('');
+  const [workshopHits, setWorkshopHits] = useState<WorkshopUser[]>([]);
   const [installDate, setInstallDate] = useState(todayISO());
   const [dateIsApproximate, setDateIsApproximate] = useState(false);
   const [notes, setNotes] = useState('');
@@ -228,7 +238,12 @@ export default function LogNewScreen() {
     });
     setReceiptCostHint(null);
 
-    if (!cost.trim()) {
+    if (!cost.trim() && session) {
+      const tier = await getUserSubscriptionTier(session.user.id);
+      if (!canUseReceiptOcr(tier)) {
+        setReceiptCostHint('Receipt OCR is a Pro feature — enter cost manually or upgrade.');
+        return;
+      }
       setScanningReceipt(true);
       try {
         const parsed = await extractReceiptCostFromImage(asset.uri);
@@ -364,6 +379,9 @@ export default function LogNewScreen() {
           cost: costValue,
           cost_is_approximate: costIsApproximate,
           installer_type: installerType,
+          installer_workshop_id:
+            installerType === 'workshop' ? installerWorkshopId : null,
+          from_plan_item_id: planItemId ?? null,
           install_date: installDate,
           date_is_approximate: dateIsApproximate,
           notes: notes.trim() || null,
@@ -392,6 +410,14 @@ export default function LogNewScreen() {
             uploaded.push(result);
           } catch (err) {
             console.warn('Photo upload failed', err);
+            await enqueueModPhotoUpload({
+              modId: mod.id,
+              ownerId: session.user.id,
+              uri: p.uri,
+              mimeType: p.mimeType ?? undefined,
+              width: p.width ?? undefined,
+              height: p.height ?? undefined,
+            });
           }
         }
 
@@ -422,6 +448,14 @@ export default function LogNewScreen() {
           await removeWishlistItem(wishlistId);
         } catch (err) {
           console.warn('Could not delete wishlist source row', err);
+        }
+      }
+
+      if (planItemId) {
+        try {
+          await markPlanItemComplete(planItemId);
+        } catch (err) {
+          console.warn('Could not mark plan item complete', err);
         }
       }
 
@@ -690,21 +724,61 @@ export default function LogNewScreen() {
         <Chips
           options={INSTALLERS}
           value={installerType}
-          onChange={(v) => setInstallerType(v as InstallerType)}
+          onChange={(v) => {
+            const next = v as InstallerType;
+            setInstallerType(next);
+            if (next !== 'workshop') setInstallerWorkshopId(null);
+          }}
         />
+        {installerType === 'workshop' ? (
+          <View className="mt-3">
+            <TextInput
+              value={workshopQuery}
+              onChangeText={async (text) => {
+                setWorkshopQuery(text);
+                try {
+                  const hits = await searchWorkshops(text);
+                  setWorkshopHits(hits);
+                } catch {
+                  setWorkshopHits([]);
+                }
+              }}
+              placeholder="Search workshop by name or handle"
+              placeholderTextColor="#5A6373"
+              className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+            />
+            <View className="mt-2 gap-2">
+              {workshopHits.map((w) => (
+                <Pressable
+                  key={w.id}
+                  onPress={() => setInstallerWorkshopId(w.id)}
+                  className={`rounded-xl border px-4 py-3 ${
+                    installerWorkshopId === w.id
+                      ? 'border-accent bg-accent/10'
+                      : 'border-ink-700 bg-ink-900'
+                  }`}
+                >
+                  <Text className="font-semibold text-white">
+                    {w.workshop_name ?? w.display_name}
+                  </Text>
+                  <Text className="text-sm text-ink-300">@{w.handle}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         {/* ---- Install date ---- */}
         <SectionHeading>Install date</SectionHeading>
         <View className="flex-row items-center gap-3">
-          <TextInput
-            value={installDate}
-            onChangeText={setInstallDate}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor="#5A6373"
-            autoCapitalize="none"
-            autoCorrect={false}
-            className="flex-1 rounded-xl bg-ink-800 px-4 py-3 font-mono text-white"
-          />
+          <View className="flex-1">
+            <InstallDateField
+              value={installDate}
+              onChange={setInstallDate}
+              showPicker={showDatePicker}
+              onTogglePicker={() => setShowDatePicker((v) => !v)}
+            />
+          </View>
           <Toggle
             value={dateIsApproximate}
             onChange={setDateIsApproximate}

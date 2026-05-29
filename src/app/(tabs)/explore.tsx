@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,17 +15,22 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UserBadges } from '@/components/UserBadges';
+import { showAppAlert } from '@/lib/app-alert';
 import { useAuth } from '@/lib/auth-context';
 import type { FeedPost } from '@/lib/feed';
 import {
+  listBuildsForSale,
   listPopularParts,
   listTrendingPosts,
+  type BuildForSale,
   searchPartsForExplore,
   searchUsers,
   type PartSearchResult,
   type UserSearchResult,
 } from '@/lib/explore';
-import { addWishlistItem } from '@/lib/wishlist';
+import { saveSearch } from '@/lib/saved-searches';
+import { canSaveSearches, getUserSubscriptionTier } from '@/lib/subscription';
+import { addWishlistItem, listUserWishlistPartIds } from '@/lib/wishlist';
 import type { ModCategory } from '@/types/database';
 
 export default function ExploreScreen() {
@@ -38,19 +44,28 @@ export default function ExploreScreen() {
 
   const [popularParts, setPopularParts] = useState<PartSearchResult[]>([]);
   const [trending, setTrending] = useState<FeedPost[]>([]);
+  const [forSale, setForSale] = useState<BuildForSale[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [savedPartIds, setSavedPartIds] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(async () => {
     try {
-      const [parts, posts] = await Promise.all([
+      const wishlistIdsPromise = session
+        ? listUserWishlistPartIds(session.user.id)
+        : Promise.resolve(new Set<string>());
+      const [parts, posts, saleBuilds, wishlistPartIds] = await Promise.all([
         listPopularParts(12),
         listTrendingPosts(session?.user.id ?? null, 30, 6),
+        listBuildsForSale(8),
+        wishlistIdsPromise,
       ]);
       setPopularParts(parts);
       setTrending(posts);
+      setForSale(saleBuilds);
+      setSavedPartIds(wishlistPartIds);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load Explore';
       Alert.alert('Error', message);
@@ -97,9 +112,11 @@ export default function ExploreScreen() {
 
   async function handleSaveToWishlist(part: PartSearchResult) {
     if (!session) {
-      Alert.alert('Sign in', 'Sign in to save parts to your wishlist.');
+      showAppAlert('Sign in', 'Sign in to save parts to your wishlist.');
       return;
     }
+    if (savedPartIds.has(part.id)) return;
+
     setSavingId(part.id);
     try {
       await addWishlistItem({
@@ -112,13 +129,14 @@ export default function ExploreScreen() {
         notes: null,
         priority: 'medium',
       });
-      Alert.alert(
+      setSavedPartIds((prev) => new Set(prev).add(part.id));
+      showAppAlert(
         'Saved',
         `${part.brand} ${part.name} added to your wishlist. View it from Profile → My wishlist.`
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not save';
-      Alert.alert('Save failed', message);
+      showAppAlert('Save failed', message);
     } finally {
       setSavingId(null);
     }
@@ -158,6 +176,30 @@ export default function ExploreScreen() {
             autoCorrect={false}
             className="mt-5 rounded-xl bg-ink-900 px-4 py-3 text-white"
           />
+          {hasQuery && session ? (
+            <Pressable
+              onPress={async () => {
+                try {
+                  const tier = await getUserSubscriptionTier(session.user.id);
+                  if (!canSaveSearches(tier)) {
+                    Alert.alert(
+                      'Member perk',
+                      'Saved searches require a Member subscription or higher.'
+                    );
+                    return;
+                  }
+                  await saveSearch(session.user.id, query);
+                  Alert.alert('Saved', 'Search saved to your account.');
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : 'Could not save';
+                  Alert.alert('Save failed', message);
+                }
+              }}
+              className="mt-2 self-start"
+            >
+              <Text className="text-sm font-semibold text-accent">Save this search</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         {/* ---- Search results ---- */}
@@ -181,33 +223,51 @@ export default function ExploreScreen() {
                     <SectionLabel>People</SectionLabel>
                     <View className="gap-2 px-6 pt-2">
                       {userHits.map((u) => (
-                        <Pressable
+                        <View
                           key={u.id}
-                          onPress={() => router.push(`/user/${u.handle}`)}
-                          className="flex-row items-center gap-3 rounded-2xl border border-ink-700 bg-ink-900 p-3 active:bg-ink-800"
+                          className="flex-row items-center gap-3 rounded-2xl border border-ink-700 bg-ink-900 p-3"
                         >
-                          {u.avatar_url ? (
-                            <Image
-                              source={{ uri: u.avatar_url }}
-                              className="h-10 w-10 rounded-full bg-ink-700"
-                            />
-                          ) : (
-                            <View className="h-10 w-10 items-center justify-center rounded-full bg-ink-700">
-                              <Text className="font-bold text-white">
-                                {(u.display_name || u.handle || '?')[0].toUpperCase()}
-                              </Text>
+                          <Pressable
+                            onPress={() =>
+                              router.push(
+                                u.is_workshop ? `/workshop/${u.handle}` : `/user/${u.handle}`
+                              )
+                            }
+                            className="flex-1 flex-row items-center gap-3 active:opacity-80"
+                          >
+                            {u.avatar_url ? (
+                              <Image
+                                source={{ uri: u.avatar_url }}
+                                className="h-10 w-10 rounded-full bg-ink-700"
+                              />
+                            ) : (
+                              <View className="h-10 w-10 items-center justify-center rounded-full bg-ink-700">
+                                <Text className="font-bold text-white">
+                                  {(u.display_name || u.handle || '?')[0].toUpperCase()}
+                                </Text>
+                              </View>
+                            )}
+                            <View className="flex-1">
+                              <View className="flex-row items-center gap-1.5">
+                                <Text className="font-semibold text-white">
+                                  {u.is_workshop && u.workshop_name
+                                    ? u.workshop_name
+                                    : u.display_name}
+                                </Text>
+                                <UserBadges user={u} />
+                              </View>
+                              <Text className="text-xs text-ink-300">@{u.handle}</Text>
                             </View>
-                          )}
-                          <View className="flex-1">
-                            <View className="flex-row items-center gap-1.5">
-                              <Text className="font-semibold text-white">
-                                {u.display_name}
-                              </Text>
-                              <UserBadges user={u} />
-                            </View>
-                            <Text className="text-xs text-ink-300">@{u.handle}</Text>
-                          </View>
-                        </Pressable>
+                          </Pressable>
+                          {u.is_workshop && u.workshop_phone ? (
+                            <Pressable
+                              onPress={() => Linking.openURL(`tel:${u.workshop_phone}`)}
+                              className="rounded-lg bg-accent px-3 py-2 active:bg-accent-dark"
+                            >
+                              <Text className="text-xs font-semibold text-ink-950">Contact</Text>
+                            </Pressable>
+                          ) : null}
+                        </View>
                       ))}
                     </View>
                   </View>
@@ -222,6 +282,7 @@ export default function ExploreScreen() {
                           key={p.id}
                           part={p}
                           saving={savingId === p.id}
+                          saved={savedPartIds.has(p.id)}
                           onSave={() => handleSaveToWishlist(p)}
                         />
                       ))}
@@ -237,6 +298,39 @@ export default function ExploreScreen() {
           </View>
         ) : (
           <View className="gap-6 pt-2">
+            {forSale.length > 0 ? (
+              <View className="mt-8">
+                <SectionLabel inline>Builds for sale</SectionLabel>
+                <View className="mt-3 gap-3">
+                  {forSale.map((b) => (
+                    <Pressable
+                      key={b.id}
+                      onPress={() => router.push(`/build/${b.id}`)}
+                      className="overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 active:bg-ink-800"
+                    >
+                      {b.cover_photo_url ? (
+                        <Image
+                          source={{ uri: b.cover_photo_url }}
+                          className="h-24 w-full bg-ink-800"
+                          resizeMode="cover"
+                        />
+                      ) : null}
+                      <View className="p-4">
+                        <Text className="font-semibold text-white">
+                          {b.nickname ?? `${b.make} ${b.model}`}
+                        </Text>
+                        {b.asking_price != null ? (
+                          <Text className="mt-1 text-accent">
+                            ${Number(b.asking_price).toLocaleString()}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
             {/* ---- Popular parts ---- */}
             <View>
               <View className="flex-row items-end justify-between px-6 pt-4">
@@ -251,6 +345,7 @@ export default function ExploreScreen() {
                     key={p.id}
                     part={p}
                     saving={savingId === p.id}
+                    saved={savedPartIds.has(p.id)}
                     onSave={() => handleSaveToWishlist(p)}
                   />
                 ))}
@@ -312,37 +407,49 @@ function SectionLabel({
 function PartRow({
   part,
   saving,
+  saved,
   onSave,
 }: {
   part: PartSearchResult;
   saving: boolean;
+  saved: boolean;
   onSave: () => void;
 }) {
   const router = useRouter();
   return (
     <View className="flex-row items-center gap-3 rounded-2xl border border-ink-700 bg-ink-900 px-3 py-3">
-      <Pressable
-        onPress={() => router.push(`/part/${part.id}`)}
-        className="flex-1 active:opacity-80"
-      >
-        <Text className="text-[10px] uppercase tracking-wider text-ink-300">
-          {part.category.replace('_', ' ')}
-        </Text>
-        <Text className="mt-0.5 text-base font-semibold text-white">{part.brand}</Text>
-        <Text className="text-sm text-ink-200">{part.name}</Text>
-        <Text className="mt-1 text-[11px] text-ink-300">
-          {part.install_count} install{part.install_count === 1 ? '' : 's'}
-        </Text>
-      </Pressable>
+      <View className="min-w-0 flex-1">
+        <Pressable
+          onPress={() => router.push(`/part/${part.id}`)}
+          className="active:opacity-80"
+        >
+          <Text className="text-[10px] uppercase tracking-wider text-ink-300">
+            {part.category.replace('_', ' ')}
+          </Text>
+          <Text className="mt-0.5 text-base font-semibold text-white">{part.brand}</Text>
+          <Text className="text-sm text-ink-200">{part.name}</Text>
+          <Text className="mt-1 text-[11px] text-ink-300">
+            {part.install_count} install{part.install_count === 1 ? '' : 's'}
+          </Text>
+        </Pressable>
+      </View>
       <Pressable
         onPress={onSave}
-        disabled={saving}
-        className="rounded-lg bg-accent/20 px-3 py-1.5 active:bg-accent/30 disabled:opacity-60"
+        disabled={saving || saved}
+        className={`shrink-0 rounded-lg px-3 py-1.5 disabled:opacity-60 ${
+          saved ? 'bg-ink-700' : 'bg-accent/20 active:bg-accent/30'
+        }`}
+        accessibilityRole="button"
+        accessibilityLabel={saved ? 'Saved to wishlist' : 'Add to wishlist'}
       >
         {saving ? (
           <ActivityIndicator color="#F5A524" />
         ) : (
-          <Text className="text-xs font-semibold text-accent">+ Wishlist</Text>
+          <Text
+            className={`text-xs font-semibold ${saved ? 'text-ink-300' : 'text-accent'}`}
+          >
+            {saved ? 'Saved' : '+ Wishlist'}
+          </Text>
         )}
       </Pressable>
     </View>

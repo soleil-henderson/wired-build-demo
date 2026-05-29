@@ -1,8 +1,9 @@
 import 'react-native-url-polyfill/auto';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 
+import { getAuthStorage } from './auth-storage';
 import type { Database } from '@/types/database';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -15,11 +16,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+/** Native uses AsyncStorage; web uses localStorage when `window` exists. SSR uses memory. */
+function shouldPersistSession(): boolean {
+  if (Platform.OS !== 'web') return true;
+  return typeof window !== 'undefined';
+}
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
+    storage: getAuthStorage(),
+    autoRefreshToken: shouldPersistSession(),
+    persistSession: shouldPersistSession(),
     detectSessionInUrl: false,
   },
 });

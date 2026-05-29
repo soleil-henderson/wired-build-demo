@@ -19,10 +19,12 @@ import {
   type NotificationPayload,
   type NotificationRow,
 } from '@/lib/notifications';
+import { useUnreadNotifications } from '@/lib/unread-notifications-context';
 
 export default function NotificationsScreen() {
   const { session } = useAuth();
   const router = useRouter();
+  const { refresh: refreshUnread } = useUnreadNotifications();
   const [rows, setRows] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,6 +40,7 @@ export default function NotificationsScreen() {
         setRows(data);
         if (markRead && data.some((r) => !r.read_at)) {
           await markAllRead(session.user.id);
+          await refreshUnread();
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Could not load notifications';
@@ -47,7 +50,7 @@ export default function NotificationsScreen() {
         setRefreshing(false);
       }
     },
-    [session]
+    [session, refreshUnread]
   );
 
   useFocusEffect(

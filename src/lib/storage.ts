@@ -1,23 +1,8 @@
-import { File } from 'expo-file-system';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-
+import { prepareImageForUpload, readUploadBytes } from './image-bytes';
 import { supabase } from './supabase';
 
 const MOD_PHOTOS_BUCKET = 'mod-photos';
 const RECEIPTS_BUCKET = 'receipts';
-
-/**
- * Cap on the longer edge of an uploaded photo. 1920px is plenty for feed
- * cards and the build-profile hero; anything bigger is wasted bandwidth.
- */
-const MAX_EDGE_PX = 1920;
-
-/**
- * JPEG quality for re-encoded uploads. 0.85 is the visual sweet spot —
- * indistinguishable from source on mod-photo content, ~5-10x smaller
- * than the iPhone HEIC original.
- */
-const JPEG_QUALITY = 0.85;
 
 export type UploadedPhoto = {
   url: string;
@@ -26,62 +11,6 @@ export type UploadedPhoto = {
   height: number | null;
 };
 
-/**
- * Resize + recompress on-device before upload.
- *
- * Why: iPhones produce 4-8MB HEIC files per shot. Uploading raw was
- * killing the Log-a-Mod UX over LTE, and the originals contain EXIF
- * with GPS coords we don't want to leak. Re-encoding through
- * expo-image-manipulator strips EXIF as a side effect.
- *
- * We only downscale when the longer edge exceeds MAX_EDGE_PX; smaller
- * inputs get re-encoded in place. Format is normalised to JPEG so the
- * CDN doesn't have to negotiate HEIC support, and the storage key
- * always ends in `.jpg`.
- */
-async function prepareImageForUpload(input: {
-  uri: string;
-  width?: number | null;
-  height?: number | null;
-  maxEdgePx?: number;
-}): Promise<{ uri: string; width: number; height: number }> {
-  const maxEdge = input.maxEdgePx ?? MAX_EDGE_PX;
-  const ctx = ImageManipulator.manipulate(input.uri);
-
-  const w = input.width ?? 0;
-  const h = input.height ?? 0;
-  const longest = Math.max(w, h);
-  if (longest > maxEdge) {
-    if (w >= h) {
-      ctx.resize({ width: maxEdge });
-    } else {
-      ctx.resize({ height: maxEdge });
-    }
-  }
-
-  const img = await ctx.renderAsync();
-  const result = await img.saveAsync({
-    format: SaveFormat.JPEG,
-    compress: JPEG_QUALITY,
-  });
-
-  return {
-    uri: result.uri,
-    width: result.width,
-    height: result.height,
-  };
-}
-
-/**
- * Upload a single mod photo from a local URI (as returned by
- * expo-image-picker) to the public `mod-photos` bucket. The image is
- * resized + recompressed to JPEG on-device before the network call —
- * see prepareImageForUpload() for the why.
- *
- * Storage key shape: `<ownerId>/<random-uuid>.jpg` — the leading owner-id
- * segment is what the bucket policies in migration 0005 check against
- * auth.uid().
- */
 export async function uploadModPhoto(input: {
   uri: string;
   ownerId: string;
@@ -96,8 +25,7 @@ export async function uploadModPhoto(input: {
   });
 
   const key = `${input.ownerId}/${cryptoRandomId()}.jpg`;
-  const file = new File(prepared.uri);
-  const bytes = await file.arrayBuffer();
+  const bytes = await readUploadBytes(prepared.uri);
 
   const { error } = await supabase.storage
     .from(MOD_PHOTOS_BUCKET)
@@ -140,8 +68,7 @@ export async function uploadAvatar(input: {
   });
 
   const key = `${input.ownerId}/avatar-${cryptoRandomId()}.jpg`;
-  const file = new File(prepared.uri);
-  const bytes = await file.arrayBuffer();
+  const bytes = await readUploadBytes(prepared.uri);
 
   const { error } = await supabase.storage
     .from(MOD_PHOTOS_BUCKET)
@@ -180,8 +107,7 @@ export async function uploadReceipt(input: {
   });
 
   const key = `${input.ownerId}/${cryptoRandomId()}.jpg`;
-  const file = new File(prepared.uri);
-  const bytes = await file.arrayBuffer();
+  const bytes = await readUploadBytes(prepared.uri);
 
   const { error } = await supabase.storage
     .from(RECEIPTS_BUCKET)
@@ -220,8 +146,7 @@ export async function uploadCoverPhoto(input: {
   });
 
   const key = `${input.ownerId}/cover-${cryptoRandomId()}.jpg`;
-  const file = new File(prepared.uri);
-  const bytes = await file.arrayBuffer();
+  const bytes = await readUploadBytes(prepared.uri);
 
   const { error } = await supabase.storage
     .from(MOD_PHOTOS_BUCKET)

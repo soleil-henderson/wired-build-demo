@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -19,14 +20,20 @@ type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 type VehicleWithCount = Vehicle & { mod_count: number };
 
 export default function GarageScreen() {
-  const { session, signOut } = useAuth();
+  const { session, isLoading: authLoading, signOut } = useAuth();
   const router = useRouter();
   const [vehicles, setVehicles] = useState<VehicleWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    if (!session) return;
+    if (authLoading || !session) {
+      if (!authLoading) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+      return;
+    }
     const { data: rows, error } = await supabase
       .from('vehicles')
       .select('*')
@@ -55,7 +62,7 @@ export default function GarageScreen() {
     setVehicles(list.map((v, i) => ({ ...v, mod_count: counts[i] })));
     setLoading(false);
     setRefreshing(false);
-  }, [session]);
+  }, [session, authLoading]);
 
   useFocusEffect(
     useCallback(() => {
@@ -118,8 +125,16 @@ export default function GarageScreen() {
               <Pressable
                 key={v.id}
                 onPress={() => router.push(`/vehicle/${v.id}`)}
-                className="rounded-2xl border border-ink-700 bg-ink-900 p-5 active:bg-ink-800"
+                className="overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 active:bg-ink-800"
               >
+                {v.cover_photo_url ? (
+                  <Image
+                    source={{ uri: v.cover_photo_url }}
+                    className="h-28 w-full bg-ink-800"
+                    resizeMode="cover"
+                  />
+                ) : null}
+                <View className="p-5">
                 <Text className="text-xs uppercase tracking-wider text-ink-300">
                   {v.year} · {v.make} · {v.model}
                   {v.trim ? ` · ${v.trim}` : ''}
@@ -137,6 +152,11 @@ export default function GarageScreen() {
                   >
                     {v.is_public ? 'Public' : 'Private'}
                   </Text>
+                  {v.is_for_sale ? (
+                    <Text className="rounded-md bg-signal-green/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-signal-green">
+                      For sale
+                    </Text>
+                  ) : null}
                 </View>
                 <Text className="mt-2 font-mono text-xs text-ink-300">
                   VIN ····{v.vin.slice(-6)}
@@ -151,6 +171,7 @@ export default function GarageScreen() {
                     label="Est. value"
                     value={v.build_value ? `$${Number(v.build_value).toLocaleString()}` : '—'}
                   />
+                </View>
                 </View>
               </Pressable>
             ))}

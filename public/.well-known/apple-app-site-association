@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.com.wiredautogroup.wiredbuild",
+        "paths": ["/build/*", "/post/*", "/user/*", "/workshop/*"]
+      }
+    ]
+  }
+}

@@ -9,21 +9,27 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
+  Linking,
   Share,
   Text,
   View,
 } from 'react-native';
 
 import { useAuth } from '@/lib/auth-context';
+import { buildCsvExport, csvExportFilename, shareCsvExport } from '@/lib/export-build';
 import { listVehicleMods, type ModWithPart } from '@/lib/mods';
+import { getReceiptSignedUrl } from '@/lib/receipts';
+import { canExportBuildData, getUserSubscriptionTier } from '@/lib/subscription';
 import {
   listOwnershipHistory,
   type OwnershipTransferRow,
 } from '@/lib/ownership';
 import { publicBuildUrl } from '@/lib/public-build';
+import { routeParam } from '@/lib/route-param';
 import { buildValueFootnote, buildValueLabel } from '@/lib/valuation';
 import { supabase } from '@/lib/supabase';
 import {
@@ -37,9 +43,10 @@ import type { Database } from '@/types/database';
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
 export default function VehicleProfileScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string }>();
+  const id = routeParam(params.id);
   const router = useRouter();
-  const { session } = useAuth();
+  const { session, isLoading: authLoading } = useAuth();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [mods, setMods] = useState<ModWithPart[]>([]);
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
@@ -50,18 +57,35 @@ export default function VehicleProfileScreen() {
   const isOwner = !!(session && vehicle && session.user.id === vehicle.current_owner_id);
 
   const load = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    if (authLoading) return;
+
+    setLoading(true);
     try {
-      const [{ data: v, error: vErr }, modList, wishlistList, historyList] =
-        await Promise.all([
-          supabase.from('vehicles').select('*').eq('id', id).maybeSingle(),
-          listVehicleMods(id),
-          // Wishlist is owner-only via RLS; non-owners just get an empty array.
-          listVehicleWishlist(id).catch(() => []),
-          listOwnershipHistory(id).catch(() => []),
-        ]);
+      const { data: v, error: vErr } = await supabase
+        .from('vehicles')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
       if (vErr) throw vErr;
       setVehicle(v);
+
+      if (!v) {
+        setMods([]);
+        setWishlist([]);
+        setHistory([]);
+        return;
+      }
+
+      const [modList, wishlistList, historyList] = await Promise.all([
+        listVehicleMods(id),
+        listVehicleWishlist(id).catch(() => [] as WishlistItem[]),
+        listOwnershipHistory(id).catch(() => [] as OwnershipTransferRow[]),
+      ]);
       setMods(modList);
       setWishlist(wishlistList);
       setHistory(historyList);
@@ -72,7 +96,47 @@ export default function VehicleProfileScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [id]);
+  }, [id, authLoading, session?.user.id]);
+
+  async function handleExportCsv() {
+    if (!vehicle || !session) return;
+    try {
+      const tier = await getUserSubscriptionTier(session.user.id);
+      if (!canExportBuildData(tier)) {
+        const message = 'CSV export is available on Pro and Workshop plans.';
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          window.alert(`Pro feature\n\n${message}`);
+        } else {
+          Alert.alert('Pro feature', message, [
+            { text: 'View plans', onPress: () => router.push('/profile/subscription') },
+          ]);
+        }
+        return;
+      }
+      const csv = buildCsvExport(vehicle, mods);
+      await shareCsvExport(csv, csvExportFilename(vehicle));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not export CSV';
+      Alert.alert('Export failed', message);
+    }
+  }
+
+  async function handleViewReceipt(mod: ModWithPart) {
+    if (!mod.receipt_media_id) return;
+    try {
+      const { data } = await supabase
+        .from('media')
+        .select('storage_key')
+        .eq('id', mod.receipt_media_id)
+        .maybeSingle();
+      if (!data?.storage_key) return;
+      const url = await getReceiptSignedUrl(data.storage_key);
+      await Linking.openURL(url);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not open receipt';
+      Alert.alert('Receipt', message);
+    }
+  }
 
   async function handleShare() {
     if (!vehicle) return;
@@ -108,7 +172,7 @@ export default function VehicleProfileScreen() {
     }, [load])
   );
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <View className="flex-1 items-center justify-center bg-ink-950">
         <Stack.Screen options={{ title: 'Build profile' }} />
@@ -118,10 +182,21 @@ export default function VehicleProfileScreen() {
   }
 
   if (!vehicle) {
+    const unavailableMessage = !session
+      ? 'Sign in to view this build.'
+      : 'This build is private or no longer exists.';
     return (
       <View className="flex-1 items-center justify-center bg-ink-950 px-6">
         <Stack.Screen options={{ title: 'Not found' }} />
-        <Text className="text-white">This vehicle isn&apos;t available.</Text>
+        <Text className="text-center text-white">{unavailableMessage}</Text>
+        {!session ? (
+          <Pressable
+            onPress={() => router.push('/(auth)/sign-in')}
+            className="mt-4 rounded-xl bg-accent px-4 py-2"
+          >
+            <Text className="font-semibold text-ink-950">Sign in</Text>
+          </Pressable>
+        ) : null}
       </View>
     );
   }
@@ -209,12 +284,26 @@ export default function VehicleProfileScreen() {
                 <Text className="font-semibold text-ink-200">Edit</Text>
               </Pressable>
               <Pressable
+                onPress={handleExportCsv}
+                className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
+              >
+                <Text className="font-semibold text-ink-200">Export CSV</Text>
+              </Pressable>
+              <Pressable
                 onPress={() =>
                   router.push(`/vehicle/transfer?vehicleId=${vehicle.id}`)
                 }
                 className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
               >
                 <Text className="font-semibold text-ink-200">Transfer</Text>
+              </Pressable>
+              <Pressable
+                onPress={() =>
+                  router.push(`/vehicle/plan?vehicleId=${vehicle.id}`)
+                }
+                className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
+              >
+                <Text className="font-semibold text-ink-200">Build plan</Text>
               </Pressable>
             </>
           ) : null}
@@ -386,7 +475,17 @@ export default function VehicleProfileScreen() {
                     <Text className="mt-2 text-sm text-ink-300">{m.notes}</Text>
                   ) : null}
                   {isOwner ? (
-                    <View className="mt-4 flex-row gap-2">
+                    <View className="mt-4 flex-row flex-wrap gap-2">
+                      {m.has_receipt ? (
+                        <Pressable
+                          onPress={() => handleViewReceipt(m)}
+                          className="rounded-lg border border-ink-700 px-3 py-1.5 active:bg-ink-800"
+                        >
+                          <Text className="text-xs font-semibold text-ink-200">
+                            Receipt
+                          </Text>
+                        </Pressable>
+                      ) : null}
                       <Pressable
                         onPress={() =>
                           router.push(`/log/edit?modId=${m.id}`)

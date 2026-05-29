@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "wired-build-demo",
-    "slug": "wired-build-demo",
+    "name": "Wired Build",
+    "slug": "wired-build",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,9 +10,37 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "bundleIdentifier": "com.wiredautogroup.wiredbuild",
+      "associatedDomains": [
+        "applinks:wiredbuild.app",
+        "applinks:www.wiredbuild.app"
+      ]
     },
     "android": {
+      "package": "com.wiredautogroup.wiredbuild",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "wiredbuild.app",
+              "pathPrefix": "/build"
+            },
+            {
+              "scheme": "https",
+              "host": "www.wiredbuild.app",
+              "pathPrefix": "/build"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#08090B",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -53,7 +81,8 @@
           "color": "#F5A524"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

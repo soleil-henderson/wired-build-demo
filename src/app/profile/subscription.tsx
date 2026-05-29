@@ -1,8 +1,21 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 
 import { useAuth } from '@/lib/auth-context';
+import {
+  openBillingPortal,
+  restoreIosPurchases,
+  startSubscriptionCheckout,
+} from '@/lib/payments';
 import { supabase } from '@/lib/supabase';
 import type { SubscriptionTier } from '@/types/database';
 
@@ -65,6 +78,7 @@ const TIERS: TierMeta[] = [
 export default function SubscriptionScreen() {
   const { session } = useAuth();
   const [currentTier, setCurrentTier] = useState<SubscriptionTier>('free');
+  const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -82,6 +96,23 @@ export default function SubscriptionScreen() {
     }, [load])
   );
 
+  async function handleUpgrade(tier: SubscriptionTier) {
+    setBusy(tier);
+    try {
+      await startSubscriptionCheckout(tier);
+      await load();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Checkout failed';
+      if (typeof window !== 'undefined') {
+        window.alert(`Upgrade failed\n\n${message}`);
+      } else {
+        Alert.alert('Upgrade', message);
+      }
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <ScrollView className="flex-1 bg-ink-950" contentContainerClassName="pb-12">
       <Stack.Screen options={{ title: 'Subscription' }} />
@@ -92,10 +123,27 @@ export default function SubscriptionScreen() {
         </Text>
         <Text className="mt-1 text-3xl font-bold text-white">Pick a tier</Text>
         <Text className="mt-2 text-ink-300">
-          Subscription state lives server-side and is only ever updated by
-          Stripe / app-store webhooks. The buttons below are placeholders for
-          the checkout flow.
+          Upgrades are processed by Stripe (web/Android) or the App Store (iOS).
+          Your tier updates automatically when payment succeeds — we never trust
+          the client.
         </Text>
+        {Platform.OS === 'ios' ? (
+          <Pressable
+            onPress={async () => {
+              try {
+                await restoreIosPurchases();
+                await load();
+                Alert.alert('Restored', 'Your App Store purchases were synced.');
+              } catch (err) {
+                const message = err instanceof Error ? err.message : 'Restore failed';
+                Alert.alert('Restore', message);
+              }
+            }}
+            className="mt-3"
+          >
+            <Text className="text-sm font-semibold text-accent">Restore purchases</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View className="mt-6 gap-3 px-6">
@@ -137,15 +185,24 @@ export default function SubscriptionScreen() {
               </View>
               {!isCurrent && tier.id !== 'free' ? (
                 <Pressable
-                  onPress={() =>
-                    Alert.alert(
-                      'Coming soon',
-                      'Checkout will route through the App Store / Stripe Billing Portal. The server-side webhook is what flips your subscription_tier — we never trust the client.'
-                    )
-                  }
-                  className="mt-4 self-start rounded-xl bg-accent px-4 py-2 active:bg-accent-dark"
+                  onPress={() => handleUpgrade(tier.id)}
+                  disabled={busy !== null}
+                  className="mt-4 self-start rounded-xl bg-accent px-4 py-2 active:bg-accent-dark disabled:opacity-60"
                 >
-                  <Text className="font-semibold text-ink-950">Upgrade to {tier.label}</Text>
+                  {busy === tier.id ? (
+                    <ActivityIndicator color="#08090B" />
+                  ) : (
+                    <Text className="font-semibold text-ink-950">
+                      Upgrade to {tier.label}
+                    </Text>
+                  )}
+                </Pressable>
+              ) : null}
+              {isCurrent && tier.id !== 'free' ? (
+                <Pressable onPress={() => openBillingPortal()} className="mt-4">
+                  <Text className="text-sm font-semibold text-accent">
+                    Manage billing
+                  </Text>
                 </Pressable>
               ) : null}
             </View>

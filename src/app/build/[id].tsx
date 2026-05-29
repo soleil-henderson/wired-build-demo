@@ -20,10 +20,12 @@ import {
   type PublicBuild,
   type PublicBuildMod,
 } from '@/lib/public-build';
+import { routeParam } from '@/lib/route-param';
 import { buildValueFootnote, buildValueLabel } from '@/lib/valuation';
 
 export default function PublicBuildScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string }>();
+  const id = routeParam(params.id);
   const router = useRouter();
   const { session } = useAuth();
 
@@ -32,7 +34,11 @@ export default function PublicBuildScreen() {
   const [notFound, setNotFound] = useState(false);
 
   const load = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      setNotFound(true);
+      return;
+    }
     setLoading(true);
     const data = await getPublicBuild(id);
     if (!data) {
@@ -150,6 +156,29 @@ export default function PublicBuildScreen() {
           <Text className="mt-2 text-xs text-ink-300">
             {buildValueFootnote(vehicle.valuation_source)}
           </Text>
+        ) : null}
+
+        {vehicle.is_for_sale ? (
+          <View className="mt-4 rounded-xl border border-signal-green/40 bg-signal-green/10 px-4 py-3">
+            <Text className="text-xs font-semibold uppercase tracking-wider text-signal-green">
+              For sale
+            </Text>
+            {vehicle.asking_price != null ? (
+              <Text className="mt-1 text-xl font-bold text-white">
+                ${Number(vehicle.asking_price).toLocaleString()} AUD
+              </Text>
+            ) : (
+              <Text className="mt-1 text-ink-200">Price on application</Text>
+            )}
+            {vehicle.owner ? (
+              <Pressable
+                onPress={() => router.push(`/user/${vehicle.owner!.handle}`)}
+                className="mt-3 self-start rounded-lg bg-accent px-4 py-2 active:bg-accent-dark"
+              >
+                <Text className="text-sm font-semibold text-ink-950">Contact owner</Text>
+              </Pressable>
+            ) : null}
+          </View>
         ) : null}
 
         <View className="mt-6 flex-row flex-wrap gap-2">

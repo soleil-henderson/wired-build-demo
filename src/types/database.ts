@@ -72,6 +72,10 @@ export type Database = {
           push_token: string | null;
           is_identity_verified: boolean;
           is_workshop: boolean;
+          is_admin: boolean;
+          workshop_name: string | null;
+          workshop_phone: string | null;
+          workshop_website: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -89,6 +93,10 @@ export type Database = {
           push_token?: string | null;
           is_identity_verified?: boolean;
           is_workshop?: boolean;
+          is_admin?: boolean;
+          workshop_name?: string | null;
+          workshop_phone?: string | null;
+          workshop_website?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -106,6 +114,10 @@ export type Database = {
           push_token?: string | null;
           is_identity_verified?: boolean;
           is_workshop?: boolean;
+          is_admin?: boolean;
+          workshop_name?: string | null;
+          workshop_phone?: string | null;
+          workshop_website?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -125,9 +137,13 @@ export type Database = {
           cover_photo_url: string | null;
           is_public: boolean;
           is_for_sale: boolean;
+          asking_price: number | null;
           total_spend: number;
           build_value: number | null;
           valuation_source: string;
+          manual_build_value: number | null;
+          manual_build_value_at: string | null;
+          manual_build_value_note: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -144,9 +160,13 @@ export type Database = {
           cover_photo_url?: string | null;
           is_public?: boolean;
           is_for_sale?: boolean;
+          asking_price?: number | null;
           total_spend?: number;
           build_value?: number | null;
           valuation_source?: string;
+          manual_build_value?: number | null;
+          manual_build_value_at?: string | null;
+          manual_build_value_note?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -163,9 +183,13 @@ export type Database = {
           cover_photo_url?: string | null;
           is_public?: boolean;
           is_for_sale?: boolean;
+          asking_price?: number | null;
           total_spend?: number;
           build_value?: number | null;
           valuation_source?: string;
+          manual_build_value?: number | null;
+          manual_build_value_at?: string | null;
+          manual_build_value_note?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -375,6 +399,7 @@ export type Database = {
           mod_id: string | null;
           url: string;
           storage_key: string;
+          thumbnail_url: string | null;
           kind: MediaKind;
           width: number | null;
           height: number | null;
@@ -388,6 +413,7 @@ export type Database = {
           mod_id?: string | null;
           url: string;
           storage_key: string;
+          thumbnail_url?: string | null;
           kind: MediaKind;
           width?: number | null;
           height?: number | null;
@@ -401,6 +427,7 @@ export type Database = {
           mod_id?: string | null;
           url?: string;
           storage_key?: string;
+          thumbnail_url?: string | null;
           kind?: MediaKind;
           width?: number | null;
           height?: number | null;
@@ -733,6 +760,111 @@ export type Database = {
           },
         ];
       };
+      saved_searches: {
+        Row: {
+          id: string;
+          user_id: string;
+          query: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          query: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          query?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      user_blocks: {
+        Row: {
+          blocker_id: string;
+          blocked_id: string;
+          created_at: string;
+        };
+        Insert: {
+          blocker_id: string;
+          blocked_id: string;
+          created_at?: string;
+        };
+        Update: {
+          blocker_id?: string;
+          blocked_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      notification_preferences: {
+        Row: {
+          user_id: string;
+          follows_enabled: boolean;
+          reactions_enabled: boolean;
+          comments_enabled: boolean;
+          ownership_transfers_enabled: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          follows_enabled?: boolean;
+          reactions_enabled?: boolean;
+          comments_enabled?: boolean;
+          ownership_transfers_enabled?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          follows_enabled?: boolean;
+          reactions_enabled?: boolean;
+          comments_enabled?: boolean;
+          ownership_transfers_enabled?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      plan_items: {
+        Row: {
+          id: string;
+          vehicle_id: string;
+          user_id: string;
+          title: string;
+          target_cost: number | null;
+          notes: string | null;
+          sort_order: number;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          vehicle_id: string;
+          user_id: string;
+          title: string;
+          target_cost?: number | null;
+          notes?: string | null;
+          sort_order?: number;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          vehicle_id?: string;
+          user_id?: string;
+          title?: string;
+          target_cost?: number | null;
+          notes?: string | null;
+          sort_order?: number;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -744,6 +876,27 @@ export type Database = {
           p_new_owner_id: string;
           p_note?: string | null;
         };
+        Returns: void;
+      };
+      delete_own_account: {
+        Args: Record<string, never>;
+        Returns: void;
+      };
+      check_rate_limit: {
+        Args: {
+          p_user_id: string;
+          p_action: string;
+          p_max: number;
+          p_window_seconds: number;
+        };
+        Returns: boolean;
+      };
+      workshop_verify_mod: {
+        Args: { p_mod_id: string };
+        Returns: void;
+      };
+      recalc_vehicle_total_spend: {
+        Args: { p_vehicle_id: string };
         Returns: void;
       };
     };

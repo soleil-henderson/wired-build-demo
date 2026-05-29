@@ -148,12 +148,80 @@ export default function ProfileScreen() {
           </Text>
         </Pressable>
 
-        <Pressable
-          onPress={() => signOut()}
-          className="mt-8 self-start rounded-xl border border-ink-700 px-4 py-2"
-        >
-          <Text className="text-ink-300">Sign out</Text>
-        </Pressable>
+        <View className="mt-8 gap-2">
+          <Pressable
+            onPress={() => router.push('/settings/notifications')}
+            className="rounded-xl border border-ink-700 px-4 py-3 active:bg-ink-800"
+          >
+            <Text className="text-ink-200">Notification settings</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/settings/saved-searches')}
+            className="rounded-xl border border-ink-700 px-4 py-3 active:bg-ink-800"
+          >
+            <Text className="text-ink-200">Saved searches</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/(auth)/onboarding')}
+            className="rounded-xl border border-ink-700 px-4 py-3 active:bg-ink-800"
+          >
+            <Text className="text-ink-200">Setup wizard</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/profile/workshop')}
+            className="rounded-xl border border-ink-700 px-4 py-3 active:bg-ink-800"
+          >
+            <Text className="text-ink-200">Workshop profile</Text>
+          </Pressable>
+          {profile?.is_workshop ? (
+            <Pressable
+              onPress={() => router.push('/profile/workshop-installs')}
+              className="rounded-xl border border-ink-700 px-4 py-3 active:bg-ink-800"
+            >
+              <Text className="text-ink-200">Workshop installs</Text>
+            </Pressable>
+          ) : null}
+          <Pressable
+            onPress={() => router.push('/settings/upload-queue')}
+            className="rounded-xl border border-ink-700 px-4 py-3 active:bg-ink-800"
+          >
+            <Text className="text-ink-200">Pending photo uploads</Text>
+          </Pressable>
+          {profile?.is_admin ? (
+            <>
+              <Pressable
+                onPress={() => router.push('/admin/moderation')}
+                className="rounded-xl border border-ink-700 px-4 py-3 active:bg-ink-800"
+              >
+                <Text className="text-ink-200">Admin: moderate parts</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/admin/affiliate')}
+                className="rounded-xl border border-ink-700 px-4 py-3 active:bg-ink-800"
+              >
+                <Text className="text-ink-200">Admin: affiliate links</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/admin/part-clicks')}
+                className="rounded-xl border border-ink-700 px-4 py-3 active:bg-ink-800"
+              >
+                <Text className="text-ink-200">Admin: part clicks</Text>
+              </Pressable>
+            </>
+          ) : null}
+          <Pressable onPress={() => router.push('/legal/privacy')}>
+            <Text className="text-sm text-ink-300">Privacy policy</Text>
+          </Pressable>
+          <Pressable onPress={() => router.push('/legal/terms')}>
+            <Text className="text-sm text-ink-300">Terms of service</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => signOut()}
+            className="mt-2 self-start rounded-xl border border-ink-700 px-4 py-2"
+          >
+            <Text className="text-ink-300">Sign out</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

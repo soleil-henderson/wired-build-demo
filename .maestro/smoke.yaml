@@ -1,0 +1,10 @@
+appId: com.wiredautogroup.wiredbuild
+---
+# Production smoke — run against EAS build or dev client with test credentials.
+# See docs/TESTING.md and docs/PAYMENT_QA.md
+
+- launchApp
+- assertVisible: "Sign in"
+- tapOn: "Sign in"
+# Add test account email/password via env or Maestro secrets for full flow:
+# sign-up → garage → log mod → feed → public build URL

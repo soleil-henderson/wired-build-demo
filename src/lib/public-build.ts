@@ -26,6 +26,8 @@ export type PublicBuildVehicle = Pick<
   | 'build_value'
   | 'valuation_source'
   | 'is_public'
+  | 'is_for_sale'
+  | 'asking_price'
   | 'created_at'
 > & {
   owner: PublicBuildOwner | null;
@@ -72,7 +74,7 @@ export async function getPublicBuild(id: string): Promise<PublicBuild | null> {
       .select(
         `
         id, vin, year, make, model, trim, nickname, cover_photo_url,
-        total_spend, build_value, valuation_source, is_public, created_at,
+        total_spend, build_value, valuation_source, is_public, is_for_sale, asking_price, created_at,
         owner:users!vehicles_current_owner_id_fkey (
           id, handle, display_name, avatar_url, bio,
           is_workshop, is_identity_verified, subscription_tier
@@ -89,7 +91,7 @@ export async function getPublicBuild(id: string): Promise<PublicBuild | null> {
         id, category, cost, cost_is_approximate, install_date,
         date_is_approximate, installer_type, notes, custom_part_name,
         part:parts ( id, brand, name ),
-        media ( url, kind, is_sensitive )
+        media!media_mod_id_fkey ( url, kind, is_sensitive )
       `
       )
       .eq('vehicle_id', id)

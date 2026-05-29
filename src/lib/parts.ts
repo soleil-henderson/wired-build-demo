@@ -144,7 +144,7 @@ export async function listPartInstalls(
           subscription_tier, is_identity_verified, is_workshop
         )
       ),
-      media ( url, kind, is_sensitive )
+      media!media_mod_id_fkey ( url, kind, is_sensitive )
     `
     )
     .eq('part_id', partId)
@@ -212,11 +212,34 @@ export async function listPartInstalls(
  * Inserts a community-submitted part as is_approved=false so it lands in the
  * moderation queue. Returns the inserted row so the caller can link the mod to it.
  */
+const CUSTOM_PART_COOLDOWN_MS = 60_000;
+let lastCustomPartSubmitAt = 0;
+
 export async function submitCustomPart(input: {
   brand: string;
   name: string;
   category: ModCategory;
 }): Promise<Part> {
+  const now = Date.now();
+  if (now - lastCustomPartSubmitAt < CUSTOM_PART_COOLDOWN_MS) {
+    throw new Error('Please wait a minute before submitting another custom part.');
+  }
+  lastCustomPartSubmitAt = now;
+
+  const { data: session } = await supabase.auth.getSession();
+  const userId = session.session?.user.id;
+  if (userId) {
+    const { data: allowed } = await supabase.rpc('check_rate_limit', {
+      p_user_id: userId,
+      p_action: 'custom_part_submit',
+      p_max: 5,
+      p_window_seconds: 3600,
+    });
+    if (allowed === false) {
+      throw new Error('Too many custom part submissions. Try again later.');
+    }
+  }
+
   const { data, error } = await supabase
     .from('parts')
     .insert({

@@ -72,6 +72,9 @@ export default function SignInScreen() {
               className="rounded-xl bg-ink-800 px-4 py-3 text-white"
             />
           </View>
+          <Link href="/(auth)/forgot-password" className="self-end">
+            <Text className="text-sm text-accent">Forgot password?</Text>
+          </Link>
         </View>
 
         <Pressable

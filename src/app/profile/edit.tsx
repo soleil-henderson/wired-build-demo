@@ -21,6 +21,7 @@ import {
   updateProfile,
   validateHandle,
 } from '@/lib/profile';
+import { deleteMyAccount } from '@/lib/auth-account';
 import {
   deleteStorageObjects,
   storageKeyFromModPhotoPublicUrl,
@@ -262,6 +263,39 @@ export default function EditProfileScreen() {
               Save profile
             </Text>
           )}
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            Alert.alert(
+              'Delete account?',
+              'This removes your profile, vehicles, mods, and storage files. This cannot be undone.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: async () => {
+                    if (!session) return;
+                    setSubmitting(true);
+                    try {
+                      await deleteMyAccount(session.user.id);
+                      router.replace('/(auth)/sign-in');
+                    } catch (err) {
+                      const message =
+                        err instanceof Error ? err.message : 'Could not delete account';
+                      Alert.alert('Delete failed', message);
+                    } finally {
+                      setSubmitting(false);
+                    }
+                  },
+                },
+              ]
+            );
+          }}
+          className="mt-6 rounded-xl border border-signal-red/40 py-3"
+        >
+          <Text className="text-center font-semibold text-signal-red">Delete account</Text>
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>

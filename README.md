@@ -85,7 +85,20 @@ supabase/
     20260528000014_post_on_public_update.sql  feed post when mod privacy flips to public on edit
     20260528000015_media_mod_cascade.sql      media rows cascade-delete when mod is removed
     20260528000016_valuation_source.sql       valuation_source + estimate_build_value_heuristic()
+    20260528000017_followers_privacy.sql      followers mod/media RLS + post delete on privacy downgrade
+    20260528000018_platform_features.sql      marketplace, admin, workshops, saved searches, blocks, plan_items
+    20260528000019_delete_account_rpc.sql     delete_own_account() GDPR-style RPC
 ```
+
+Edge Functions (deploy separately with `supabase functions deploy`):
+
+- `stripe-webhook` — updates `subscription_tier` from Stripe events (set `STRIPE_WEBHOOK_SECRET`)
+- `estimate-valuation` — RedBook/KBB hook stub; falls back to heuristic
+- `generate-image-variants` — thumbnail pipeline stub on mod-photos upload
+
+Production deploy notes: see `docs/DEPLOYMENT.md` (EAS, APNs/FCM, OAuth redirects, Vercel web export for `/build/[id]`).
+
+**Testing:** `npm run verify` or `npm run verify:db` — see [docs/TESTING.md](docs/TESTING.md) and [docs/PUBLIC_BETA_CHECKLIST.md](docs/PUBLIC_BETA_CHECKLIST.md).
 
 ## Setup
 

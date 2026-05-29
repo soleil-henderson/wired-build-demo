@@ -1,10 +1,8 @@
-import * as ImagePicker from 'expo-image-picker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,23 +12,21 @@ import {
   View,
 } from 'react-native';
 
+import { CoverPhotoField, type PickedCoverImage } from '@/components/CoverPhotoField';
 import { useAuth } from '@/lib/auth-context';
+import { routeParam } from '@/lib/route-param';
 import {
   deleteStorageObjects,
   storageKeyFromModPhotoPublicUrl,
   uploadCoverPhoto,
 } from '@/lib/storage';
 import { deleteVehicle, getVehicleForEdit, updateVehicle } from '@/lib/vehicles';
-
-type LocalCover = {
-  uri: string;
-  width?: number;
-  height?: number;
-};
+import { supabase } from '@/lib/supabase';
 
 export default function EditVehicleScreen() {
-  const { vehicleId } = useLocalSearchParams<{ vehicleId: string }>();
-  const { session } = useAuth();
+  const params = useLocalSearchParams<{ vehicleId: string }>();
+  const vehicleId = routeParam(params.vehicleId);
+  const { session, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
@@ -39,12 +35,19 @@ export default function EditVehicleScreen() {
   const [title, setTitle] = useState('');
   const [nickname, setNickname] = useState('');
   const [isPublic, setIsPublic] = useState(false);
+  const [isForSale, setIsForSale] = useState(false);
+  const [askingPrice, setAskingPrice] = useState('');
+  const [manualValue, setManualValue] = useState('');
+  const [manualValueNote, setManualValueNote] = useState('');
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
-  const [localCover, setLocalCover] = useState<LocalCover | null>(null);
+  const [localCover, setLocalCover] = useState<PickedCoverImage | null>(null);
   const [removeCover, setRemoveCover] = useState(false);
 
   const load = useCallback(async () => {
-    if (!vehicleId || !session) return;
+    if (!vehicleId || authLoading || !session) {
+      if (!authLoading && !session) setLoading(false);
+      return;
+    }
     try {
       const v = await getVehicleForEdit(vehicleId);
       if (!v) {
@@ -62,6 +65,12 @@ export default function EditVehicleScreen() {
       );
       setNickname(v.nickname ?? '');
       setIsPublic(v.is_public);
+      setIsForSale(v.is_for_sale);
+      setAskingPrice(v.asking_price != null ? String(v.asking_price) : '');
+      setManualValue(
+        v.manual_build_value != null ? String(v.manual_build_value) : ''
+      );
+      setManualValueNote(v.manual_build_value_note ?? '');
       setCoverUrl(v.cover_photo_url);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load vehicle';
@@ -70,69 +79,35 @@ export default function EditVehicleScreen() {
     } finally {
       setLoading(false);
     }
-  }, [vehicleId, session, router]);
+  }, [vehicleId, session, authLoading, router]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  async function pickCover(source: 'library' | 'camera') {
-    const permission =
-      source === 'camera'
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission needed', 'Allow photo access to set a cover image.');
-      return;
-    }
-
-    const result =
-      source === 'camera'
-        ? await ImagePicker.launchCameraAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [16, 9],
-            quality: 1,
-          })
-        : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [16, 9],
-            quality: 1,
-          });
-
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    setLocalCover({
-      uri: asset.uri,
-      width: asset.width,
-      height: asset.height,
-    });
+  function handlePickCover(image: PickedCoverImage) {
+    setLocalCover(image);
     setRemoveCover(false);
   }
 
-  function showCoverPicker() {
-    const options: { text: string; onPress?: () => void; style?: 'cancel' | 'destructive' }[] =
-      [
-        { text: 'Take photo', onPress: () => pickCover('camera') },
-        { text: 'Choose from library', onPress: () => pickCover('library') },
-      ];
-    if (coverUrl || localCover) {
-      options.push({
-        text: 'Remove cover',
-        style: 'destructive',
-        onPress: () => {
-          setLocalCover(null);
-          setRemoveCover(true);
-        },
-      });
-    }
-    options.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert('Cover photo', undefined, options);
+  function handleRemoveCover() {
+    setLocalCover(null);
+    setRemoveCover(true);
   }
 
   async function handleSave() {
-    if (!vehicleId || !session) return;
+    if (!vehicleId) {
+      Alert.alert('Save failed', 'Missing vehicle id.');
+      return;
+    }
+
+    const {
+      data: { session: liveSession },
+    } = await supabase.auth.getSession();
+    if (!liveSession) {
+      Alert.alert('Sign in required', 'Your session expired. Sign in again to save changes.');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -147,20 +122,36 @@ export default function EditVehicleScreen() {
       } else if (localCover) {
         nextCoverUrl = await uploadCoverPhoto({
           uri: localCover.uri,
-          ownerId: session.user.id,
+          ownerId: liveSession.user.id,
           width: localCover.width,
           height: localCover.height,
         });
       }
 
+      const priceValue = askingPrice.trim()
+        ? Number(askingPrice.replace(/[^0-9.]/g, ''))
+        : null;
+      const manualNum = manualValue.trim()
+        ? Number(manualValue.replace(/[^0-9.]/g, ''))
+        : null;
+
       await updateVehicle(vehicleId, {
         nickname: nickname.trim() || null,
         cover_photo_url: nextCoverUrl,
         is_public: isPublic,
+        is_for_sale: isForSale,
+        asking_price: isForSale && priceValue && !Number.isNaN(priceValue) ? priceValue : null,
+        manual_build_value:
+          manualNum != null && !Number.isNaN(manualNum) && manualNum > 0 ? manualNum : null,
+        manual_build_value_note: manualValueNote.trim() || null,
       });
 
       if (previousCoverKey) {
         await deleteStorageObjects('mod-photos', [previousCoverKey]);
+      }
+
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.alert('Build saved.');
       }
 
       router.back();
@@ -202,7 +193,7 @@ export default function EditVehicleScreen() {
     );
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <View className="flex-1 items-center justify-center bg-ink-950">
         <Stack.Screen options={{ title: 'Edit build' }} />
@@ -223,23 +214,13 @@ export default function EditVehicleScreen() {
           VIN, year, make, and model are fixed after you add the vehicle.
         </Text>
 
-        <Pressable
-          onPress={showCoverPicker}
-          className="mt-6 active:opacity-80"
-        >
-          {previewUri ? (
-            <Image
-              source={{ uri: previewUri }}
-              className="h-40 w-full rounded-2xl bg-ink-800"
-              resizeMode="cover"
-            />
-          ) : (
-            <View className="h-40 w-full items-center justify-center rounded-2xl border border-dashed border-ink-600 bg-ink-900">
-              <Text className="text-ink-300">No cover photo</Text>
-            </View>
-          )}
-          <Text className="mt-2 text-sm font-semibold text-accent">Change cover</Text>
-        </Pressable>
+        <View className="mt-6">
+          <CoverPhotoField
+            previewUri={previewUri}
+            onPick={handlePickCover}
+            onRemove={handleRemoveCover}
+          />
+        </View>
 
         <View className="mt-8 gap-4">
           <Field label="Nickname (optional)">
@@ -296,6 +277,70 @@ export default function EditVehicleScreen() {
                 </Text>
               </Pressable>
             </View>
+          </Field>
+
+          <Field label="For sale">
+            <View className="flex-row gap-2">
+              <Pressable
+                onPress={() => setIsForSale(true)}
+                className={`flex-1 rounded-xl border px-4 py-3 ${
+                  isForSale ? 'border-accent bg-accent/15' : 'border-ink-700 bg-ink-900'
+                }`}
+              >
+                <Text
+                  className={`text-center font-semibold ${
+                    isForSale ? 'text-accent' : 'text-ink-200'
+                  }`}
+                >
+                  Listed
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setIsForSale(false)}
+                className={`flex-1 rounded-xl border px-4 py-3 ${
+                  !isForSale ? 'border-accent bg-accent/15' : 'border-ink-700 bg-ink-900'
+                }`}
+              >
+                <Text
+                  className={`text-center font-semibold ${
+                    !isForSale ? 'text-accent' : 'text-ink-200'
+                  }`}
+                >
+                  Not for sale
+                </Text>
+              </Pressable>
+            </View>
+            {isForSale ? (
+              <TextInput
+                value={askingPrice}
+                onChangeText={setAskingPrice}
+                keyboardType="decimal-pad"
+                placeholder="Asking price (AUD, optional)"
+                placeholderTextColor="#5A6373"
+                className="mt-3 rounded-xl bg-ink-800 px-4 py-3 text-white"
+              />
+            ) : null}
+          </Field>
+
+          <Field label="Build value override (optional)">
+            <TextInput
+              value={manualValue}
+              onChangeText={setManualValue}
+              keyboardType="decimal-pad"
+              placeholder="Your appraisal (AUD)"
+              placeholderTextColor="#5A6373"
+              className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+            />
+            <TextInput
+              value={manualValueNote}
+              onChangeText={setManualValueNote}
+              placeholder="Note for buyers (optional)"
+              placeholderTextColor="#5A6373"
+              className="mt-2 rounded-xl bg-ink-800 px-4 py-3 text-white"
+            />
+            <Text className="mt-1 text-xs text-ink-300">
+              Overrides the automatic estimate on your public build page until you clear it.
+            </Text>
           </Field>
         </View>
 

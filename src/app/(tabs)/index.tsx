@@ -8,11 +8,13 @@ import {
   Pressable,
   RefreshControl,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { UserBadges } from '@/components/UserBadges';
+import { NotificationBellButton } from '@/components/NotificationBellButton';
 import { useAuth } from '@/lib/auth-context';
 import {
   listFeed,
@@ -20,14 +22,15 @@ import {
   type FeedMode,
   type FeedPost,
 } from '@/lib/feed';
-import { getUnreadCount } from '@/lib/notifications';
+import { useUnreadNotifications } from '@/lib/unread-notifications-context';
 
 export default function FeedScreen() {
   const { session } = useAuth();
   const router = useRouter();
+  const { count: unread, refresh: refreshUnread, clearLocal: clearUnread } =
+    useUnreadNotifications();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
-  const [unread, setUnread] = useState(0);
   const [mode, setMode] = useState<FeedMode>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -36,13 +39,12 @@ export default function FeedScreen() {
   // Fresh load: page 1, no cursor. Also refreshes the bell count.
   const loadFresh = useCallback(async () => {
     try {
-      const [page, unreadCount] = await Promise.all([
+      const [page] = await Promise.all([
         listFeed(session?.user.id ?? null, mode, null),
-        session ? getUnreadCount(session.user.id) : Promise.resolve(0),
+        refreshUnread(),
       ]);
       setPosts(page.posts);
       setCursor(page.nextCursor);
-      setUnread(unreadCount);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load feed';
       Alert.alert('Feed failed', message);
@@ -50,7 +52,7 @@ export default function FeedScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [session, mode]);
+  }, [session, mode, refreshUnread]);
 
   // Subsequent pages. No-op if we've already reached the end (cursor null)
   // or are mid-fetch.
@@ -146,22 +148,13 @@ export default function FeedScreen() {
             Recent mods logged across the network.
           </Text>
         </View>
-        <Pressable
+        <NotificationBellButton
+          count={unread}
           onPress={() => {
+            clearUnread();
             router.push('/notifications');
-            setUnread(0);
           }}
-          className="mt-1 h-10 w-10 items-center justify-center rounded-full bg-ink-900 active:bg-ink-800"
-        >
-          <Text className="text-xl text-ink-200">🔔</Text>
-          {unread > 0 ? (
-            <View className="absolute -right-1 -top-1 min-w-[18px] items-center justify-center rounded-full bg-accent px-1">
-              <Text className="text-[10px] font-bold text-ink-950">
-                {unread > 99 ? '99+' : unread}
-              </Text>
-            </View>
-          ) : null}
-        </Pressable>
+        />
       </View>
 
       {session ? (
@@ -233,13 +226,20 @@ export default function FeedScreen() {
       </View>
     ) : null;
 
+  const { width: screenWidth } = useWindowDimensions();
+  const gridGap = 10;
+  const gridPadding = 12;
+  const cardWidth = (screenWidth - gridPadding * 2 - gridGap) / 2;
+
   return (
     <SafeAreaView className="flex-1 bg-ink-950" edges={['top']}>
       <FlatList
         data={posts}
         keyExtractor={(p) => p.id}
+        numColumns={2}
+        columnWrapperStyle={{ paddingHorizontal: gridPadding, gap: gridGap }}
         renderItem={({ item }) => (
-          <View className="px-3 pb-3 pt-1">
+          <View style={{ width: cardWidth }}>
             <PostCard
               post={item}
               onToggleLike={() => handleToggleLike(item)}
@@ -291,104 +291,100 @@ function PostCard({
       : post.mod?.custom_part_name ?? null;
 
   return (
-    <View className="overflow-hidden rounded-2xl border border-ink-700 bg-ink-900">
-      {/* Header */}
-      <Pressable onPress={onOpenAuthor} className="px-4 pt-4 active:opacity-80">
-        <View className="flex-row items-center gap-3">
-          {post.author.avatar_url ? (
-            <Image
-              source={{ uri: post.author.avatar_url }}
-              className="h-9 w-9 rounded-full bg-ink-700"
-            />
-          ) : (
-            <View className="h-9 w-9 items-center justify-center rounded-full bg-ink-700">
-              <Text className="font-bold text-white">
-                {(post.author.display_name || post.author.handle || '?')[0].toUpperCase()}
-              </Text>
-            </View>
-          )}
-          <View className="flex-1">
-            <View className="flex-row items-center gap-1.5">
-              <Text className="font-semibold text-white" numberOfLines={1}>
-                {post.author.display_name}
-              </Text>
-              <UserBadges user={post.author} />
-            </View>
-            <Text className="text-xs text-ink-300" numberOfLines={1}>
-              @{post.author.handle} · {vehicleTitle} · {post.vehicle.year}{' '}
-              {post.vehicle.make} {post.vehicle.model}
-            </Text>
-          </View>
-        </View>
-      </Pressable>
-
-      {/* Photo */}
-      {post.mod?.photo_url ? (
-        <Pressable onPress={onOpenPost} className="mt-3 active:opacity-90">
+    <Pressable
+      onPress={onOpenPost}
+      className="mb-3 overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 active:opacity-90"
+    >
+      {/* Square photo box — keeps product shots framed consistently in the grid */}
+      <View className="w-full overflow-hidden bg-ink-800" style={{ aspectRatio: 1 }}>
+        {post.mod?.photo_url ? (
           <Image
             source={{ uri: post.mod.photo_url }}
-            className="h-72 w-full bg-ink-800"
+            className="h-full w-full"
             resizeMode="cover"
           />
-        </Pressable>
-      ) : null}
+        ) : (
+          <View className="h-full w-full items-center justify-center px-3">
+            <Text className="text-center text-xs uppercase tracking-wider text-ink-400">
+              {post.mod?.category.replace('_', ' ') ?? 'Mod'}
+            </Text>
+          </View>
+        )}
+      </View>
 
-      {/* Body */}
-      <Pressable onPress={onOpenPost} className="p-4 active:opacity-80">
+      <View className="p-3">
+        <Pressable onPress={onOpenAuthor} className="active:opacity-80">
+          <View className="flex-row items-center gap-2">
+            {post.author.avatar_url ? (
+              <Image
+                source={{ uri: post.author.avatar_url }}
+                className="h-6 w-6 rounded-full bg-ink-700"
+              />
+            ) : (
+              <View className="h-6 w-6 items-center justify-center rounded-full bg-ink-700">
+                <Text className="text-[10px] font-bold text-white">
+                  {(post.author.display_name || post.author.handle || '?')[0].toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <Text className="flex-1 text-xs font-semibold text-white" numberOfLines={1}>
+              {post.author.display_name}
+            </Text>
+            <UserBadges user={post.author} />
+          </View>
+          <Text className="mt-1 text-[10px] text-ink-400" numberOfLines={1}>
+            {vehicleTitle} · {post.vehicle.year}
+          </Text>
+        </Pressable>
+
         {post.mod ? (
-          <>
-            <Text className="text-[11px] uppercase tracking-wider text-ink-300">
+          <View className="mt-2">
+            <Text className="text-[10px] uppercase tracking-wider text-ink-400">
               {post.mod.category.replace('_', ' ')}
             </Text>
             {partLabel ? (
-              <Text className="mt-1 text-base font-semibold text-white">
+              <Text className="mt-0.5 text-sm font-semibold text-white" numberOfLines={2}>
                 {partLabel}
               </Text>
             ) : null}
             {post.mod.cost != null ? (
-              <Text className="mt-1 text-sm text-ink-200">
-                ${Number(post.mod.cost).toLocaleString()} ·{' '}
-                {formatDate(post.mod.install_date)}
+              <Text className="mt-1 text-xs text-ink-300" numberOfLines={1}>
+                ${Number(post.mod.cost).toLocaleString()} · {formatDate(post.mod.install_date)}
               </Text>
             ) : (
-              <Text className="mt-1 text-sm text-ink-300">
+              <Text className="mt-1 text-xs text-ink-400" numberOfLines={1}>
                 {formatDate(post.mod.install_date)}
               </Text>
             )}
-          </>
+          </View>
         ) : null}
 
         {post.body ? (
-          <Text className="mt-2 text-sm text-ink-200">{post.body}</Text>
+          <Text className="mt-1.5 text-xs text-ink-300" numberOfLines={2}>
+            {post.body}
+          </Text>
         ) : null}
 
-        {/* Actions */}
-        <View className="mt-4 flex-row items-center gap-6">
-          <Pressable onPress={onToggleLike} className="flex-row items-center gap-2">
-            <Text
-              className={`text-lg ${
-                post.liked_by_me ? 'text-accent' : 'text-ink-300'
-              }`}
-            >
+        <View className="mt-2.5 flex-row items-center gap-4">
+          <Pressable onPress={onToggleLike} hitSlop={8} className="flex-row items-center gap-1">
+            <Text className={`text-sm ${post.liked_by_me ? 'text-accent' : 'text-ink-400'}`}>
               {post.liked_by_me ? '♥' : '♡'}
             </Text>
             <Text
-              className={`text-sm font-semibold ${
-                post.liked_by_me ? 'text-accent' : 'text-ink-200'
+              className={`text-xs font-semibold ${
+                post.liked_by_me ? 'text-accent' : 'text-ink-300'
               }`}
             >
               {post.reaction_count}
             </Text>
           </Pressable>
-          <Pressable onPress={onOpenPost} className="flex-row items-center gap-2">
-            <Text className="text-base text-ink-300">💬</Text>
-            <Text className="text-sm font-semibold text-ink-200">
-              {post.comment_count}
-            </Text>
-          </Pressable>
+          <View className="flex-row items-center gap-1">
+            <Text className="text-sm text-ink-400">💬</Text>
+            <Text className="text-xs font-semibold text-ink-300">{post.comment_count}</Text>
+          </View>
         </View>
-      </Pressable>
-    </View>
+      </View>
+    </Pressable>
   );
 }
 

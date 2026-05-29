@@ -9,9 +9,11 @@ import {
   type ReactNode,
 } from 'react';
 
+import { processQueuedModPhotoUploads } from './offline-queue';
 import {
   clearPushToken,
   registerForPushNotificationsAsync,
+  setAppBadgeCount,
 } from './push-notifications';
 import { supabase } from './supabase';
 
@@ -60,6 +62,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     registerForPushNotificationsAsync(userId).catch((err) => {
       console.warn('[auth] push registration failed', err);
     });
+    processQueuedModPhotoUploads().catch((err) => {
+      console.warn('[auth] offline upload retry failed', err);
+    });
   }, [session]);
 
   const value = useMemo<AuthContextValue>(
@@ -67,8 +72,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       isLoading,
       async signInWithEmail(email, password) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          if (
+            error.message.toLowerCase().includes('email not confirmed') ||
+            error.message.toLowerCase().includes('not confirmed')
+          ) {
+            throw new Error(
+              'Confirm your email first — check your inbox for the verification link, then sign in again.'
+            );
+          }
+          throw error;
+        }
+        if (data.user && !data.user.email_confirmed_at) {
+          await supabase.auth.signOut();
+          throw new Error(
+            'Confirm your email first — check your inbox for the verification link, then sign in again.'
+          );
+        }
       },
       async signUpWithEmail(email, password) {
         const { error } = await supabase.auth.signUp({ email, password });
@@ -81,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user.id) {
           await clearPushToken(session.user.id).catch(() => {});
         }
+        await setAppBadgeCount(0).catch(() => {});
         pushRegisteredFor.current = null;
         const { error } = await supabase.auth.signOut();
         if (error) throw error;

@@ -13,6 +13,7 @@ import {
 
 import { UserBadges } from '@/components/UserBadges';
 import { useAuth } from '@/lib/auth-context';
+import { blockUser } from '@/lib/blocks';
 import {
   getFollowCounts,
   isFollowing,
@@ -170,21 +171,48 @@ export default function UserProfileScreen() {
         </View>
 
         {!isSelf ? (
-          <Pressable
-            onPress={handleToggleFollow}
-            disabled={busy}
-            className={`mt-5 self-start rounded-xl px-5 py-2.5 ${
-              following ? 'border border-ink-600 bg-ink-800' : 'bg-accent'
-            } disabled:opacity-60`}
-          >
-            <Text
-              className={`font-semibold ${
-                following ? 'text-ink-200' : 'text-ink-950'
-              }`}
+          <View className="mt-5 flex-row flex-wrap gap-3">
+            <Pressable
+              onPress={handleToggleFollow}
+              disabled={busy}
+              className={`rounded-xl px-5 py-2.5 ${
+                following ? 'border border-ink-600 bg-ink-800' : 'bg-accent'
+              } disabled:opacity-60`}
             >
-              {following ? 'Following' : 'Follow'}
-            </Text>
-          </Pressable>
+              <Text
+                className={`font-semibold ${
+                  following ? 'text-ink-200' : 'text-ink-950'
+                }`}
+              >
+                {following ? 'Following' : 'Follow'}
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                if (!session || !user) return;
+                Alert.alert('Block user?', `Hide @${user.handle} from your feed.`, [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Block',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await blockUser(session.user.id, user.id);
+                        router.back();
+                      } catch (err) {
+                        const message =
+                          err instanceof Error ? err.message : 'Could not block';
+                        Alert.alert('Block failed', message);
+                      }
+                    },
+                  },
+                ]);
+              }}
+              className="rounded-xl border border-ink-600 px-5 py-2.5"
+            >
+              <Text className="font-semibold text-ink-300">Block</Text>
+            </Pressable>
+          </View>
         ) : null}
       </View>
 

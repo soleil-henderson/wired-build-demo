@@ -17,9 +17,12 @@ import { UserBadges } from '@/components/UserBadges';
 import { useAuth } from '@/lib/auth-context';
 import { addComment, listComments, type CommentWithAuthor } from '@/lib/comments';
 import { getPost, togglePostLike, type FeedPost } from '@/lib/feed';
+import { routeParam } from '@/lib/route-param';
+import { reportContent } from '@/lib/reports';
 
 export default function PostDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string }>();
+  const id = routeParam(params.id);
   const { session } = useAuth();
   const router = useRouter();
 
@@ -30,7 +33,10 @@ export default function PostDetailScreen() {
   const [posting, setPosting] = useState(false);
 
   const load = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      return;
+    }
     try {
       const [p, cs] = await Promise.all([
         getPost(id, session?.user.id ?? null),
@@ -128,7 +134,34 @@ export default function PostDetailScreen() {
       className="flex-1 bg-ink-950"
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
-      <Stack.Screen options={{ title: 'Post' }} />
+      <Stack.Screen
+        options={{
+          title: 'Post',
+          headerRight: () => (
+            <Pressable
+              onPress={() => {
+                Alert.alert('Report post?', 'We will open your mail app with details.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Report',
+                    style: 'destructive',
+                    onPress: () => {
+                      reportContent({ targetType: 'post', targetId: post.id }).catch((err) => {
+                        const message =
+                          err instanceof Error ? err.message : 'Could not report';
+                        Alert.alert('Report failed', message);
+                      });
+                    },
+                  },
+                ]);
+              }}
+              className="mr-2 px-2"
+            >
+              <Text className="text-sm text-ink-300">Report</Text>
+            </Pressable>
+          ),
+        }}
+      />
       <ScrollView
         contentContainerClassName="pb-6"
         keyboardShouldPersistTaps="handled"

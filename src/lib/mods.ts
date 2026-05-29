@@ -1,3 +1,4 @@
+import { thumbnailUrlForPublicUrl } from './image-url';
 import { getReceiptSignedUrl } from './receipts';
 import {
   deleteStorageObjects,
@@ -17,6 +18,7 @@ export type Mod = Database['public']['Tables']['mods']['Row'];
 export type ModWithPart = Mod & {
   part: { id: string; brand: string; name: string } | null;
   photo_url: string | null;
+  has_receipt: boolean;
 };
 
 /**
@@ -31,7 +33,7 @@ export async function listVehicleMods(vehicleId: string): Promise<ModWithPart[]>
       `
       *,
       part:parts ( id, brand, name ),
-      media ( url, kind, is_sensitive )
+      media!media_mod_id_fkey ( url, kind, is_sensitive )
     `
     )
     .eq('vehicle_id', vehicleId)
@@ -49,6 +51,7 @@ export async function listVehicleMods(vehicleId: string): Promise<ModWithPart[]>
     ...m,
     photo_url:
       media?.find((mm) => mm.kind === 'photo' && !mm.is_sensitive)?.url ?? null,
+    has_receipt: !!m.receipt_media_id,
   }));
 }
 
@@ -79,7 +82,7 @@ export async function getModForEdit(modId: string): Promise<ModForEdit | null> {
       `
       *,
       part:parts ( id, brand, name ),
-      media ( id, url, kind, is_sensitive )
+      media!media_mod_id_fkey ( id, url, kind, is_sensitive )
     `
     )
     .eq('id', modId)
@@ -121,6 +124,7 @@ export async function getModForEdit(modId: string): Promise<ModForEdit | null> {
     part: m.part,
     photos,
     photo_url: photos[0]?.url ?? null,
+    has_receipt: !!m.receipt_media_id,
     receipt,
   };
 }
@@ -176,6 +180,7 @@ export async function addModPhotos(
       mod_id: modId,
       url: u.url,
       storage_key: u.storage_key,
+      thumbnail_url: thumbnailUrlForPublicUrl(u.url),
       kind: 'photo' as const,
       width: u.width,
       height: u.height,
@@ -190,6 +195,7 @@ export type ModUpdateInput = {
   cost: number | null;
   cost_is_approximate: boolean;
   installer_type: Database['public']['Tables']['mods']['Row']['installer_type'];
+  installer_workshop_id: string | null;
   install_date: string;
   date_is_approximate: boolean;
   notes: string | null;
@@ -210,6 +216,7 @@ export async function updateMod(modId: string, input: ModUpdateInput): Promise<v
       cost: input.cost,
       cost_is_approximate: input.cost_is_approximate,
       installer_type: input.installer_type,
+      installer_workshop_id: input.installer_workshop_id,
       install_date: input.install_date,
       date_is_approximate: input.date_is_approximate,
       notes: input.notes,

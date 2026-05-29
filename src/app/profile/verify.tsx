@@ -1,8 +1,9 @@
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { useAuth } from '@/lib/auth-context';
+import { startIdentityVerification } from '@/lib/payments';
 import { supabase } from '@/lib/supabase';
 
 export default function VerifyScreen() {
@@ -27,15 +28,20 @@ export default function VerifyScreen() {
     }, [load])
   );
 
-  function handleStart() {
+  async function handleStart() {
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await startIdentityVerification();
       Alert.alert(
-        'Coming soon',
-        'Identity verification will run through a partner (Stripe Identity / Onfido). The is_identity_verified flag is set server-side on webhook success — the client never writes it. For now, ping support@wiredautogroup.com to request manual review.'
+        'Continue in browser',
+        'Complete verification in the secure window. Return here when finished — status updates within a minute.'
       );
-    }, 600);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not start verification';
+      Alert.alert('Verification', message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -61,8 +67,7 @@ export default function VerifyScreen() {
               ✓ Identity verified
             </Text>
             <Text className="mt-1 text-sm text-cyan-100/80">
-              The Verified badge is live on your public profile. It can be
-              removed if our trust + safety team needs to re-run review.
+              The Verified badge is live on your public profile.
             </Text>
           </View>
         ) : (
@@ -73,7 +78,7 @@ export default function VerifyScreen() {
             <View className="mt-3 gap-2">
               {[
                 'A photo of your government-issued ID',
-                'A short selfie video to match the ID',
+                'A short selfie to match the ID',
                 'Your legal name and date of birth',
               ].map((row) => (
                 <View key={row} className="flex-row gap-2">
@@ -82,19 +87,16 @@ export default function VerifyScreen() {
                 </View>
               ))}
             </View>
-            <Text className="mt-3 text-xs text-ink-300">
-              We never store the raw documents — verification runs through a
-              partner that returns a pass/fail signal. Only the boolean flag
-              hits our database.
-            </Text>
             <Pressable
               onPress={handleStart}
               disabled={loading}
               className="mt-5 self-start rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark disabled:opacity-60"
             >
-              <Text className="font-semibold text-ink-950">
-                {loading ? 'Starting…' : 'Start verification'}
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#08090B" />
+              ) : (
+                <Text className="font-semibold text-ink-950">Start verification</Text>
+              )}
             </Pressable>
           </View>
         )}
@@ -103,9 +105,7 @@ export default function VerifyScreen() {
           onPress={() => router.push('/profile/subscription')}
           className="mt-6 self-start"
         >
-          <Text className="text-sm font-semibold text-accent">
-            Subscription tiers →
-          </Text>
+          <Text className="text-sm font-semibold text-accent">Subscription tiers →</Text>
         </Pressable>
       </View>
     </ScrollView>

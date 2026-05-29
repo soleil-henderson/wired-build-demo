@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/lib/auth-context';
+import { maxVehiclesForTier } from '@/lib/subscription';
 import { supabase } from '@/lib/supabase';
 import { decodeVin } from '@/lib/vin-decode';
 import { consumePendingVin, VIN_PATTERN } from '@/lib/vin-handoff';
@@ -98,6 +99,28 @@ export default function AddVehicleScreen() {
     if (!make.trim() || !model.trim()) {
       Alert.alert('Missing details', 'Make and model are required.');
       return;
+    }
+
+    const { data: profile } = await supabase
+      .from('users')
+      .select('subscription_tier')
+      .eq('id', session.user.id)
+      .maybeSingle();
+    const tier = profile?.subscription_tier ?? 'free';
+    const limit = maxVehiclesForTier(tier);
+    if (limit != null) {
+      const { count } = await supabase
+        .from('vehicles')
+        .select('id', { count: 'exact', head: true })
+        .eq('current_owner_id', session.user.id);
+      if ((count ?? 0) >= limit) {
+        Alert.alert(
+          'Vehicle limit',
+          `Free accounts support up to ${limit} vehicles. Upgrade to Member for unlimited garage space.`,
+          [{ text: 'View plans', onPress: () => router.push('/profile/subscription') }]
+        );
+        return;
+      }
     }
 
     setSubmitting(true);

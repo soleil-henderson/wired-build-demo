@@ -111,6 +111,18 @@ export async function listUserWishlist(userId: string): Promise<WishlistItem[]> 
   }));
 }
 
+export async function listUserWishlistPartIds(userId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from('wishlist_items')
+    .select('part_id')
+    .eq('user_id', userId)
+    .not('part_id', 'is', null);
+  if (error) throw error;
+  return new Set(
+    (data ?? []).map((row) => row.part_id).filter((id): id is string => !!id)
+  );
+}
+
 export async function addWishlistItem(input: {
   userId: string;
   vehicleId: string | null;
@@ -124,10 +136,17 @@ export async function addWishlistItem(input: {
   if (!input.partId && !input.customPartName?.trim()) {
     throw new Error('Pick a part from the catalogue or enter a custom name.');
   }
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData.session) {
+    throw new Error('Sign in to save parts to your wishlist.');
+  }
+  const userId = sessionData.session.user.id;
+
   const { data, error } = await supabase
     .from('wishlist_items')
     .insert({
-      user_id: input.userId,
+      user_id: userId,
       vehicle_id: input.vehicleId,
       part_id: input.partId,
       custom_part_name: input.customPartName?.trim() || null,
@@ -137,8 +156,17 @@ export async function addWishlistItem(input: {
       priority: input.priority,
     })
     .select('id')
-    .single();
-  if (error) throw error;
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === '42501') {
+      throw new Error('Could not save — check that you are signed in and try again.');
+    }
+    throw error;
+  }
+  if (!data?.id) {
+    throw new Error('Save may have failed — open My wishlist to confirm.');
+  }
   return data.id;
 }
 

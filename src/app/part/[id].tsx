@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { UserBadges } from '@/components/UserBadges';
+import { showAppAlert } from '@/lib/app-alert';
 import { useAuth } from '@/lib/auth-context';
 import {
   getPartById,
@@ -32,11 +33,15 @@ import {
   type MyReview,
   type ReviewWithAuthor,
 } from '@/lib/reviews';
+import { extractAffiliate } from '@/lib/affiliate';
+import { getUserSubscriptionTier, hasMemberAffiliateRates } from '@/lib/subscription';
 import { addWishlistItem } from '@/lib/wishlist';
+import { routeParam } from '@/lib/route-param';
 import type { ModCategory } from '@/types/database';
 
 export default function PartDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string }>();
+  const id = routeParam(params.id);
   const { session } = useAuth();
   const router = useRouter();
 
@@ -48,18 +53,24 @@ export default function PartDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [memberAffiliate, setMemberAffiliate] = useState(false);
 
   const load = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      return;
+    }
     try {
       const userId = session?.user.id;
-      const [p, s, i, rv, mine] = await Promise.all([
+      const [p, s, i, rv, mine, tier] = await Promise.all([
         getPartById(id),
         getPartStats(id),
         listPartInstalls(id, 20),
         listReviews(id).catch(() => []),
         userId ? getMyReview(id, userId).catch(() => null) : Promise.resolve(null),
+        userId ? getUserSubscriptionTier(userId) : Promise.resolve('free' as const),
       ]);
+      setMemberAffiliate(hasMemberAffiliateRates(tier));
       setPart(p);
       setStats(s);
       setInstalls(i);
@@ -101,7 +112,7 @@ export default function PartDetailScreen() {
   async function handleSave() {
     if (!part) return;
     if (!session) {
-      Alert.alert('Sign in', 'Sign in to save parts to your wishlist.');
+      showAppAlert('Sign in', 'Sign in to save parts to your wishlist.');
       return;
     }
     setSaving(true);
@@ -116,13 +127,13 @@ export default function PartDetailScreen() {
         notes: null,
         priority: 'medium',
       });
-      Alert.alert(
+      showAppAlert(
         'Saved',
         `${part.brand} ${part.name} added to your wishlist. View it from Profile → My wishlist.`
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not save';
-      Alert.alert('Save failed', message);
+      showAppAlert('Save failed', message);
     } finally {
       setSaving(false);
     }
@@ -231,7 +242,10 @@ export default function PartDetailScreen() {
 
         <View className="mt-6 flex-row flex-wrap gap-2">
           {(() => {
-            const aff = extractAffiliate(part.affiliate_links);
+            const aff = extractAffiliate(part.affiliate_links, {
+              memberRates: memberAffiliate,
+              region: 'au',
+            });
             if (!aff) return null;
             return (
               <Pressable
@@ -390,22 +404,6 @@ function Stat({ label, value }: { label: string; value: string }) {
       <Text className="mt-1 text-base font-semibold text-white">{value}</Text>
     </View>
   );
-}
-
-/**
- * `parts.affiliate_links` is free-form JSON so brands and admins can extend
- * later (multiple URLs, region codes, etc.). For now we recognise a single
- * top-level `url` + optional `label` shape.
- */
-function extractAffiliate(
-  raw: unknown
-): { url: string; label?: string } | null {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const obj = raw as Record<string, unknown>;
-  const url = typeof obj.url === 'string' ? obj.url : null;
-  if (!url || !/^https?:\/\//i.test(url)) return null;
-  const label = typeof obj.label === 'string' ? obj.label : undefined;
-  return { url, label };
 }
 
 function ReviewsSection({

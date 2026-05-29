@@ -1,14 +1,30 @@
 import '../global.css';
 
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  useFonts,
+} from '@expo-google-fonts/inter';
+import {
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from '@expo-google-fonts/space-grotesk';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { subscribeToNotificationTaps } from '@/lib/push-notifications';
+import { UnreadNotificationsProvider } from '@/lib/unread-notifications-context';
+
+SplashScreen.preventAutoHideAsync();
 
 function RootStack() {
   const { session, isLoading } = useAuth();
@@ -22,7 +38,8 @@ function RootStack() {
     const inAuthGroup = firstSegment === '(auth)';
     // Public share routes are reachable without an account — they're the
     // whole point of the "transferable, monetisable asset" pitch.
-    const isPublicRoute = firstSegment === 'build';
+    const isPublicRoute =
+      firstSegment === 'build' || firstSegment === 'legal' || firstSegment === 'workshop';
 
     if (!session && !inAuthGroup && !isPublicRoute) {
       router.replace('/(auth)/sign-in');
@@ -63,20 +80,45 @@ function RootStack() {
         }}
       />
       <Stack.Screen name="build" />
+      <Stack.Screen name="legal" options={{ headerShown: true }} />
+      <Stack.Screen name="settings" options={{ headerShown: true }} />
+      <Stack.Screen name="admin" options={{ headerShown: true }} />
     </Stack>
   );
 }
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <RootStack />
-          <StatusBar style={colorScheme === 'light' ? 'dark' : 'light'} />
-        </AuthProvider>
+        <ErrorBoundary>
+          <AuthProvider>
+            <UnreadNotificationsProvider>
+              <RootStack />
+              <StatusBar style={colorScheme === 'light' ? 'dark' : 'light'} />
+            </UnreadNotificationsProvider>
+          </AuthProvider>
+        </ErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

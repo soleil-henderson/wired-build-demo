@@ -21,9 +21,20 @@ Notifications.setNotificationHandler({
     shouldShowBanner: true,
     shouldShowList: true,
     shouldPlaySound: false,
+    // Badge count is synced from the notifications table via setAppBadgeCount.
     shouldSetBadge: false,
   }),
 });
+
+/** Sync the iOS home-screen app icon badge (no-op on web/Android). */
+export async function setAppBadgeCount(count: number): Promise<void> {
+  if (Platform.OS !== 'ios') return;
+  try {
+    await Notifications.setBadgeCountAsync(Math.max(0, count));
+  } catch (err) {
+    console.warn('[push] failed to set badge count', err);
+  }
+}
 
 function getProjectId(): string | undefined {
   // SDK 54 / EAS: the project id lives in expoConfig.extra.eas.projectId

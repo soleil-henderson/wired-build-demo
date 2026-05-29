@@ -36,3 +36,9 @@ enable_signup = true
 enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.stripe-identity-webhook]
+verify_jwt = false
