@@ -5,7 +5,31 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Wired Build palette — dark, muted, with a high-vis accent
+        // Apple-inspired light palette (wired_build_demo.jsx)
+        apple: {
+          bg: '#FFFFFF',
+          bg2: '#F5F5F7',
+          surface: '#FFFFFF',
+          border: '#E8E8ED',
+          'border-strong': '#D2D2D7',
+          ink: '#1D1D1F',
+          secondary: '#6E6E73',
+          tertiary: '#A1A1A6',
+        },
+        accent: {
+          DEFAULT: '#FF6A2B',
+          soft: '#FFF1EA',
+          dark: '#E55A1F',
+          light: '#FF8F5C',
+        },
+        signal: {
+          green: '#34C759',
+          red: '#FF3B30',
+          blue: '#0071E3',
+          amber: '#FF9F0A',
+          purple: '#AF52DE',
+        },
+        // Legacy dark tokens — kept for auth/detail screens not yet migrated
         ink: {
           950: '#08090B',
           900: '#0E1014',
@@ -18,20 +42,24 @@ module.exports = {
           200: '#B7BDC8',
           100: '#E2E5EC',
         },
-        accent: {
-          DEFAULT: '#F5A524',
-          dark: '#C7841A',
-          light: '#FFC15A',
-        },
-        signal: {
-          green: '#22C55E',
-          red: '#EF4444',
-          blue: '#3B82F6',
-        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['SpaceGrotesk', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['Inter', 'system-ui', 'sans-serif'],
+      },
+      borderRadius: {
+        apple: '18px',
+        'apple-sm': '14px',
+      },
+      maxWidth: {
+        app: '430px',
+        'app-lg': '480px',
+        'app-xl': '540px',
+      },
+      screens: {
+        md: '640px',
+        lg: '1024px',
+        xl: '1280px',
       },
     },
   },

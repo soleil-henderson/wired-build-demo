@@ -81,14 +81,14 @@ function CoverPreview({ previewUri }: { previewUri: string | null }) {
     return (
       <Image
         source={{ uri: previewUri }}
-        className="h-40 w-full rounded-2xl bg-ink-800"
+        className="h-40 w-full rounded-2xl bg-apple-bg2"
         resizeMode="cover"
       />
     );
   }
   return (
-    <View className="h-40 w-full items-center justify-center rounded-2xl border border-dashed border-ink-600 bg-ink-900 px-4">
-      <Text className="text-center text-ink-300">No cover photo</Text>
+    <View className="h-40 w-full items-center justify-center rounded-2xl border border-dashed border-apple-border bg-white px-4">
+      <Text className="text-center text-apple-secondary">No cover photo</Text>
     </View>
   );
 }

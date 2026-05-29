@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -7,14 +8,17 @@ import {
   Image,
   Pressable,
   RefreshControl,
+  Share,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppleCard } from '@/components/apple/AppleCard';
+import { AppleHeader } from '@/components/apple/AppleHeader';
+import { GradientAvatar, MoneyText, VerifiedLabel } from '@/components/apple/ApplePrimitives';
+import { SegmentedControl } from '@/components/apple/SegmentedControl';
 import { UserBadges } from '@/components/UserBadges';
-import { NotificationBellButton } from '@/components/NotificationBellButton';
 import { useAuth } from '@/lib/auth-context';
 import {
   listFeed,
@@ -22,6 +26,7 @@ import {
   type FeedMode,
   type FeedPost,
 } from '@/lib/feed';
+import { colors } from '@/lib/theme';
 import { useUnreadNotifications } from '@/lib/unread-notifications-context';
 
 export default function FeedScreen() {
@@ -36,7 +41,6 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // Fresh load: page 1, no cursor. Also refreshes the bell count.
   const loadFresh = useCallback(async () => {
     try {
       const [page] = await Promise.all([
@@ -54,16 +58,12 @@ export default function FeedScreen() {
     }
   }, [session, mode, refreshUnread]);
 
-  // Subsequent pages. No-op if we've already reached the end (cursor null)
-  // or are mid-fetch.
   const loadMore = useCallback(async () => {
     if (loadingMore || !cursor) return;
     setLoadingMore(true);
     try {
       const page = await listFeed(session?.user.id ?? null, mode, cursor);
       setPosts((prev) => {
-        // Defend against the same post landing twice (e.g. a new mod
-        // posted between page 1 and 2 would shift things).
         const seen = new Set(prev.map((p) => p.id));
         const fresh = page.posts.filter((p) => !seen.has(p.id));
         return [...prev, ...fresh];
@@ -89,7 +89,6 @@ export default function FeedScreen() {
       return;
     }
     const previouslyLiked = post.liked_by_me;
-    // Optimistic update — the trigger will reconcile the count server-side.
     setPosts((current) =>
       current.map((p) =>
         p.id === post.id
@@ -108,7 +107,6 @@ export default function FeedScreen() {
     try {
       await togglePostLike(post.id, session.user.id, previouslyLiked);
     } catch (err) {
-      // Roll back on failure.
       setPosts((current) =>
         current.map((p) =>
           p.id === post.id
@@ -137,38 +135,44 @@ export default function FeedScreen() {
   }
 
   const ListHeader = (
-    <View>
-      <View className="flex-row items-start justify-between px-6 pt-6">
-        <View className="flex-1 pr-4">
-          <Text className="text-accent text-xs font-semibold tracking-[3px]">FEED</Text>
-          <Text className="mt-1 text-3xl font-bold text-white">
-            What&apos;s being built
-          </Text>
-          <Text className="mt-2 text-ink-300">
-            Recent mods logged across the network.
-          </Text>
+    <View className="px-4 pb-2 pt-1">
+      {/* Community pulse banner */}
+      <AppleCard
+        style={{
+          marginBottom: 14,
+          padding: 14,
+          backgroundColor: colors.accentSoft,
+          borderColor: colors.border,
+        }}
+      >
+        <View className="flex-row items-center gap-3">
+          <View
+            className="h-10 w-10 items-center justify-center rounded-xl"
+            style={{ backgroundColor: colors.accent }}
+          >
+            <Ionicons name="sparkles" size={20} color="#fff" />
+          </View>
+          <View className="flex-1">
+            <Text className="text-[15px] font-semibold text-apple-ink">
+              {posts.length > 0 ? `${posts.length}+ mods in your feed` : 'What\u2019s being built'}
+            </Text>
+            <Text className="text-[13px] text-apple-secondary">
+              Recent mods logged across the network
+            </Text>
+          </View>
         </View>
-        <NotificationBellButton
-          count={unread}
-          onPress={() => {
-            clearUnread();
-            router.push('/notifications');
-          }}
-        />
-      </View>
+      </AppleCard>
 
       {session ? (
-        <View className="mx-6 mt-5 mb-1 flex-row self-start rounded-xl bg-ink-900 p-1">
-          <ModeTab label="For you" active={mode === 'all'} onPress={() => switchMode('all')} />
-          <ModeTab
-            label="Following"
-            active={mode === 'following'}
-            onPress={() => switchMode('following')}
-          />
-          <ModeTab
-            label="My make"
-            active={mode === 'my-make'}
-            onPress={() => switchMode('my-make')}
+        <View className="mb-3">
+          <SegmentedControl
+            options={[
+              { id: 'all', label: 'For you' },
+              { id: 'following', label: 'Following' },
+              { id: 'my-make', label: 'My make' },
+            ]}
+            value={mode}
+            onChange={switchMode}
           />
         </View>
       ) : null}
@@ -177,69 +181,71 @@ export default function FeedScreen() {
 
   const ListEmpty = loading ? (
     <View className="mt-12 items-center">
-      <ActivityIndicator color="#F5A524" />
+      <ActivityIndicator color={colors.accent} />
     </View>
   ) : (
-    <View className="mx-6 mt-6 rounded-2xl border border-ink-700 bg-ink-900 p-6">
-      {mode === 'following' ? (
-        <>
-          <Text className="text-ink-200 text-base font-semibold">
-            Nothing from your follows yet
-          </Text>
-          <Text className="mt-1 text-ink-300">
-            Tap a username on any post to open their profile and follow them —
-            their next mod will land here.
-          </Text>
-        </>
-      ) : mode === 'my-make' ? (
-        <>
-          <Text className="text-ink-200 text-base font-semibold">
-            Nothing from your platform yet
-          </Text>
-          <Text className="mt-1 text-ink-300">
-            Posts here are filtered to the makes in your garage. Add a vehicle
-            (Garage tab) or check back when someone else logs a mod on the same
-            platform.
-          </Text>
-        </>
-      ) : (
-        <>
-          <Text className="text-ink-200 text-base font-semibold">
-            Quiet around here
-          </Text>
-          <Text className="mt-1 text-ink-300">
-            No public mods yet. Log one and it&apos;ll show up here for everyone.
-          </Text>
-        </>
-      )}
+    <View className="mx-4 mt-4">
+      <AppleCard padded>
+        {mode === 'following' ? (
+          <>
+            <Text className="text-base font-semibold text-apple-ink">
+              Nothing from your follows yet
+            </Text>
+            <Text className="mt-1 text-apple-secondary">
+              Follow builders and their next mod will land here.
+            </Text>
+          </>
+        ) : mode === 'my-make' ? (
+          <>
+            <Text className="text-base font-semibold text-apple-ink">
+              Nothing from your platform yet
+            </Text>
+            <Text className="mt-1 text-apple-secondary">
+              Add a vehicle in Garage or check back when someone logs a mod on the
+              same make.
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text className="text-base font-semibold text-apple-ink">
+              Quiet around here
+            </Text>
+            <Text className="mt-1 text-apple-secondary">
+              No public mods yet. Log one and it&apos;ll show up here for everyone.
+            </Text>
+          </>
+        )}
+      </AppleCard>
     </View>
   );
 
   const ListFooter =
     loadingMore ? (
-      <View className="py-6 items-center">
-        <ActivityIndicator color="#F5A524" />
+      <View className="items-center py-6">
+        <ActivityIndicator color={colors.accent} />
       </View>
     ) : !cursor && posts.length > 0 ? (
-      <View className="py-6 items-center">
-        <Text className="text-xs text-ink-300">You&apos;re all caught up.</Text>
+      <View className="items-center py-6">
+        <Text className="text-xs text-apple-tertiary">You&apos;re all caught up.</Text>
       </View>
     ) : null;
 
-  const { width: screenWidth } = useWindowDimensions();
-  const gridGap = 10;
-  const gridPadding = 12;
-  const cardWidth = (screenWidth - gridPadding * 2 - gridGap) / 2;
-
   return (
-    <SafeAreaView className="flex-1 bg-ink-950" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-apple-bg2" edges={['top']}>
+      <AppleHeader
+        title="Home"
+        notificationCount={unread}
+        onSearchPress={() => router.push('/explore')}
+        onNotificationsPress={() => {
+          clearUnread();
+          router.push('/notifications');
+        }}
+      />
       <FlatList
         data={posts}
         keyExtractor={(p) => p.id}
-        numColumns={2}
-        columnWrapperStyle={{ paddingHorizontal: gridPadding, gap: gridGap }}
         renderItem={({ item }) => (
-          <View style={{ width: cardWidth }}>
+          <View className="px-4">
             <PostCard
               post={item}
               onToggleLike={() => handleToggleLike(item)}
@@ -251,13 +257,11 @@ export default function FeedScreen() {
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={ListEmpty}
         ListFooterComponent={ListFooter}
-        // Trigger loadMore well before the user actually reaches the
-        // bottom — keeps scrolling feeling endless on a fast connection.
         onEndReached={loadMore}
         onEndReachedThreshold={0.6}
         refreshControl={
           <RefreshControl
-            tintColor="#F5A524"
+            tintColor={colors.accent}
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
@@ -266,7 +270,7 @@ export default function FeedScreen() {
             }}
           />
         }
-        contentContainerStyle={{ paddingBottom: 96 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
       />
     </SafeAreaView>
   );
@@ -283,140 +287,166 @@ function PostCard({
   onOpenPost: () => void;
   onOpenAuthor: () => void;
 }) {
+  const router = useRouter();
   const vehicleTitle =
     post.vehicle.nickname ?? `${post.vehicle.make} ${post.vehicle.model}`;
   const partLabel =
     post.mod?.part
       ? `${post.mod.part.brand} ${post.mod.part.name}`
       : post.mod?.custom_part_name ?? null;
+  const brandLabel = post.mod?.part?.brand ?? post.mod?.category.replace('_', ' ');
+  const caption =
+    post.body ??
+    (partLabel ? `Installed ${partLabel}` : null);
+  const avatarColor = hashColor(post.author.handle);
+  const initials = (post.author.display_name || post.author.handle || '?')
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
-    <Pressable
-      onPress={onOpenPost}
-      className="mb-3 overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 active:opacity-90"
-    >
-      {/* Square photo box — keeps product shots framed consistently in the grid */}
-      <View className="w-full overflow-hidden bg-ink-800" style={{ aspectRatio: 1 }}>
-        {post.mod?.photo_url ? (
-          <Image
-            source={{ uri: post.mod.photo_url }}
-            className="h-full w-full"
-            resizeMode="cover"
-          />
-        ) : (
-          <View className="h-full w-full items-center justify-center px-3">
-            <Text className="text-center text-xs uppercase tracking-wider text-ink-400">
-              {post.mod?.category.replace('_', ' ') ?? 'Mod'}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      <View className="p-3">
-        <Pressable onPress={onOpenAuthor} className="active:opacity-80">
-          <View className="flex-row items-center gap-2">
-            {post.author.avatar_url ? (
-              <Image
-                source={{ uri: post.author.avatar_url }}
-                className="h-6 w-6 rounded-full bg-ink-700"
-              />
-            ) : (
-              <View className="h-6 w-6 items-center justify-center rounded-full bg-ink-700">
-                <Text className="text-[10px] font-bold text-white">
-                  {(post.author.display_name || post.author.handle || '?')[0].toUpperCase()}
-                </Text>
-              </View>
-            )}
-            <Text className="flex-1 text-xs font-semibold text-white" numberOfLines={1}>
+    <AppleCard style={{ marginBottom: 14 }}>
+      <View className="flex-row items-center gap-3 px-4 py-3.5">
+        <Pressable onPress={onOpenAuthor}>
+          {post.author.avatar_url ? (
+            <Image
+              source={{ uri: post.author.avatar_url }}
+              className="h-[38px] w-[38px] rounded-full bg-apple-bg2"
+            />
+          ) : (
+            <GradientAvatar initials={initials} size={38} color={avatarColor} />
+          )}
+        </Pressable>
+        <Pressable onPress={onOpenAuthor} className="flex-1">
+          <View className="flex-row items-center gap-1.5">
+            <Text className="text-[15px] font-semibold text-apple-ink">
               {post.author.display_name}
             </Text>
             <UserBadges user={post.author} />
           </View>
-          <Text className="mt-1 text-[10px] text-ink-400" numberOfLines={1}>
-            {vehicleTitle} · {post.vehicle.year}
+          <Text className="text-[13px] text-apple-secondary">
+            {vehicleTitle} · {formatRelative(post.created_at)}
           </Text>
         </Pressable>
+        <Ionicons name="ellipsis-horizontal" size={20} color={colors.tertiary} />
+      </View>
 
-        {post.mod ? (
-          <View className="mt-2">
-            <Text className="text-[10px] uppercase tracking-wider text-ink-400">
-              {post.mod.category.replace('_', ' ')}
-            </Text>
-            {partLabel ? (
-              <Text className="mt-0.5 text-sm font-semibold text-white" numberOfLines={2}>
+      <Pressable onPress={onOpenPost}>
+        <View className="relative w-full bg-apple-bg2" style={{ aspectRatio: 16 / 10 }}>
+          {post.mod?.photo_url ? (
+            <Image
+              source={{ uri: post.mod.photo_url }}
+              className="h-full w-full"
+              resizeMode="cover"
+            />
+          ) : (
+            <View
+              className="h-full w-full items-center justify-center"
+              style={{ backgroundColor: `${avatarColor}14` }}
+            >
+              <Ionicons name="car-sport-outline" size={56} color={avatarColor} />
+            </View>
+          )}
+          {post.mod ? (
+            <View
+              className="absolute left-3 top-3 rounded-full px-3 py-1"
+              style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
+            >
+              <Text className="text-xs font-semibold" style={{ color: avatarColor }}>
+                + New mod
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      </Pressable>
+
+      <View className="px-4 py-3.5">
+        {caption ? (
+          <Text className="mb-3 text-[15px] leading-[22px] text-apple-ink">{caption}</Text>
+        ) : null}
+
+        {post.mod && partLabel ? (
+          <View
+            className="mb-3.5 flex-row items-center gap-3 rounded-[14px] p-3"
+            style={{ backgroundColor: colors.bg2 }}
+          >
+            <View className="h-[38px] w-[38px] items-center justify-center rounded-[10px] bg-white">
+              <Ionicons name="pricetag-outline" size={16} color={avatarColor} />
+            </View>
+            <View className="min-w-0 flex-1">
+              <Text className="text-xs font-semibold text-apple-secondary">{brandLabel}</Text>
+              <Text className="text-sm font-semibold text-apple-ink" numberOfLines={1}>
                 {partLabel}
               </Text>
-            ) : null}
+            </View>
             {post.mod.cost != null ? (
-              <Text className="mt-1 text-xs text-ink-300" numberOfLines={1}>
-                ${Number(post.mod.cost).toLocaleString()} · {formatDate(post.mod.install_date)}
-              </Text>
-            ) : (
-              <Text className="mt-1 text-xs text-ink-400" numberOfLines={1}>
-                {formatDate(post.mod.install_date)}
-              </Text>
-            )}
+              <MoneyText value={Number(post.mod.cost)} size={16} color={colors.accent} weight="700" />
+            ) : null}
+            {post.mod.part ? (
+              <Pressable
+                onPress={() => router.push(`/part/${post.mod!.part!.id}`)}
+                className="h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-white"
+              >
+                <Ionicons name="bookmark-outline" size={16} color={colors.secondary} />
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
 
-        {post.body ? (
-          <Text className="mt-1.5 text-xs text-ink-300" numberOfLines={2}>
-            {post.body}
-          </Text>
-        ) : null}
-
-        <View className="mt-2.5 flex-row items-center gap-4">
-          <Pressable onPress={onToggleLike} hitSlop={8} className="flex-row items-center gap-1">
-            <Text className={`text-sm ${post.liked_by_me ? 'text-accent' : 'text-ink-400'}`}>
-              {post.liked_by_me ? '♥' : '♡'}
-            </Text>
+        <View className="flex-row items-center gap-5">
+          <Pressable onPress={onToggleLike} hitSlop={8} className="flex-row items-center gap-1.5">
+            <Ionicons
+              name={post.liked_by_me ? 'heart' : 'heart-outline'}
+              size={20}
+              color={post.liked_by_me ? colors.accent : colors.secondary}
+            />
             <Text
-              className={`text-xs font-semibold ${
-                post.liked_by_me ? 'text-accent' : 'text-ink-300'
+              className={`text-sm font-medium ${
+                post.liked_by_me ? 'text-accent' : 'text-apple-secondary'
               }`}
             >
               {post.reaction_count}
             </Text>
           </Pressable>
-          <View className="flex-row items-center gap-1">
-            <Text className="text-sm text-ink-400">💬</Text>
-            <Text className="text-xs font-semibold text-ink-300">{post.comment_count}</Text>
-          </View>
+          <Pressable onPress={onOpenPost} className="flex-row items-center gap-1.5">
+            <Ionicons name="chatbubble-outline" size={20} color={colors.secondary} />
+            <Text className="text-sm font-medium text-apple-secondary">{post.comment_count}</Text>
+          </Pressable>
+          <View className="flex-1" />
+          {post.author.is_identity_verified ? <VerifiedLabel size={13} /> : null}
+          <Pressable
+            onPress={() => Share.share({ message: `Check out this build on Wired Build` })}
+            hitSlop={8}
+          >
+            <Ionicons name="share-outline" size={19} color={colors.secondary} />
+          </Pressable>
         </View>
       </View>
-    </Pressable>
+    </AppleCard>
   );
 }
 
-function ModeTab({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className={`rounded-lg px-4 py-1.5 ${active ? 'bg-ink-700' : ''}`}
-    >
-      <Text className={`text-sm ${active ? 'font-semibold text-white' : 'text-ink-300'}`}>
-        {label}
-      </Text>
-    </Pressable>
-  );
+function hashColor(seed: string): string {
+  const palette = [colors.accent, colors.green, colors.amber, colors.blue, colors.purple];
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h + seed.charCodeAt(i)) % palette.length;
+  return palette[h] ?? colors.accent;
 }
 
-function formatDate(iso: string) {
+function formatRelative(iso: string) {
   try {
-    const d = new Date(iso);
-    return d.toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-    });
+    const ms = Date.now() - new Date(iso).getTime();
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h`;
+    const d = Math.floor(h / 24);
+    if (d < 7) return `${d}d`;
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   } catch {
     return iso;
   }

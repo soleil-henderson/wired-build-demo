@@ -27,9 +27,9 @@ export function InstallDateField({ value, onChange, showPicker, onTogglePicker }
     <View>
       <Pressable
         onPress={onTogglePicker}
-        className="rounded-xl bg-ink-800 px-4 py-3 active:bg-ink-700"
+        className="rounded-xl border border-apple-border bg-white px-4 py-3 active:bg-apple-bg2"
       >
-        <Text className="font-mono text-white">{value || 'Pick date'}</Text>
+        <Text className="font-mono text-apple-ink">{value || 'Pick date'}</Text>
       </Pressable>
       {showPicker ? (
         <DateTimePicker

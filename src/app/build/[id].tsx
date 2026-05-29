@@ -74,19 +74,19 @@ export default function PublicBuildScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'Build' }} />
-        <ActivityIndicator color="#F5A524" />
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
 
   if (notFound || !build) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950 px-6">
+      <View className="flex-1 items-center justify-center bg-apple-bg2 px-6">
         <Stack.Screen options={{ title: 'Not found' }} />
-        <Text className="text-3xl font-bold text-white">404</Text>
-        <Text className="mt-2 text-center text-ink-300">
+        <Text className="text-3xl font-bold text-apple-ink">404</Text>
+        <Text className="mt-2 text-center text-apple-secondary">
           This build is private or no longer exists.
         </Text>
       </View>
@@ -99,44 +99,44 @@ export default function PublicBuildScreen() {
   const isViewerOwner = !!session && vehicle.owner?.id === session.user.id;
 
   return (
-    <ScrollView className="flex-1 bg-ink-950" contentContainerClassName="pb-12">
+    <ScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="pb-12">
       <Stack.Screen options={{ title }} />
 
       {/* ---- Wired Build banner (only when viewer is logged-out, for the
             marketplace pitch — the page works as a standalone URL) ---- */}
       {!session ? (
-        <View className="flex-row items-center justify-between bg-ink-900 px-6 py-3">
+        <View className="flex-row items-center justify-between bg-white px-6 py-3">
           <View>
             <Text className="text-[10px] uppercase tracking-[3px] text-accent">
               Wired Build
             </Text>
-            <Text className="text-xs text-ink-300">Logged build history</Text>
+            <Text className="text-xs text-apple-secondary">Logged build history</Text>
           </View>
           <Pressable
             onPress={() => router.push('/(auth)/sign-up')}
             className="rounded-lg bg-accent px-3 py-1.5 active:bg-accent-dark"
           >
-            <Text className="text-xs font-semibold text-ink-950">Sign up</Text>
+            <Text className="text-xs font-semibold text-white">Sign up</Text>
           </Pressable>
         </View>
       ) : null}
 
       {/* ---- Hero ---- */}
-      <View className="bg-ink-900 px-6 pt-6 pb-8">
+      <View className="bg-white px-6 pt-6 pb-8">
         {vehicle.cover_photo_url ? (
           <Image
             source={{ uri: vehicle.cover_photo_url }}
-            className="mb-5 h-48 w-full rounded-2xl bg-ink-800"
+            className="mb-5 h-48 w-full rounded-2xl bg-apple-bg2"
             resizeMode="cover"
           />
         ) : null}
 
-        <Text className="text-xs uppercase tracking-wider text-ink-300">
+        <Text className="text-xs uppercase tracking-wider text-apple-secondary">
           {vehicle.year} · {vehicle.make} · {vehicle.model}
           {vehicle.trim ? ` · ${vehicle.trim}` : ''}
         </Text>
-        <Text className="mt-1 text-3xl font-bold text-white">{title}</Text>
-        <Text className="mt-2 font-mono text-xs text-ink-300">
+        <Text className="mt-1 text-3xl font-bold text-apple-ink">{title}</Text>
+        <Text className="mt-2 font-mono text-xs text-apple-secondary">
           VIN ····{vehicle.vin.slice(-6)}
         </Text>
 
@@ -153,7 +153,7 @@ export default function PublicBuildScreen() {
           />
         </View>
         {vehicle.build_value != null && Number(vehicle.build_value) > 0 ? (
-          <Text className="mt-2 text-xs text-ink-300">
+          <Text className="mt-2 text-xs text-apple-secondary">
             {buildValueFootnote(vehicle.valuation_source)}
           </Text>
         ) : null}
@@ -164,18 +164,18 @@ export default function PublicBuildScreen() {
               For sale
             </Text>
             {vehicle.asking_price != null ? (
-              <Text className="mt-1 text-xl font-bold text-white">
+              <Text className="mt-1 text-xl font-bold text-apple-ink">
                 ${Number(vehicle.asking_price).toLocaleString()} AUD
               </Text>
             ) : (
-              <Text className="mt-1 text-ink-200">Price on application</Text>
+              <Text className="mt-1 text-apple-secondary">Price on application</Text>
             )}
             {vehicle.owner ? (
               <Pressable
                 onPress={() => router.push(`/user/${vehicle.owner!.handle}`)}
                 className="mt-3 self-start rounded-lg bg-accent px-4 py-2 active:bg-accent-dark"
               >
-                <Text className="text-sm font-semibold text-ink-950">Contact owner</Text>
+                <Text className="text-sm font-semibold text-white">Contact owner</Text>
               </Pressable>
             ) : null}
           </View>
@@ -186,14 +186,14 @@ export default function PublicBuildScreen() {
             onPress={handleShare}
             className="rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
           >
-            <Text className="font-semibold text-ink-950">Share</Text>
+            <Text className="font-semibold text-white">Share</Text>
           </Pressable>
           {isViewerOwner ? (
             <Pressable
               onPress={() => router.push(`/vehicle/${vehicle.id}`)}
-              className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
+              className="rounded-xl border border-apple-border bg-white px-4 py-2.5 active:bg-apple-bg2"
             >
-              <Text className="font-semibold text-ink-200">Manage build</Text>
+              <Text className="font-semibold text-apple-secondary">Manage build</Text>
             </Pressable>
           ) : null}
         </View>
@@ -201,8 +201,8 @@ export default function PublicBuildScreen() {
 
       {/* ---- Owner card ---- */}
       {vehicle.owner ? (
-        <View className="mx-6 mt-6 rounded-2xl border border-ink-700 bg-ink-900 p-4">
-          <Text className="text-[10px] uppercase tracking-wider text-ink-300">
+        <View className="mx-6 mt-6 rounded-2xl border border-apple-border bg-white p-4">
+          <Text className="text-[10px] uppercase tracking-wider text-apple-secondary">
             Current owner
           </Text>
           <Pressable
@@ -212,27 +212,27 @@ export default function PublicBuildScreen() {
             {vehicle.owner.avatar_url ? (
               <Image
                 source={{ uri: vehicle.owner.avatar_url }}
-                className="h-12 w-12 rounded-full bg-ink-700"
+                className="h-12 w-12 rounded-full bg-apple-bg2"
               />
             ) : (
-              <View className="h-12 w-12 items-center justify-center rounded-full bg-ink-700">
-                <Text className="text-lg font-bold text-white">
+              <View className="h-12 w-12 items-center justify-center rounded-full bg-apple-bg2">
+                <Text className="text-lg font-bold text-apple-ink">
                   {(vehicle.owner.display_name || vehicle.owner.handle || '?')[0].toUpperCase()}
                 </Text>
               </View>
             )}
             <View className="flex-1">
               <View className="flex-row items-center gap-1.5">
-                <Text className="font-semibold text-white">
+                <Text className="font-semibold text-apple-ink">
                   {vehicle.owner.display_name}
                 </Text>
                 <UserBadges user={vehicle.owner} />
               </View>
-              <Text className="text-xs text-ink-300">@{vehicle.owner.handle}</Text>
+              <Text className="text-xs text-apple-secondary">@{vehicle.owner.handle}</Text>
             </View>
           </Pressable>
           {vehicle.owner.bio ? (
-            <Text className="mt-3 text-sm text-ink-200">{vehicle.owner.bio}</Text>
+            <Text className="mt-3 text-sm text-apple-secondary">{vehicle.owner.bio}</Text>
           ) : null}
         </View>
       ) : null}
@@ -240,19 +240,19 @@ export default function PublicBuildScreen() {
       {/* ---- Spend breakdown ---- */}
       {spendByCategory.length > 0 ? (
         <View className="px-6 pt-6">
-          <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+          <Text className="text-xs font-semibold uppercase tracking-[2px] text-apple-secondary">
             Spend by category
           </Text>
           <View className="mt-3 gap-2">
             {spendByCategory.map((row) => (
               <View
                 key={row.category}
-                className="flex-row items-center justify-between rounded-xl border border-ink-700 bg-ink-900 px-4 py-3"
+                className="flex-row items-center justify-between rounded-xl border border-apple-border bg-white px-4 py-3"
               >
-                <Text className="capitalize text-ink-200">
+                <Text className="capitalize text-apple-secondary">
                   {row.category.replace('_', ' ')}
                 </Text>
-                <Text className="font-semibold text-white">
+                <Text className="font-semibold text-apple-ink">
                   ${row.total.toLocaleString()}
                 </Text>
               </View>
@@ -263,11 +263,11 @@ export default function PublicBuildScreen() {
 
       {/* ---- Mods timeline ---- */}
       <View className="px-6 pt-6">
-        <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+        <Text className="text-xs font-semibold uppercase tracking-[2px] text-apple-secondary">
           Mods timeline
         </Text>
         {mods.length === 0 ? (
-          <Text className="mt-3 text-sm text-ink-300">
+          <Text className="mt-3 text-sm text-apple-secondary">
             No public mods yet.
           </Text>
         ) : (
@@ -275,21 +275,21 @@ export default function PublicBuildScreen() {
             {mods.map((m) => (
               <View
                 key={m.id}
-                className="overflow-hidden rounded-2xl border border-ink-700 bg-ink-900"
+                className="overflow-hidden rounded-2xl border border-apple-border bg-white"
               >
                 {m.photo_url ? (
                   <Image
                     source={{ uri: m.photo_url }}
-                    className="h-48 w-full bg-ink-800"
+                    className="h-48 w-full bg-apple-bg2"
                     resizeMode="cover"
                   />
                 ) : null}
                 <View className="p-4">
                   <View className="flex-row items-center justify-between">
-                    <Text className="text-[11px] uppercase tracking-wider text-ink-300">
+                    <Text className="text-[11px] uppercase tracking-wider text-apple-secondary">
                       {m.category.replace('_', ' ')}
                     </Text>
-                    <Text className="text-xs text-ink-300">
+                    <Text className="text-xs text-apple-secondary">
                       {formatDate(m.install_date)}
                       {m.date_is_approximate ? ' ~' : ''}
                     </Text>
@@ -299,28 +299,28 @@ export default function PublicBuildScreen() {
                       onPress={() => router.push(`/part/${m.part!.id}`)}
                       className="mt-1 active:opacity-80"
                     >
-                      <Text className="text-base font-semibold text-white">
+                      <Text className="text-base font-semibold text-apple-ink">
                         {m.part.brand}
                       </Text>
-                      <Text className="text-ink-200">{m.part.name}</Text>
+                      <Text className="text-apple-secondary">{m.part.name}</Text>
                     </Pressable>
                   ) : (
-                    <Text className="mt-1 text-ink-200">
+                    <Text className="mt-1 text-apple-secondary">
                       {m.custom_part_name ?? 'Unknown part'}
                     </Text>
                   )}
                   <View className="mt-3 flex-row items-center justify-between">
-                    <Text className="text-sm text-ink-300">
+                    <Text className="text-sm text-apple-secondary">
                       {labelForInstaller(m.installer_type)}
                     </Text>
-                    <Text className="text-sm font-semibold text-white">
+                    <Text className="text-sm font-semibold text-apple-ink">
                       {m.cost == null
                         ? '—'
                         : `${m.cost_is_approximate ? '~' : ''}$${Number(m.cost).toLocaleString()}`}
                     </Text>
                   </View>
                   {m.notes ? (
-                    <Text className="mt-2 text-sm text-ink-300">{m.notes}</Text>
+                    <Text className="mt-2 text-sm text-apple-secondary">{m.notes}</Text>
                   ) : null}
                 </View>
               </View>
@@ -331,11 +331,11 @@ export default function PublicBuildScreen() {
 
       {/* ---- Ownership history (the marketplace-trust section) ---- */}
       <View className="px-6 pt-6">
-        <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+        <Text className="text-xs font-semibold uppercase tracking-[2px] text-apple-secondary">
           Ownership history
         </Text>
         {history.length === 0 ? (
-          <Text className="mt-3 text-sm text-ink-300">
+          <Text className="mt-3 text-sm text-apple-secondary">
             One owner since this build was logged on Wired Build.
           </Text>
         ) : (
@@ -343,30 +343,30 @@ export default function PublicBuildScreen() {
             {history.map((h) => (
               <View
                 key={h.id}
-                className="rounded-2xl border border-ink-700 bg-ink-900 p-4"
+                className="rounded-2xl border border-apple-border bg-white p-4"
               >
-                <Text className="text-[10px] uppercase tracking-wider text-ink-300">
+                <Text className="text-[10px] uppercase tracking-wider text-apple-secondary">
                   {formatDate(h.created_at)}
                 </Text>
                 <View className="mt-1 flex-row flex-wrap items-center gap-1">
                   {h.from_user ? (
                     <Pressable onPress={() => router.push(`/user/${h.from_user!.handle}`)}>
-                      <Text className="font-semibold text-white">@{h.from_user.handle}</Text>
+                      <Text className="font-semibold text-accent">@{h.from_user.handle}</Text>
                     </Pressable>
                   ) : (
-                    <Text className="font-semibold text-ink-300">unknown</Text>
+                    <Text className="font-semibold text-apple-secondary">unknown</Text>
                   )}
-                  <Text className="text-ink-300">→</Text>
+                  <Text className="text-apple-secondary">→</Text>
                   {h.to_user ? (
                     <Pressable onPress={() => router.push(`/user/${h.to_user!.handle}`)}>
                       <Text className="font-semibold text-accent">@{h.to_user.handle}</Text>
                     </Pressable>
                   ) : (
-                    <Text className="font-semibold text-ink-300">unknown</Text>
+                    <Text className="font-semibold text-apple-secondary">unknown</Text>
                   )}
                 </View>
                 {h.note ? (
-                  <Text className="mt-1 text-sm text-ink-300">{h.note}</Text>
+                  <Text className="mt-1 text-sm text-apple-secondary">{h.note}</Text>
                 ) : null}
               </View>
             ))}
@@ -377,10 +377,10 @@ export default function PublicBuildScreen() {
       {/* ---- Footer / sign-up CTA ---- */}
       {!session ? (
         <View className="mx-6 mt-8 rounded-2xl border border-accent/40 bg-accent/10 p-6">
-          <Text className="text-lg font-semibold text-white">
+          <Text className="text-lg font-semibold text-apple-ink">
             Got a build of your own?
           </Text>
-          <Text className="mt-1 text-sm text-ink-200">
+          <Text className="mt-1 text-sm text-apple-secondary">
             Wired Build keeps a permanent, transferable record of every mod —
             part, brand, cost, install date. When you sell, the history goes
             with the VIN.
@@ -389,7 +389,7 @@ export default function PublicBuildScreen() {
             onPress={() => router.push('/(auth)/sign-up')}
             className="mt-4 self-start rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
           >
-            <Text className="font-semibold text-ink-950">Start logging your build</Text>
+            <Text className="font-semibold text-white">Start logging your build</Text>
           </Pressable>
           {Platform.OS === 'web' ? (
             <Pressable
@@ -410,8 +410,8 @@ export default function PublicBuildScreen() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <View>
-      <Text className="text-[10px] uppercase tracking-wider text-ink-300">{label}</Text>
-      <Text className="mt-1 text-base font-semibold text-white">{value}</Text>
+      <Text className="text-[10px] uppercase tracking-wider text-apple-secondary">{label}</Text>
+      <Text className="mt-1 text-base font-semibold text-apple-ink">{value}</Text>
     </View>
   );
 }

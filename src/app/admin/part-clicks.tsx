@@ -60,26 +60,26 @@ export default function AdminPartClicksScreen() {
   );
 
   return (
-    <ScrollView className="flex-1 bg-ink-950" contentContainerClassName="px-6 py-6 pb-12">
+    <ScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="px-6 py-6 pb-12">
       <Stack.Screen options={{ title: 'Part clicks' }} />
       <Text className="text-accent text-xs font-semibold tracking-[3px]">ADMIN</Text>
-      <Text className="mt-2 text-2xl font-bold text-white">Affiliate clicks (30d sample)</Text>
-      <Text className="mt-2 text-sm text-ink-300">
+      <Text className="mt-2 text-2xl font-bold text-apple-ink">Affiliate clicks (30d sample)</Text>
+      <Text className="mt-2 text-sm text-apple-secondary">
         Internal BI — last 5,000 click events aggregated by part.
       </Text>
 
       {loading ? (
-        <ActivityIndicator className="mt-8" color="#F5A524" />
+        <ActivityIndicator className="mt-8" color="#FF6A2B" />
       ) : rows.length === 0 ? (
-        <Text className="mt-8 text-ink-300">No clicks recorded yet.</Text>
+        <Text className="mt-8 text-apple-secondary">No clicks recorded yet.</Text>
       ) : (
         <View className="mt-6 gap-2">
           {rows.map((r) => (
             <View
               key={r.part_id}
-              className="flex-row items-center justify-between rounded-xl border border-ink-700 bg-ink-900 px-4 py-3"
+              className="flex-row items-center justify-between rounded-xl border border-apple-border bg-white px-4 py-3"
             >
-              <Text className="flex-1 font-medium text-white">
+              <Text className="flex-1 font-medium text-apple-ink">
                 {r.brand} {r.name}
               </Text>
               <Text className="font-semibold text-accent">{r.clicks}</Text>

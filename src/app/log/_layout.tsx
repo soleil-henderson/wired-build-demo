@@ -1,14 +1,7 @@
 import { Stack } from 'expo-router';
 
+import { stackScreenOptions } from '@/lib/theme';
+
 export default function LogStackLayout() {
-  return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: '#0E1014' },
-        headerTintColor: '#E2E5EC',
-        headerTitleStyle: { color: '#E2E5EC' },
-        contentStyle: { backgroundColor: '#08090B' },
-      }}
-    />
-  );
+  return <Stack screenOptions={stackScreenOptions} />;
 }

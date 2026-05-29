@@ -53,7 +53,7 @@ export default function UploadQueueScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-ink-950" contentContainerClassName="pb-12">
+    <ScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="pb-12">
       <Stack.Screen options={{ title: 'Pending uploads' }} />
       <ScreenHeader
         eyebrow="SETTINGS"
@@ -62,18 +62,18 @@ export default function UploadQueueScreen() {
       />
 
       {loading ? (
-        <ActivityIndicator className="mt-8" color="#F5A524" />
+        <ActivityIndicator className="mt-8" color="#FF6A2B" />
       ) : queue.length === 0 ? (
-        <Text className="mx-6 mt-6 text-ink-300">No pending uploads.</Text>
+        <Text className="mx-6 mt-6 text-apple-secondary">No pending uploads.</Text>
       ) : (
         <View className="mx-6 mt-6 gap-2">
           {queue.map((item, i) => (
             <View
               key={`${item.modId}-${i}`}
-              className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-3"
+              className="rounded-xl border border-apple-border bg-white px-4 py-3"
             >
-              <Text className="text-white">Mod {item.modId.slice(0, 8)}…</Text>
-              <Text className="mt-1 text-xs text-ink-300">
+              <Text className="text-apple-ink">Mod {item.modId.slice(0, 8)}…</Text>
+              <Text className="mt-1 text-xs text-apple-secondary">
                 Queued {new Date(item.createdAt).toLocaleString()}
               </Text>
             </View>
@@ -87,7 +87,7 @@ export default function UploadQueueScreen() {
           disabled={retrying || queue.length === 0}
           className="rounded-xl bg-accent py-3 active:bg-accent-dark disabled:opacity-50"
         >
-          <Text className="text-center font-semibold text-ink-950">
+          <Text className="text-center font-semibold text-white">
             {retrying ? 'Retrying…' : 'Retry all uploads'}
           </Text>
         </Pressable>
@@ -99,9 +99,9 @@ export default function UploadQueueScreen() {
                 { text: 'Clear', style: 'destructive', onPress: handleClear },
               ])
             }
-            className="rounded-xl border border-ink-700 py-3"
+            className="rounded-xl border border-apple-border py-3"
           >
-            <Text className="text-center font-semibold text-ink-200">Clear queue</Text>
+            <Text className="text-center font-semibold text-apple-secondary">Clear queue</Text>
           </Pressable>
         ) : null}
       </View>

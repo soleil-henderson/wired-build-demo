@@ -107,18 +107,18 @@ export default function PostDetailScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'Post' }} />
-        <ActivityIndicator color="#F5A524" />
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
 
   if (!post) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950 px-6">
+      <View className="flex-1 items-center justify-center bg-apple-bg2 px-6">
         <Stack.Screen options={{ title: 'Not found' }} />
-        <Text className="text-white">This post isn&apos;t available.</Text>
+        <Text className="text-apple-ink">This post isn&apos;t available.</Text>
       </View>
     );
   }
@@ -131,7 +131,7 @@ export default function PostDetailScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-ink-950"
+      className="flex-1 bg-apple-bg2"
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
       <Stack.Screen
@@ -157,7 +157,7 @@ export default function PostDetailScreen() {
               }}
               className="mr-2 px-2"
             >
-              <Text className="text-sm text-ink-300">Report</Text>
+              <Text className="text-sm text-apple-secondary">Report</Text>
             </Pressable>
           ),
         }}
@@ -167,7 +167,7 @@ export default function PostDetailScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* ---- Post ---- */}
-        <View className="border-b border-ink-700 bg-ink-900">
+        <View className="border-b border-apple-border bg-white">
           <Pressable
             onPress={() => router.push(`/user/${post.author.handle}`)}
             className="flex-row items-center gap-3 px-4 pt-4 active:opacity-80"
@@ -175,21 +175,21 @@ export default function PostDetailScreen() {
             {post.author.avatar_url ? (
               <Image
                 source={{ uri: post.author.avatar_url }}
-                className="h-10 w-10 rounded-full bg-ink-700"
+                className="h-10 w-10 rounded-full bg-apple-bg2"
               />
             ) : (
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-ink-700">
-                <Text className="font-bold text-white">
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-apple-bg2">
+                <Text className="font-bold text-apple-ink">
                   {(post.author.display_name || post.author.handle || '?')[0].toUpperCase()}
                 </Text>
               </View>
             )}
             <View className="flex-1">
               <View className="flex-row items-center gap-1.5">
-                <Text className="font-semibold text-white">{post.author.display_name}</Text>
+                <Text className="font-semibold text-apple-ink">{post.author.display_name}</Text>
                 <UserBadges user={post.author} />
               </View>
-              <Text className="text-xs text-ink-300">@{post.author.handle}</Text>
+              <Text className="text-xs text-apple-secondary">@{post.author.handle}</Text>
             </View>
           </Pressable>
 
@@ -197,7 +197,7 @@ export default function PostDetailScreen() {
             onPress={() => router.push(`/vehicle/${post.vehicle.id}`)}
             className="mt-3 px-4 active:opacity-80"
           >
-            <Text className="text-xs uppercase tracking-wider text-ink-300">
+            <Text className="text-xs uppercase tracking-wider text-apple-secondary">
               {vehicleTitle} · {post.vehicle.year} {post.vehicle.make} {post.vehicle.model}
             </Text>
           </Pressable>
@@ -205,7 +205,7 @@ export default function PostDetailScreen() {
           {post.mod?.photo_url ? (
             <Image
               source={{ uri: post.mod.photo_url }}
-              className="mt-3 h-80 w-full bg-ink-800"
+              className="mt-3 h-80 w-full bg-apple-bg2"
               resizeMode="cover"
             />
           ) : null}
@@ -213,7 +213,7 @@ export default function PostDetailScreen() {
           <View className="p-4">
             {post.mod ? (
               <>
-                <Text className="text-[11px] uppercase tracking-wider text-ink-300">
+                <Text className="text-[11px] uppercase tracking-wider text-apple-secondary">
                   {post.mod.category.replace('_', ' ')}
                 </Text>
                 {partLabel ? (
@@ -222,43 +222,43 @@ export default function PostDetailScreen() {
                       onPress={() => router.push(`/part/${post.mod!.part!.id}`)}
                       className="active:opacity-80"
                     >
-                      <Text className="mt-1 text-lg font-semibold text-white">
+                      <Text className="mt-1 text-lg font-semibold text-apple-ink">
                         {partLabel}
                       </Text>
                     </Pressable>
                   ) : (
-                    <Text className="mt-1 text-lg font-semibold text-white">{partLabel}</Text>
+                    <Text className="mt-1 text-lg font-semibold text-apple-ink">{partLabel}</Text>
                   )
                 ) : null}
                 {post.mod.cost != null ? (
-                  <Text className="mt-1 text-sm text-ink-200">
+                  <Text className="mt-1 text-sm text-apple-secondary">
                     ${Number(post.mod.cost).toLocaleString()} · {formatDate(post.mod.install_date)}
                   </Text>
                 ) : (
-                  <Text className="mt-1 text-sm text-ink-300">
+                  <Text className="mt-1 text-sm text-apple-secondary">
                     {formatDate(post.mod.install_date)}
                   </Text>
                 )}
               </>
             ) : null}
-            {post.body ? <Text className="mt-2 text-sm text-ink-200">{post.body}</Text> : null}
+            {post.body ? <Text className="mt-2 text-sm text-apple-secondary">{post.body}</Text> : null}
 
             <View className="mt-4 flex-row items-center gap-6">
               <Pressable onPress={handleToggleLike} className="flex-row items-center gap-2">
-                <Text className={`text-2xl ${post.liked_by_me ? 'text-accent' : 'text-ink-300'}`}>
+                <Text className={`text-2xl ${post.liked_by_me ? 'text-accent' : 'text-apple-secondary'}`}>
                   {post.liked_by_me ? '♥' : '♡'}
                 </Text>
                 <Text
                   className={`text-sm font-semibold ${
-                    post.liked_by_me ? 'text-accent' : 'text-ink-200'
+                    post.liked_by_me ? 'text-accent' : 'text-apple-secondary'
                   }`}
                 >
                   {post.reaction_count}
                 </Text>
               </Pressable>
               <View className="flex-row items-center gap-2">
-                <Text className="text-lg text-ink-300">💬</Text>
-                <Text className="text-sm font-semibold text-ink-200">{post.comment_count}</Text>
+                <Text className="text-lg text-apple-secondary">💬</Text>
+                <Text className="text-sm font-semibold text-apple-secondary">{post.comment_count}</Text>
               </View>
             </View>
           </View>
@@ -266,15 +266,15 @@ export default function PostDetailScreen() {
 
         {/* ---- Comments ---- */}
         <View className="px-4 pt-6">
-          <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+          <Text className="text-xs font-semibold uppercase tracking-[2px] text-apple-secondary">
             Comments
           </Text>
           {comments.length === 0 ? (
-            <Text className="mt-3 text-sm text-ink-300">No comments yet. Start the chat.</Text>
+            <Text className="mt-3 text-sm text-apple-secondary">No comments yet. Start the chat.</Text>
           ) : (
             <View className="mt-3 gap-3">
               {comments.map((c) => (
-                <View key={c.id} className="rounded-2xl border border-ink-700 bg-ink-900 p-3">
+                <View key={c.id} className="rounded-2xl border border-apple-border bg-white p-3">
                   <Pressable
                     onPress={() => router.push(`/user/${c.author.handle}`)}
                     className="flex-row items-center gap-2 active:opacity-80"
@@ -282,29 +282,29 @@ export default function PostDetailScreen() {
                     {c.author.avatar_url ? (
                       <Image
                         source={{ uri: c.author.avatar_url }}
-                        className="h-6 w-6 rounded-full bg-ink-700"
+                        className="h-6 w-6 rounded-full bg-apple-bg2"
                       />
                     ) : (
-                      <View className="h-6 w-6 items-center justify-center rounded-full bg-ink-700">
-                        <Text className="text-[10px] font-bold text-white">
+                      <View className="h-6 w-6 items-center justify-center rounded-full bg-apple-bg2">
+                        <Text className="text-[10px] font-bold text-apple-ink">
                           {(c.author.display_name || c.author.handle || '?')[0].toUpperCase()}
                         </Text>
                       </View>
                     )}
                     <View className="flex-row items-center gap-1.5">
-                      <Text className="text-sm font-semibold text-white">
+                      <Text className="text-sm font-semibold text-apple-ink">
                         {c.author.display_name}
                       </Text>
                       <UserBadges user={c.author} />
-                      <Text className="text-xs font-normal text-ink-300">
+                      <Text className="text-xs font-normal text-apple-secondary">
                         @{c.author.handle}
                       </Text>
                     </View>
-                    <Text className="ml-auto text-[10px] text-ink-300">
+                    <Text className="ml-auto text-[10px] text-apple-secondary">
                       {formatRelative(c.created_at)}
                     </Text>
                   </Pressable>
-                  <Text className="mt-2 text-sm text-ink-200">{c.body}</Text>
+                  <Text className="mt-2 text-sm text-apple-secondary">{c.body}</Text>
                 </View>
               ))}
             </View>
@@ -313,16 +313,16 @@ export default function PostDetailScreen() {
       </ScrollView>
 
       {/* ---- Composer ---- */}
-      <View className="border-t border-ink-700 bg-ink-900 px-4 py-3">
+      <View className="border-t border-apple-border bg-white px-4 py-3">
         <View className="flex-row items-end gap-2">
           <TextInput
             value={composer}
             onChangeText={setComposer}
             placeholder={session ? 'Add a comment…' : 'Sign in to comment'}
-            placeholderTextColor="#5A6373"
+            placeholderTextColor="#A1A1A6"
             editable={!!session && !posting}
             multiline
-            className="max-h-32 min-h-[40px] flex-1 rounded-xl bg-ink-800 px-3 py-2 text-white"
+            className="max-h-32 min-h-[40px] flex-1 rounded-xl bg-apple-bg2 px-3 py-2 text-apple-ink"
           />
           <Pressable
             onPress={handleAddComment}
@@ -330,9 +330,9 @@ export default function PostDetailScreen() {
             className="rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark disabled:opacity-50"
           >
             {posting ? (
-              <ActivityIndicator color="#08090B" />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text className="font-semibold text-ink-950">Post</Text>
+              <Text className="font-semibold text-white">Post</Text>
             )}
           </Pressable>
         </View>

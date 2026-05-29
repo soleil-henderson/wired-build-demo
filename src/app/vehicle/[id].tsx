@@ -39,6 +39,7 @@ import {
   type WishlistItem,
 } from '@/lib/wishlist';
 import type { Database } from '@/types/database';
+import { VehicleGarageHub } from '@/components/vehicle/VehicleGarageHub';
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
@@ -74,7 +75,10 @@ export default function VehicleProfileScreen() {
       if (vErr) throw vErr;
       setVehicle(v);
 
-      if (!v) {
+      const ownerView =
+        !!session && !!v && session.user.id === v.current_owner_id;
+
+      if (!v || ownerView) {
         setMods([]);
         setWishlist([]);
         setHistory([]);
@@ -174,9 +178,9 @@ export default function VehicleProfileScreen() {
 
   if (authLoading || loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'Build profile' }} />
-        <ActivityIndicator color="#F5A524" />
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
@@ -186,19 +190,23 @@ export default function VehicleProfileScreen() {
       ? 'Sign in to view this build.'
       : 'This build is private or no longer exists.';
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950 px-6">
+      <View className="flex-1 items-center justify-center bg-apple-bg2 px-6">
         <Stack.Screen options={{ title: 'Not found' }} />
-        <Text className="text-center text-white">{unavailableMessage}</Text>
+        <Text className="text-center text-apple-ink">{unavailableMessage}</Text>
         {!session ? (
           <Pressable
             onPress={() => router.push('/(auth)/sign-in')}
             className="mt-4 rounded-xl bg-accent px-4 py-2"
           >
-            <Text className="font-semibold text-ink-950">Sign in</Text>
+            <Text className="font-semibold text-white">Sign in</Text>
           </Pressable>
         ) : null}
       </View>
     );
+  }
+
+  if (isOwner) {
+    return <VehicleGarageHub vehicleId={vehicle.id} />;
   }
 
   const title = vehicle.nickname ?? `${vehicle.make} ${vehicle.model}`;
@@ -206,7 +214,7 @@ export default function VehicleProfileScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-ink-950"
+      className="flex-1 bg-apple-bg2"
       contentContainerClassName="pb-24"
       refreshControl={
         <RefreshControl
@@ -222,21 +230,21 @@ export default function VehicleProfileScreen() {
       <Stack.Screen options={{ title }} />
 
       {/* ---- Hero ---- */}
-      <View className="bg-ink-900 px-6 pt-6 pb-8">
+      <View className="bg-white px-6 pt-6 pb-8">
         {vehicle.cover_photo_url ? (
           <Image
             source={{ uri: vehicle.cover_photo_url }}
-            className="mb-5 h-48 w-full rounded-2xl bg-ink-800"
+            className="mb-5 h-48 w-full rounded-2xl bg-apple-bg2"
             resizeMode="cover"
           />
         ) : null}
 
-        <Text className="text-xs uppercase tracking-wider text-ink-300">
+        <Text className="text-xs uppercase tracking-wider text-apple-secondary">
           {vehicle.year} · {vehicle.make} · {vehicle.model}
           {vehicle.trim ? ` · ${vehicle.trim}` : ''}
         </Text>
-        <Text className="mt-1 text-3xl font-bold text-white">{title}</Text>
-        <Text className="mt-2 font-mono text-xs text-ink-300">
+        <Text className="mt-1 text-3xl font-bold text-apple-ink">{title}</Text>
+        <Text className="mt-2 font-mono text-xs text-apple-secondary">
           VIN ····{vehicle.vin.slice(-6)}
         </Text>
 
@@ -253,7 +261,7 @@ export default function VehicleProfileScreen() {
           />
         </View>
         {vehicle.build_value != null && Number(vehicle.build_value) > 0 ? (
-          <Text className="mt-2 text-xs text-ink-300">
+          <Text className="mt-2 text-xs text-apple-secondary">
             {buildValueFootnote(vehicle.valuation_source)}
           </Text>
         ) : null}
@@ -263,14 +271,14 @@ export default function VehicleProfileScreen() {
             onPress={() => router.push(`/log/new?vehicleId=${vehicle.id}`)}
             className="rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
           >
-            <Text className="font-semibold text-ink-950">+ Log a mod</Text>
+            <Text className="font-semibold text-white">+ Log a mod</Text>
           </Pressable>
           {vehicle.is_public ? (
             <Pressable
               onPress={handleShare}
-              className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
+              className="rounded-xl border border-apple-border bg-white px-4 py-2.5 active:bg-apple-bg2"
             >
-              <Text className="font-semibold text-ink-200">Share</Text>
+              <Text className="font-semibold text-apple-secondary">Share</Text>
             </Pressable>
           ) : null}
           {isOwner ? (
@@ -279,31 +287,31 @@ export default function VehicleProfileScreen() {
                 onPress={() =>
                   router.push(`/vehicle/edit?vehicleId=${vehicle.id}`)
                 }
-                className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
+                className="rounded-xl border border-apple-border bg-white px-4 py-2.5 active:bg-apple-bg2"
               >
-                <Text className="font-semibold text-ink-200">Edit</Text>
+                <Text className="font-semibold text-apple-secondary">Edit</Text>
               </Pressable>
               <Pressable
                 onPress={handleExportCsv}
-                className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
+                className="rounded-xl border border-apple-border bg-white px-4 py-2.5 active:bg-apple-bg2"
               >
-                <Text className="font-semibold text-ink-200">Export CSV</Text>
+                <Text className="font-semibold text-apple-secondary">Export CSV</Text>
               </Pressable>
               <Pressable
                 onPress={() =>
                   router.push(`/vehicle/transfer?vehicleId=${vehicle.id}`)
                 }
-                className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
+                className="rounded-xl border border-apple-border bg-white px-4 py-2.5 active:bg-apple-bg2"
               >
-                <Text className="font-semibold text-ink-200">Transfer</Text>
+                <Text className="font-semibold text-apple-secondary">Transfer</Text>
               </Pressable>
               <Pressable
                 onPress={() =>
                   router.push(`/vehicle/plan?vehicleId=${vehicle.id}`)
                 }
-                className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-2.5 active:bg-ink-800"
+                className="rounded-xl border border-apple-border bg-white px-4 py-2.5 active:bg-apple-bg2"
               >
-                <Text className="font-semibold text-ink-200">Build plan</Text>
+                <Text className="font-semibold text-apple-secondary">Build plan</Text>
               </Pressable>
             </>
           ) : null}
@@ -313,16 +321,16 @@ export default function VehicleProfileScreen() {
       {/* ---- Spend breakdown ---- */}
       {spendByCategory.length > 0 ? (
         <View className="px-6 pt-6">
-          <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+          <Text className="text-xs font-semibold uppercase tracking-[2px] text-apple-secondary">
             Spend by category
           </Text>
           <View className="mt-3 gap-2">
             {spendByCategory.map((row) => (
               <View
                 key={row.category}
-                className="flex-row items-center justify-between rounded-xl border border-ink-700 bg-ink-900 px-4 py-3"
+                className="flex-row items-center justify-between rounded-xl border border-apple-border bg-white px-4 py-3"
               >
-                <Text className="capitalize text-ink-200">
+                <Text className="capitalize text-apple-secondary">
                   {row.category.replace('_', ' ')}
                 </Text>
                 <Text className="font-semibold text-white">
@@ -338,18 +346,18 @@ export default function VehicleProfileScreen() {
       {isOwner ? (
         <View className="px-6 pt-6">
           <View className="flex-row items-center justify-between">
-            <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+            <Text className="text-xs font-semibold uppercase tracking-[2px] text-apple-secondary">
               Wishlist
             </Text>
             <Pressable
               onPress={() => router.push(`/wishlist/new?vehicleId=${vehicle.id}`)}
-              className="rounded-lg border border-ink-700 px-2.5 py-1 active:bg-ink-800"
+              className="rounded-lg border border-apple-border px-2.5 py-1 active:bg-apple-bg2"
             >
               <Text className="text-xs font-semibold text-accent">+ Add</Text>
             </Pressable>
           </View>
           {wishlist.length === 0 ? (
-            <Text className="mt-3 text-sm text-ink-300">
+            <Text className="mt-3 text-sm text-apple-secondary">
               Nothing planned yet. Tap <Text className="text-accent">+ Add</Text> to start
               building a parts list.
             </Text>
@@ -358,26 +366,26 @@ export default function VehicleProfileScreen() {
               {wishlist.map((item) => (
                 <View
                   key={item.id}
-                  className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-3"
+                  className="rounded-xl border border-apple-border bg-white px-4 py-3"
                 >
                   <View className="flex-row items-center gap-2">
                     <PriorityPill priority={item.priority} />
                     {item.category ? (
-                      <Text className="text-[10px] uppercase tracking-wider text-ink-300">
+                      <Text className="text-[10px] uppercase tracking-wider text-apple-secondary">
                         {item.category.replace('_', ' ')}
                       </Text>
                     ) : null}
                   </View>
-                  <Text className="mt-1 text-base font-semibold text-white">
+                  <Text className="mt-1 text-base font-semibold text-apple-ink">
                     {wishlistDisplayName(item)}
                   </Text>
                   {item.target_cost != null ? (
-                    <Text className="mt-1 text-sm text-ink-200">
+                    <Text className="mt-1 text-sm text-apple-secondary">
                       Target ${Number(item.target_cost).toLocaleString()}
                     </Text>
                   ) : null}
                   {item.notes ? (
-                    <Text className="mt-1 text-sm text-ink-300">{item.notes}</Text>
+                    <Text className="mt-1 text-sm text-apple-secondary">{item.notes}</Text>
                   ) : null}
                   <View className="mt-3 flex-row gap-2">
                     <Pressable
@@ -388,13 +396,13 @@ export default function VehicleProfileScreen() {
                       }
                       className="rounded-lg bg-accent px-3 py-1.5 active:bg-accent-dark"
                     >
-                      <Text className="text-xs font-semibold text-ink-950">Log it</Text>
+                      <Text className="text-xs font-semibold text-white">Log it</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => handleRemoveWishlistItem(item.id)}
-                      className="rounded-lg border border-ink-700 px-3 py-1.5 active:bg-ink-800"
+                      className="rounded-lg border border-apple-border px-3 py-1.5 active:bg-apple-bg2"
                     >
-                      <Text className="text-xs text-ink-300">Remove</Text>
+                      <Text className="text-xs text-apple-secondary">Remove</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -406,20 +414,20 @@ export default function VehicleProfileScreen() {
 
       {/* ---- Mods timeline ---- */}
       <View className="px-6 pt-6">
-        <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+        <Text className="text-xs font-semibold uppercase tracking-[2px] text-apple-secondary">
           Mods timeline
         </Text>
         {mods.length === 0 ? (
-          <View className="mt-3 rounded-2xl border border-ink-700 bg-ink-900 p-6">
-            <Text className="text-ink-200 text-base font-semibold">No mods yet</Text>
-            <Text className="mt-1 text-ink-300">
+          <View className="mt-3 rounded-2xl border border-apple-border bg-white p-6">
+            <Text className="text-apple-secondary text-base font-semibold">No mods yet</Text>
+            <Text className="mt-1 text-apple-secondary">
               Log your first mod to start the build history.
             </Text>
             <Pressable
               onPress={() => router.push(`/log/new?vehicleId=${vehicle.id}`)}
               className="mt-4 self-start rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
             >
-              <Text className="font-semibold text-ink-950">Log a mod</Text>
+              <Text className="font-semibold text-white">Log a mod</Text>
             </Pressable>
           </View>
         ) : (
@@ -427,21 +435,21 @@ export default function VehicleProfileScreen() {
             {mods.map((m) => (
               <View
                 key={m.id}
-                className="overflow-hidden rounded-2xl border border-ink-700 bg-ink-900"
+                className="overflow-hidden rounded-2xl border border-apple-border bg-white"
               >
                 {m.photo_url ? (
                   <Image
                     source={{ uri: m.photo_url }}
-                    className="h-48 w-full bg-ink-800"
+                    className="h-48 w-full bg-apple-bg2"
                     resizeMode="cover"
                   />
                 ) : null}
                 <View className="p-4">
                   <View className="flex-row items-center justify-between">
-                    <Text className="text-[11px] uppercase tracking-wider text-ink-300">
+                    <Text className="text-[11px] uppercase tracking-wider text-apple-secondary">
                       {m.category.replace('_', ' ')}
                     </Text>
-                    <Text className="text-xs text-ink-300">
+                    <Text className="text-xs text-apple-secondary">
                       {formatDate(m.install_date)}
                       {m.date_is_approximate ? ' ~' : ''}
                     </Text>
@@ -451,37 +459,37 @@ export default function VehicleProfileScreen() {
                       onPress={() => router.push(`/part/${m.part!.id}`)}
                       className="mt-1 active:opacity-80"
                     >
-                      <Text className="text-base font-semibold text-white">
+                      <Text className="text-base font-semibold text-apple-ink">
                         {m.part.brand}
                       </Text>
-                      <Text className="text-ink-200">{m.part.name}</Text>
+                      <Text className="text-apple-secondary">{m.part.name}</Text>
                     </Pressable>
                   ) : (
-                    <Text className="mt-1 text-ink-200">
+                    <Text className="mt-1 text-apple-secondary">
                       {m.custom_part_name ?? 'Unknown part'}
                     </Text>
                   )}
                   <View className="mt-3 flex-row items-center justify-between">
-                    <Text className="text-sm text-ink-300">
+                    <Text className="text-sm text-apple-secondary">
                       {labelForInstaller(m.installer_type)}
                     </Text>
-                    <Text className="text-sm font-semibold text-white">
+                    <Text className="text-sm font-semibold text-apple-ink">
                       {m.cost == null
                         ? '—'
                         : `${m.cost_is_approximate ? '~' : ''}$${Number(m.cost).toLocaleString()}`}
                     </Text>
                   </View>
                   {m.notes ? (
-                    <Text className="mt-2 text-sm text-ink-300">{m.notes}</Text>
+                    <Text className="mt-2 text-sm text-apple-secondary">{m.notes}</Text>
                   ) : null}
                   {isOwner ? (
                     <View className="mt-4 flex-row flex-wrap gap-2">
                       {m.has_receipt ? (
                         <Pressable
                           onPress={() => handleViewReceipt(m)}
-                          className="rounded-lg border border-ink-700 px-3 py-1.5 active:bg-ink-800"
+                          className="rounded-lg border border-apple-border px-3 py-1.5 active:bg-apple-bg2"
                         >
-                          <Text className="text-xs font-semibold text-ink-200">
+                          <Text className="text-xs font-semibold text-apple-secondary">
                             Receipt
                           </Text>
                         </Pressable>
@@ -490,9 +498,9 @@ export default function VehicleProfileScreen() {
                         onPress={() =>
                           router.push(`/log/edit?modId=${m.id}`)
                         }
-                        className="rounded-lg border border-ink-700 px-3 py-1.5 active:bg-ink-800"
+                        className="rounded-lg border border-apple-border px-3 py-1.5 active:bg-apple-bg2"
                       >
-                        <Text className="text-xs font-semibold text-ink-200">
+                        <Text className="text-xs font-semibold text-apple-secondary">
                           Edit
                         </Text>
                       </Pressable>
@@ -524,10 +532,10 @@ function OwnershipHistorySection({
   if (history.length === 0) {
     return (
       <View className="px-6 pt-6">
-        <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+        <Text className="text-xs font-semibold uppercase tracking-[2px] text-apple-secondary">
           Ownership history
         </Text>
-        <Text className="mt-3 text-sm text-ink-300">
+        <Text className="mt-3 text-sm text-apple-secondary">
           One owner so far. When this build is transferred, the full chain
           shows up here for any future buyer to audit.
         </Text>
@@ -536,16 +544,16 @@ function OwnershipHistorySection({
   }
   return (
     <View className="px-6 pt-6">
-      <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+      <Text className="text-xs font-semibold uppercase tracking-[2px] text-apple-secondary">
         Ownership history
       </Text>
       <View className="mt-3 gap-2">
         {history.map((row) => (
           <View
             key={row.id}
-            className="rounded-2xl border border-ink-700 bg-ink-900 p-4"
+            className="rounded-2xl border border-apple-border bg-white p-4"
           >
-            <Text className="text-[10px] uppercase tracking-wider text-ink-300">
+            <Text className="text-[10px] uppercase tracking-wider text-apple-secondary">
               {formatDate(row.created_at)}
             </Text>
             <View className="mt-1 flex-row flex-wrap items-center gap-1">
@@ -556,9 +564,9 @@ function OwnershipHistorySection({
                   </Text>
                 </Pressable>
               ) : (
-                <Text className="font-semibold text-ink-300">unknown</Text>
+                <Text className="font-semibold text-apple-secondary">unknown</Text>
               )}
-              <Text className="text-ink-300">→</Text>
+              <Text className="text-apple-secondary">→</Text>
               {row.to_user ? (
                 <Pressable onPress={() => onOpenUser(row.to_user!.handle)}>
                   <Text className="font-semibold text-accent">
@@ -566,11 +574,11 @@ function OwnershipHistorySection({
                   </Text>
                 </Pressable>
               ) : (
-                <Text className="font-semibold text-ink-300">unknown</Text>
+                <Text className="font-semibold text-apple-secondary">unknown</Text>
               )}
             </View>
             {row.note ? (
-              <Text className="mt-1 text-sm text-ink-300">{row.note}</Text>
+              <Text className="mt-1 text-sm text-apple-secondary">{row.note}</Text>
             ) : null}
           </View>
         ))}
@@ -581,9 +589,9 @@ function OwnershipHistorySection({
 
 function PriorityPill({ priority }: { priority: 'low' | 'medium' | 'high' }) {
   const styles = {
-    low: 'bg-ink-700 text-ink-200',
+    low: 'bg-apple-bg2 text-apple-secondary',
     medium: 'bg-accent/20 text-accent',
-    high: 'bg-accent text-ink-950',
+    high: 'bg-accent text-apple-ink',
   } as const;
   return (
     <View className={`rounded-full px-2 py-0.5 ${styles[priority].split(' ')[0]}`}>
@@ -601,8 +609,8 @@ function PriorityPill({ priority }: { priority: 'low' | 'medium' | 'high' }) {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <View>
-      <Text className="text-[10px] uppercase tracking-wider text-ink-300">{label}</Text>
-      <Text className="mt-1 text-base font-semibold text-white">{value}</Text>
+      <Text className="text-[10px] uppercase tracking-wider text-apple-secondary">{label}</Text>
+      <Text className="mt-1 text-base font-semibold text-apple-ink">{value}</Text>
     </View>
   );
 }

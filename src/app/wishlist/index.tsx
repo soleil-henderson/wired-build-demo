@@ -112,16 +112,16 @@ export default function WishlistIndexScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'My wishlist' }} />
-        <ActivityIndicator color="#F5A524" />
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
 
   return (
     <ScrollView
-      className="flex-1 bg-ink-950"
+      className="flex-1 bg-apple-bg2"
       contentContainerClassName="pb-24"
       refreshControl={
         <RefreshControl
@@ -138,8 +138,8 @@ export default function WishlistIndexScreen() {
 
       <View className="px-6 pt-6">
         <Text className="text-accent text-xs font-semibold tracking-[3px]">WISHLIST</Text>
-        <Text className="mt-1 text-3xl font-bold text-white">What&apos;s next</Text>
-        <Text className="mt-2 text-ink-300">
+        <Text className="mt-1 text-3xl font-bold text-apple-ink">What&apos;s next</Text>
+        <Text className="mt-2 text-apple-secondary">
           Parts you&apos;re planning to install — grouped by build, with anything
           un-assigned in General.
         </Text>
@@ -147,14 +147,14 @@ export default function WishlistIndexScreen() {
           onPress={() => router.push('/wishlist/new')}
           className="mt-5 self-start rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
         >
-          <Text className="font-semibold text-ink-950">+ Add item</Text>
+          <Text className="font-semibold text-white">+ Add item</Text>
         </Pressable>
       </View>
 
       {groups.length === 0 ? (
-        <View className="mx-6 mt-8 rounded-2xl border border-ink-700 bg-ink-900 p-6">
-          <Text className="text-base font-semibold text-ink-200">Empty for now</Text>
-          <Text className="mt-1 text-ink-300">
+        <View className="mx-6 mt-8 rounded-2xl border border-apple-border bg-white p-6">
+          <Text className="text-base font-semibold text-apple-secondary">Empty for now</Text>
+          <Text className="mt-1 text-apple-secondary">
             Open Explore and tap <Text className="text-accent">+ Wishlist</Text> on any
             popular part, or hit <Text className="text-accent">+ Add</Text> on a build
             profile to plan a specific upgrade.
@@ -170,7 +170,7 @@ export default function WishlistIndexScreen() {
             return (
               <View key={g.vehicleId ?? 'general'}>
                 <View className="flex-row items-center justify-between">
-                  <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+                  <Text className="text-xs font-semibold uppercase tracking-[2px] text-apple-secondary">
                     {header}
                   </Text>
                   {g.vehicle ? (
@@ -183,26 +183,26 @@ export default function WishlistIndexScreen() {
                   {g.items.map((item) => (
                     <View
                       key={item.id}
-                      className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-3"
+                      className="rounded-xl border border-apple-border bg-white px-4 py-3"
                     >
                       <View className="flex-row items-center gap-2">
                         <PriorityPill priority={item.priority} />
                         {item.category ? (
-                          <Text className="text-[10px] uppercase tracking-wider text-ink-300">
+                          <Text className="text-[10px] uppercase tracking-wider text-apple-secondary">
                             {item.category.replace('_', ' ')}
                           </Text>
                         ) : null}
                       </View>
-                      <Text className="mt-1 text-base font-semibold text-white">
+                      <Text className="mt-1 text-base font-semibold text-apple-ink">
                         {wishlistDisplayName(item)}
                       </Text>
                       {item.target_cost != null ? (
-                        <Text className="mt-1 text-sm text-ink-200">
+                        <Text className="mt-1 text-sm text-apple-secondary">
                           Target ${Number(item.target_cost).toLocaleString()}
                         </Text>
                       ) : null}
                       {item.notes ? (
-                        <Text className="mt-1 text-sm text-ink-300">{item.notes}</Text>
+                        <Text className="mt-1 text-sm text-apple-secondary">{item.notes}</Text>
                       ) : null}
                       <View className="mt-3 flex-row gap-2">
                         {g.vehicleId ? (
@@ -214,16 +214,16 @@ export default function WishlistIndexScreen() {
                             }
                             className="rounded-lg bg-accent px-3 py-1.5 active:bg-accent-dark"
                           >
-                            <Text className="text-xs font-semibold text-ink-950">
+                            <Text className="text-xs font-semibold text-white">
                               Log it
                             </Text>
                           </Pressable>
                         ) : null}
                         <Pressable
                           onPress={() => handleRemove(item.id)}
-                          className="rounded-lg border border-ink-700 px-3 py-1.5 active:bg-ink-800"
+                          className="rounded-lg border border-apple-border px-3 py-1.5 active:bg-apple-bg2"
                         >
-                          <Text className="text-xs text-ink-300">Remove</Text>
+                          <Text className="text-xs text-apple-secondary">Remove</Text>
                         </Pressable>
                       </View>
                     </View>
@@ -240,9 +240,9 @@ export default function WishlistIndexScreen() {
 
 function PriorityPill({ priority }: { priority: 'low' | 'medium' | 'high' }) {
   const palette = {
-    low: { bg: 'bg-ink-700', text: 'text-ink-200' },
+    low: { bg: 'bg-apple-bg2', text: 'text-apple-secondary' },
     medium: { bg: 'bg-accent/20', text: 'text-accent' },
-    high: { bg: 'bg-accent', text: 'text-ink-950' },
+    high: { bg: 'bg-accent', text: 'text-apple-ink' },
   } as const;
   const tone = palette[priority];
   return (

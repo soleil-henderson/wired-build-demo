@@ -865,6 +865,58 @@ export type Database = {
         };
         Relationships: [];
       };
+      vehicle_documents: {
+        Row: {
+          id: string;
+          vehicle_id: string;
+          owner_id: string;
+          title: string;
+          file_name: string;
+          storage_key: string;
+          mime_type: string;
+          file_size: number | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          vehicle_id: string;
+          owner_id: string;
+          title: string;
+          file_name: string;
+          storage_key: string;
+          mime_type: string;
+          file_size?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          vehicle_id?: string;
+          owner_id?: string;
+          title?: string;
+          file_name?: string;
+          storage_key?: string;
+          mime_type?: string;
+          file_size?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'vehicle_documents_vehicle_id_fkey';
+            columns: ['vehicle_id'];
+            referencedRelation: 'vehicles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'vehicle_documents_owner_id_fkey';
+            columns: ['owner_id'];
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;

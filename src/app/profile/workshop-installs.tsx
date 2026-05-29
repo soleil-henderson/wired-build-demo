@@ -57,7 +57,7 @@ export default function WorkshopInstallsScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-ink-950" contentContainerClassName="pb-12">
+    <ScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="pb-12">
       <Stack.Screen options={{ title: 'Workshop installs' }} />
       <ScreenHeader
         eyebrow="WORKSHOP"
@@ -66,9 +66,9 @@ export default function WorkshopInstallsScreen() {
       />
 
       {loading ? (
-        <ActivityIndicator className="mt-8" color="#F5A524" />
+        <ActivityIndicator className="mt-8" color="#FF6A2B" />
       ) : mods.length === 0 ? (
-        <Text className="mx-6 mt-6 text-ink-300">
+        <Text className="mx-6 mt-6 text-apple-secondary">
           No installs are tagged to your workshop yet. Customers tag you when logging a mod.
         </Text>
       ) : (
@@ -81,10 +81,10 @@ export default function WorkshopInstallsScreen() {
             return (
               <View
                 key={m.id}
-                className="rounded-2xl border border-ink-700 bg-ink-900 p-4"
+                className="rounded-2xl border border-apple-border bg-white p-4"
               >
-                <Text className="font-semibold text-white">{label}</Text>
-                <Text className="mt-1 text-sm text-ink-300">
+                <Text className="font-semibold text-apple-ink">{label}</Text>
+                <Text className="mt-1 text-sm text-apple-secondary">
                   {m.custom_part_name ?? m.category} · {m.install_date}
                 </Text>
                 {m.is_verified_by_workshop ? (
@@ -97,7 +97,7 @@ export default function WorkshopInstallsScreen() {
                     disabled={verifyingId === m.id}
                     className="mt-3 self-start rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
                   >
-                    <Text className="font-semibold text-ink-950">
+                    <Text className="font-semibold text-white">
                       {verifyingId === m.id ? 'Confirming…' : 'Confirm install'}
                     </Text>
                   </Pressable>

@@ -33,11 +33,11 @@ export default function SignUpScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-ink-950">
+    <SafeAreaView className="flex-1 bg-apple-bg2">
       <View className="flex-1 justify-center px-6">
         <Text className="text-accent text-sm font-semibold tracking-[3px]">WIRED BUILD</Text>
-        <Text className="mt-2 text-3xl font-bold text-white">Start your build log</Text>
-        <Text className="mt-2 text-ink-300">
+        <Text className="mt-2 text-3xl font-bold text-apple-ink">Start your build log</Text>
+        <Text className="mt-2 text-apple-secondary">
           One account per person. Add your 4WD next.
         </Text>
 
@@ -46,14 +46,14 @@ export default function SignUpScreen() {
         </View>
 
         <View className="my-6 flex-row items-center gap-3">
-          <View className="h-px flex-1 bg-ink-700" />
-          <Text className="text-xs uppercase tracking-wider text-ink-300">or email</Text>
-          <View className="h-px flex-1 bg-ink-700" />
+          <View className="h-px flex-1 bg-apple-bg2" />
+          <Text className="text-xs uppercase tracking-wider text-apple-secondary">or email</Text>
+          <View className="h-px flex-1 bg-apple-bg2" />
         </View>
 
         <View className="gap-3">
           <View>
-            <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">Email</Text>
+            <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">Email</Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
@@ -61,19 +61,19 @@ export default function SignUpScreen() {
               autoComplete="email"
               keyboardType="email-address"
               placeholder="you@example.com"
-              placeholderTextColor="#5A6373"
-              className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+              placeholderTextColor="#A1A1A6"
+              className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
             />
           </View>
           <View>
-            <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">Password</Text>
+            <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">Password</Text>
             <TextInput
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               placeholder="At least 8 characters"
-              placeholderTextColor="#5A6373"
-              className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+              placeholderTextColor="#A1A1A6"
+              className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
             />
           </View>
         </View>
@@ -84,14 +84,14 @@ export default function SignUpScreen() {
           className="mt-6 rounded-xl bg-accent py-3.5 active:bg-accent-dark disabled:opacity-60"
         >
           {submitting ? (
-            <ActivityIndicator color="#08090B" />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text className="text-center text-base font-semibold text-ink-950">Create account</Text>
+            <Text className="text-center text-base font-semibold text-white">Create account</Text>
           )}
         </Pressable>
 
         <View className="mt-6 flex-row justify-center">
-          <Text className="text-ink-300">Have an account? </Text>
+          <Text className="text-apple-secondary">Have an account? </Text>
           <Link href="/(auth)/sign-in">
             <Text className="font-semibold text-accent">Sign in</Text>
           </Link>

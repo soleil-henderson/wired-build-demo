@@ -70,6 +70,15 @@ export async function collectVehicleStorageKeys(
     }
   }
 
+  const { data: docs, error: docsErr } = await supabase
+    .from('vehicle_documents')
+    .select('storage_key')
+    .eq('vehicle_id', vehicleId);
+  if (docsErr) throw docsErr;
+  for (const doc of docs ?? []) {
+    if (doc.storage_key) receiptKeys.add(doc.storage_key);
+  }
+
   return {
     modPhotoKeys: [...modPhotoKeys],
     receiptKeys: [...receiptKeys],

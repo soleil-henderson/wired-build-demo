@@ -69,17 +69,17 @@ export default function AffiliateAdminScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
-        <ActivityIndicator color="#F5A524" />
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
 
   if (!allowed) {
     return (
-      <View className="flex-1 bg-ink-950 px-6 pt-12">
+      <View className="flex-1 bg-apple-bg2 px-6 pt-12">
         <Stack.Screen options={{ title: 'Affiliate links' }} />
-        <Text className="text-white">Admin access required.</Text>
+        <Text className="text-apple-ink">Admin access required.</Text>
         <Pressable onPress={() => router.back()} className="mt-4">
           <Text className="text-accent">Go back</Text>
         </Pressable>
@@ -88,9 +88,9 @@ export default function AffiliateAdminScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-ink-950" contentContainerClassName="px-6 pb-12 pt-4">
+    <ScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="px-6 pb-12 pt-4">
       <Stack.Screen options={{ title: 'Affiliate links' }} />
-      <Text className="text-ink-300">
+      <Text className="text-apple-secondary">
         Set buy links on catalogue parts (admin only). Member tier uses enhanced rates in
         the part detail screen when configured.
       </Text>
@@ -98,9 +98,9 @@ export default function AffiliateAdminScreen() {
         {parts.map((p) => (
           <View
             key={p.id}
-            className="rounded-2xl border border-ink-700 bg-ink-900 p-4"
+            className="rounded-2xl border border-apple-border bg-white p-4"
           >
-            <Text className="font-semibold text-white">
+            <Text className="font-semibold text-apple-ink">
               {p.brand} {p.name}
             </Text>
             {editingId === p.id ? (
@@ -109,29 +109,29 @@ export default function AffiliateAdminScreen() {
                   value={url}
                   onChangeText={setUrl}
                   placeholder="https://…"
-                  placeholderTextColor="#5A6373"
+                  placeholderTextColor="#A1A1A6"
                   autoCapitalize="none"
-                  className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+                  className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
                 />
                 <TextInput
                   value={label}
                   onChangeText={setLabel}
                   placeholder="Button label"
-                  placeholderTextColor="#5A6373"
-                  className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+                  placeholderTextColor="#A1A1A6"
+                  className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
                 />
                 <View className="flex-row gap-2">
                   <Pressable
                     onPress={() => handleSave(p.id)}
                     className="rounded-xl bg-accent px-4 py-2"
                   >
-                    <Text className="font-semibold text-ink-950">Save</Text>
+                    <Text className="font-semibold text-white">Save</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => setEditingId(null)}
-                    className="rounded-xl border border-ink-600 px-4 py-2"
+                    className="rounded-xl border border-apple-border px-4 py-2"
                   >
-                    <Text className="text-ink-200">Cancel</Text>
+                    <Text className="text-apple-secondary">Cancel</Text>
                   </Pressable>
                 </View>
               </View>

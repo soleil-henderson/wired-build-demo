@@ -195,9 +195,9 @@ export default function EditVehicleScreen() {
 
   if (authLoading || loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'Edit build' }} />
-        <ActivityIndicator color="#F5A524" />
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
@@ -205,12 +205,12 @@ export default function EditVehicleScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-ink-950"
+      className="flex-1 bg-apple-bg2"
     >
       <Stack.Screen options={{ title: 'Edit build' }} />
       <ScrollView contentContainerClassName="px-6 pt-6 pb-24">
-        <Text className="text-ink-300">{title}</Text>
-        <Text className="mt-1 text-xs text-ink-300">
+        <Text className="text-apple-secondary">{title}</Text>
+        <Text className="mt-1 text-xs text-apple-secondary">
           VIN, year, make, and model are fixed after you add the vehicle.
         </Text>
 
@@ -228,10 +228,10 @@ export default function EditVehicleScreen() {
               value={nickname}
               onChangeText={setNickname}
               placeholder="Project Patrol"
-              placeholderTextColor="#5A6373"
-              className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+              placeholderTextColor="#A1A1A6"
+              className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
             />
-            <Text className="mt-1 text-xs text-ink-300">
+            <Text className="mt-1 text-xs text-apple-secondary">
               Shown on your garage card and build profile header.
             </Text>
           </Field>
@@ -243,17 +243,17 @@ export default function EditVehicleScreen() {
                 className={`flex-1 rounded-xl border px-4 py-3 ${
                   isPublic
                     ? 'border-accent bg-accent/15'
-                    : 'border-ink-700 bg-ink-900'
+                    : 'border-apple-border bg-white'
                 }`}
               >
                 <Text
                   className={`text-center font-semibold ${
-                    isPublic ? 'text-accent' : 'text-ink-200'
+                    isPublic ? 'text-accent' : 'text-apple-secondary'
                   }`}
                 >
                   Public
                 </Text>
-                <Text className="mt-1 text-center text-xs text-ink-300">
+                <Text className="mt-1 text-center text-xs text-apple-secondary">
                   Share link + feed eligible
                 </Text>
               </Pressable>
@@ -262,17 +262,17 @@ export default function EditVehicleScreen() {
                 className={`flex-1 rounded-xl border px-4 py-3 ${
                   !isPublic
                     ? 'border-accent bg-accent/15'
-                    : 'border-ink-700 bg-ink-900'
+                    : 'border-apple-border bg-white'
                 }`}
               >
                 <Text
                   className={`text-center font-semibold ${
-                    !isPublic ? 'text-accent' : 'text-ink-200'
+                    !isPublic ? 'text-accent' : 'text-apple-secondary'
                   }`}
                 >
                   Private
                 </Text>
-                <Text className="mt-1 text-center text-xs text-ink-300">
+                <Text className="mt-1 text-center text-xs text-apple-secondary">
                   Only you can open it
                 </Text>
               </Pressable>
@@ -284,12 +284,12 @@ export default function EditVehicleScreen() {
               <Pressable
                 onPress={() => setIsForSale(true)}
                 className={`flex-1 rounded-xl border px-4 py-3 ${
-                  isForSale ? 'border-accent bg-accent/15' : 'border-ink-700 bg-ink-900'
+                  isForSale ? 'border-accent bg-accent/15' : 'border-apple-border bg-white'
                 }`}
               >
                 <Text
                   className={`text-center font-semibold ${
-                    isForSale ? 'text-accent' : 'text-ink-200'
+                    isForSale ? 'text-accent' : 'text-apple-secondary'
                   }`}
                 >
                   Listed
@@ -298,12 +298,12 @@ export default function EditVehicleScreen() {
               <Pressable
                 onPress={() => setIsForSale(false)}
                 className={`flex-1 rounded-xl border px-4 py-3 ${
-                  !isForSale ? 'border-accent bg-accent/15' : 'border-ink-700 bg-ink-900'
+                  !isForSale ? 'border-accent bg-accent/15' : 'border-apple-border bg-white'
                 }`}
               >
                 <Text
                   className={`text-center font-semibold ${
-                    !isForSale ? 'text-accent' : 'text-ink-200'
+                    !isForSale ? 'text-accent' : 'text-apple-secondary'
                   }`}
                 >
                   Not for sale
@@ -316,8 +316,8 @@ export default function EditVehicleScreen() {
                 onChangeText={setAskingPrice}
                 keyboardType="decimal-pad"
                 placeholder="Asking price (AUD, optional)"
-                placeholderTextColor="#5A6373"
-                className="mt-3 rounded-xl bg-ink-800 px-4 py-3 text-white"
+                placeholderTextColor="#A1A1A6"
+                className="mt-3 rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
               />
             ) : null}
           </Field>
@@ -328,17 +328,17 @@ export default function EditVehicleScreen() {
               onChangeText={setManualValue}
               keyboardType="decimal-pad"
               placeholder="Your appraisal (AUD)"
-              placeholderTextColor="#5A6373"
-              className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+              placeholderTextColor="#A1A1A6"
+              className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
             />
             <TextInput
               value={manualValueNote}
               onChangeText={setManualValueNote}
               placeholder="Note for buyers (optional)"
-              placeholderTextColor="#5A6373"
-              className="mt-2 rounded-xl bg-ink-800 px-4 py-3 text-white"
+              placeholderTextColor="#A1A1A6"
+              className="mt-2 rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
             />
-            <Text className="mt-1 text-xs text-ink-300">
+            <Text className="mt-1 text-xs text-apple-secondary">
               Overrides the automatic estimate on your public build page until you clear it.
             </Text>
           </Field>
@@ -350,9 +350,9 @@ export default function EditVehicleScreen() {
           className="mt-8 rounded-xl bg-accent py-3.5 active:bg-accent-dark disabled:opacity-60"
         >
           {submitting ? (
-            <ActivityIndicator color="#08090B" />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text className="text-center text-base font-semibold text-ink-950">
+            <Text className="text-center text-base font-semibold text-white">
               Save changes
             </Text>
           )}
@@ -361,7 +361,7 @@ export default function EditVehicleScreen() {
         <Pressable
           onPress={handleDelete}
           disabled={submitting}
-          className="mt-6 rounded-xl border border-signal-red/40 py-3 active:bg-ink-900 disabled:opacity-60"
+          className="mt-6 rounded-xl border border-signal-red/40 py-3 active:bg-white disabled:opacity-60"
         >
           <Text className="text-center text-base font-semibold text-signal-red">
             Delete build
@@ -375,7 +375,7 @@ export default function EditVehicleScreen() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View>
-      <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">{label}</Text>
+      <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">{label}</Text>
       {children}
     </View>
   );

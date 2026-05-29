@@ -98,18 +98,18 @@ export default function UserProfileScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'Profile' }} />
-        <ActivityIndicator color="#F5A524" />
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
 
   if (!user) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950 px-6">
+      <View className="flex-1 items-center justify-center bg-apple-bg2 px-6">
         <Stack.Screen options={{ title: 'Not found' }} />
-        <Text className="text-white">No such user.</Text>
+        <Text className="text-apple-ink">No such user.</Text>
       </View>
     );
   }
@@ -118,7 +118,7 @@ export default function UserProfileScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-ink-950"
+      className="flex-1 bg-apple-bg2"
       contentContainerClassName="pb-24"
       refreshControl={
         <RefreshControl
@@ -134,26 +134,26 @@ export default function UserProfileScreen() {
       <Stack.Screen options={{ title: `@${user.handle}` }} />
 
       {/* ---- Hero ---- */}
-      <View className="bg-ink-900 px-6 pt-6 pb-6">
+      <View className="bg-white px-6 pt-6 pb-6">
         <View className="flex-row items-center gap-4">
           {user.avatar_url ? (
             <Image
               source={{ uri: user.avatar_url }}
-              className="h-16 w-16 rounded-full bg-ink-700"
+              className="h-16 w-16 rounded-full bg-apple-bg2"
             />
           ) : (
-            <View className="h-16 w-16 items-center justify-center rounded-full bg-ink-700">
-              <Text className="text-xl font-bold text-white">
+            <View className="h-16 w-16 items-center justify-center rounded-full bg-apple-bg2">
+              <Text className="text-xl font-bold text-apple-ink">
                 {(user.display_name || user.handle || '?')[0].toUpperCase()}
               </Text>
             </View>
           )}
           <View className="flex-1">
-            <Text className="text-xl font-bold text-white">{user.display_name}</Text>
-            <Text className="text-ink-300">@{user.handle}</Text>
+            <Text className="text-xl font-bold text-apple-ink">{user.display_name}</Text>
+            <Text className="text-apple-secondary">@{user.handle}</Text>
             <View className="mt-1.5 flex-row flex-wrap items-center gap-1.5">
               <UserBadges user={user} size="lg" />
-              <Text className="text-[11px] uppercase tracking-wider text-ink-300">
+              <Text className="text-[11px] uppercase tracking-wider text-apple-secondary">
                 {user.subscription_tier} tier
               </Text>
             </View>
@@ -161,7 +161,7 @@ export default function UserProfileScreen() {
         </View>
 
         {user.bio ? (
-          <Text className="mt-4 text-ink-200">{user.bio}</Text>
+          <Text className="mt-4 text-apple-secondary">{user.bio}</Text>
         ) : null}
 
         <View className="mt-5 flex-row gap-6">
@@ -176,12 +176,12 @@ export default function UserProfileScreen() {
               onPress={handleToggleFollow}
               disabled={busy}
               className={`rounded-xl px-5 py-2.5 ${
-                following ? 'border border-ink-600 bg-ink-800' : 'bg-accent'
+                following ? 'border border-apple-border bg-apple-bg2' : 'bg-accent'
               } disabled:opacity-60`}
             >
               <Text
                 className={`font-semibold ${
-                  following ? 'text-ink-200' : 'text-ink-950'
+                  following ? 'text-apple-secondary' : 'text-apple-ink'
                 }`}
               >
                 {following ? 'Following' : 'Follow'}
@@ -208,9 +208,9 @@ export default function UserProfileScreen() {
                   },
                 ]);
               }}
-              className="rounded-xl border border-ink-600 px-5 py-2.5"
+              className="rounded-xl border border-apple-border px-5 py-2.5"
             >
-              <Text className="font-semibold text-ink-300">Block</Text>
+              <Text className="font-semibold text-apple-secondary">Block</Text>
             </Pressable>
           </View>
         ) : null}
@@ -218,11 +218,11 @@ export default function UserProfileScreen() {
 
       {/* ---- Garage ---- */}
       <View className="px-6 pt-6">
-        <Text className="text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+        <Text className="text-xs font-semibold uppercase tracking-[2px] text-apple-secondary">
           Garage
         </Text>
         {vehicles.length === 0 ? (
-          <Text className="mt-3 text-sm text-ink-300">
+          <Text className="mt-3 text-sm text-apple-secondary">
             No public vehicles yet.
           </Text>
         ) : (
@@ -231,13 +231,13 @@ export default function UserProfileScreen() {
               <Pressable
                 key={v.id}
                 onPress={() => router.push(`/vehicle/${v.id}`)}
-                className="rounded-2xl border border-ink-700 bg-ink-900 p-4 active:bg-ink-800"
+                className="rounded-2xl border border-apple-border bg-white p-4 active:bg-apple-bg2"
               >
-                <Text className="text-xs uppercase tracking-wider text-ink-300">
+                <Text className="text-xs uppercase tracking-wider text-apple-secondary">
                   {v.year} · {v.make} · {v.model}
                   {v.trim ? ` · ${v.trim}` : ''}
                 </Text>
-                <Text className="mt-1 text-lg font-semibold text-white">
+                <Text className="mt-1 text-lg font-semibold text-apple-ink">
                   {v.nickname ?? `${v.make} ${v.model}`}
                 </Text>
                 <View className="mt-3 flex-row gap-6">
@@ -259,8 +259,8 @@ export default function UserProfileScreen() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <View>
-      <Text className="text-[10px] uppercase tracking-wider text-ink-300">{label}</Text>
-      <Text className="mt-1 text-base font-semibold text-white">{value}</Text>
+      <Text className="text-[10px] uppercase tracking-wider text-apple-secondary">{label}</Text>
+      <Text className="mt-1 text-base font-semibold text-apple-ink">{value}</Text>
     </View>
   );
 }

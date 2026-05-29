@@ -73,20 +73,20 @@ export default function NotificationsScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'Notifications' }} />
-        <ActivityIndicator color="#F5A524" />
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
 
   return (
     <ScrollView
-      className="flex-1 bg-ink-950"
+      className="flex-1 bg-apple-bg2"
       contentContainerClassName="pb-12"
       refreshControl={
         <RefreshControl
-          tintColor="#F5A524"
+          tintColor="#FF6A2B"
           refreshing={refreshing}
           onRefresh={() => {
             setRefreshing(true);
@@ -98,9 +98,9 @@ export default function NotificationsScreen() {
       <Stack.Screen options={{ title: 'Notifications' }} />
 
       {rows.length === 0 ? (
-        <View className="mx-6 mt-12 rounded-2xl border border-ink-700 bg-ink-900 p-6">
-          <Text className="text-base font-semibold text-ink-200">All caught up</Text>
-          <Text className="mt-1 text-ink-300">
+        <View className="mx-6 mt-12 rounded-2xl border border-apple-border bg-white p-6">
+          <Text className="text-base font-semibold text-apple-secondary">All caught up</Text>
+          <Text className="mt-1 text-apple-secondary">
             New follows, comments and likes on your posts will land here.
           </Text>
         </View>
@@ -110,23 +110,23 @@ export default function NotificationsScreen() {
             <Pressable
               key={row.id}
               onPress={() => handleOpen(row)}
-              className={`flex-row gap-3 border-b border-ink-700/60 px-5 py-4 ${
-                row.read_at ? '' : 'bg-ink-900'
-              } ${idx === 0 ? 'border-t border-ink-700/60' : ''} active:bg-ink-800`}
+              className={`flex-row gap-3 border-b border-apple-border/60 px-5 py-4 ${
+                row.read_at ? '' : 'bg-white'
+              } ${idx === 0 ? 'border-t border-apple-border/60' : ''} active:bg-apple-bg2`}
             >
               <NotificationAvatar payload={row.payload} />
               <View className="flex-1">
-                <Text className="text-sm text-ink-200">
+                <Text className="text-sm text-apple-secondary">
                   <Actor payload={row.payload} />
                   <Text> </Text>
                   <Text>{labelFor(row)}</Text>
                 </Text>
                 {previewFor(row) ? (
-                  <Text className="mt-1 text-sm text-ink-300" numberOfLines={2}>
+                  <Text className="mt-1 text-sm text-apple-secondary" numberOfLines={2}>
                     {previewFor(row)}
                   </Text>
                 ) : null}
-                <Text className="mt-1 text-[11px] text-ink-300">
+                <Text className="mt-1 text-[11px] text-apple-secondary">
                   {formatRelative(row.created_at)}
                 </Text>
               </View>
@@ -144,18 +144,18 @@ export default function NotificationsScreen() {
 function NotificationAvatar({ payload }: { payload: NotificationPayload }) {
   const url = payload.actor_avatar_url;
   if (url) {
-    return <Image source={{ uri: url }} className="h-10 w-10 rounded-full bg-ink-700" />;
+    return <Image source={{ uri: url }} className="h-10 w-10 rounded-full bg-apple-bg2" />;
   }
   const letter = (payload.actor_display_name || payload.actor_handle || '?')[0].toUpperCase();
   return (
-    <View className="h-10 w-10 items-center justify-center rounded-full bg-ink-700">
-      <Text className="font-bold text-white">{letter}</Text>
+    <View className="h-10 w-10 items-center justify-center rounded-full bg-apple-bg2">
+      <Text className="font-bold text-accent">{letter}</Text>
     </View>
   );
 }
 
 function Actor({ payload }: { payload: NotificationPayload }) {
-  return <Text className="font-semibold text-white">{payload.actor_display_name}</Text>;
+  return <Text className="font-semibold text-apple-ink">{payload.actor_display_name}</Text>;
 }
 
 function labelFor(row: NotificationRow): string {

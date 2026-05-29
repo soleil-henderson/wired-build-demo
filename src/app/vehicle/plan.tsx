@@ -66,16 +66,16 @@ export default function BuildPlanScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
-        <ActivityIndicator color="#F5A524" />
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-ink-950" contentContainerClassName="px-6 pb-12">
+    <ScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="px-6 pb-12">
       <Stack.Screen options={{ title: 'Build plan' }} />
-      <Text className="mt-4 text-ink-300">
+      <Text className="mt-4 text-apple-secondary">
         Structured plan items beyond the wishlist. Promote to a mod from the wishlist flow
         or log directly when installed.
       </Text>
@@ -85,44 +85,44 @@ export default function BuildPlanScreen() {
           value={title}
           onChangeText={setTitle}
           placeholder="e.g. 2 inch lift kit"
-          placeholderTextColor="#5A6373"
-          className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+          placeholderTextColor="#A1A1A6"
+          className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
         />
         <TextInput
           value={targetCost}
           onChangeText={setTargetCost}
           placeholder="Target cost (optional)"
-          placeholderTextColor="#5A6373"
+          placeholderTextColor="#A1A1A6"
           keyboardType="decimal-pad"
-          className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+          className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
         />
         <Pressable
           onPress={handleAdd}
           disabled={saving || !title.trim()}
           className="rounded-xl bg-accent py-3 disabled:opacity-60"
         >
-          <Text className="text-center font-semibold text-ink-950">Add to plan</Text>
+          <Text className="text-center font-semibold text-white">Add to plan</Text>
         </Pressable>
       </View>
 
       <View className="mt-8 gap-3">
         {items.length === 0 ? (
-          <Text className="text-ink-300">No plan items yet.</Text>
+          <Text className="text-apple-secondary">No plan items yet.</Text>
         ) : (
           items.map((item) => (
             <View
               key={item.id}
-              className="flex-row items-center justify-between rounded-2xl border border-ink-700 bg-ink-900 p-4"
+              className="flex-row items-center justify-between rounded-2xl border border-apple-border bg-white p-4"
             >
               <View className="flex-1 pr-3">
-                <Text className="font-semibold text-white">{item.title}</Text>
+                <Text className="font-semibold text-apple-ink">{item.title}</Text>
                 {item.target_cost != null ? (
-                  <Text className="mt-1 text-sm text-ink-300">
+                  <Text className="mt-1 text-sm text-apple-secondary">
                     Target ${Number(item.target_cost).toLocaleString()}
                   </Text>
                 ) : null}
                 {item.completed_at ? (
-                  <Text className="mt-1 text-xs text-cyan-400">Completed</Text>
+                  <Text className="mt-1 text-xs text-signal-green">Completed</Text>
                 ) : null}
               </View>
               {!item.completed_at ? (

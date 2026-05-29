@@ -126,6 +126,58 @@ export async function uploadReceipt(input: {
   };
 }
 
+/**
+ * Private file upload (receipts bucket) — PDFs and images for vehicle docs.
+ * Key: `<ownerId>/<prefix>-<uuid>.<ext>`
+ */
+export async function uploadPrivateFile(input: {
+  uri: string;
+  ownerId: string;
+  fileName: string;
+  mimeType: string;
+  prefix?: string;
+}): Promise<string> {
+  const ext = extensionForUpload(input.fileName, input.mimeType);
+  const prefix = input.prefix ?? 'file';
+  const key = `${input.ownerId}/${prefix}-${cryptoRandomId()}.${ext}`;
+  const bytes = await readUploadBytes(input.uri);
+
+  if (bytes.byteLength > 10 * 1024 * 1024) {
+    throw new Error('File must be 10 MB or smaller.');
+  }
+
+  const { error } = await supabase.storage.from(RECEIPTS_BUCKET).upload(key, bytes, {
+    contentType: input.mimeType,
+    cacheControl: '3600',
+    upsert: false,
+  });
+
+  if (error) throw error;
+  return key;
+}
+
+function extensionForUpload(fileName: string, mimeType: string): string {
+  const fromName = fileName.split('.').pop()?.toLowerCase();
+  if (fromName === 'jpeg') return 'jpg';
+  if (fromName && ['pdf', 'jpg', 'png', 'webp', 'heic'].includes(fromName)) {
+    return fromName;
+  }
+  switch (mimeType) {
+    case 'application/pdf':
+      return 'pdf';
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/png':
+      return 'png';
+    case 'image/webp':
+      return 'webp';
+    case 'image/heic':
+      return 'heic';
+    default:
+      return 'bin';
+  }
+}
+
 const COVER_MAX_EDGE_PX = 1920;
 
 /**

@@ -114,15 +114,15 @@ export default function SubscriptionScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-ink-950" contentContainerClassName="pb-12">
+    <ScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="pb-12">
       <Stack.Screen options={{ title: 'Subscription' }} />
 
       <View className="px-6 pt-6">
         <Text className="text-accent text-xs font-semibold tracking-[3px]">
           SUBSCRIPTION
         </Text>
-        <Text className="mt-1 text-3xl font-bold text-white">Pick a tier</Text>
-        <Text className="mt-2 text-ink-300">
+        <Text className="mt-1 text-3xl font-bold text-apple-ink">Pick a tier</Text>
+        <Text className="mt-2 text-apple-secondary">
           Upgrades are processed by Stripe (web/Android) or the App Store (iOS).
           Your tier updates automatically when payment succeeds — we never trust
           the client.
@@ -155,31 +155,31 @@ export default function SubscriptionScreen() {
               className={`rounded-2xl border p-5 ${
                 isCurrent
                   ? 'border-accent bg-accent/10'
-                  : 'border-ink-700 bg-ink-900'
+                  : 'border-apple-border bg-white'
               }`}
             >
               <View className="flex-row items-center justify-between">
                 <Text
                   className={`text-lg font-bold ${
-                    isCurrent ? 'text-accent' : 'text-white'
+                    isCurrent ? 'text-accent' : 'text-apple-ink'
                   }`}
                 >
                   {tier.label}
                 </Text>
                 {isCurrent ? (
                   <View className="rounded-full bg-accent px-2 py-0.5">
-                    <Text className="text-[10px] font-bold uppercase tracking-wider text-ink-950">
+                    <Text className="text-[10px] font-bold uppercase tracking-wider text-white">
                       Current
                     </Text>
                   </View>
                 ) : null}
               </View>
-              <Text className="mt-1 text-sm text-ink-200">{tier.pitch}</Text>
+              <Text className="mt-1 text-sm text-apple-secondary">{tier.pitch}</Text>
               <View className="mt-3 gap-1.5">
                 {tier.perks.map((perk) => (
                   <View key={perk} className="flex-row gap-2">
                     <Text className="text-accent">·</Text>
-                    <Text className="flex-1 text-sm text-ink-200">{perk}</Text>
+                    <Text className="flex-1 text-sm text-apple-secondary">{perk}</Text>
                   </View>
                 ))}
               </View>
@@ -190,9 +190,9 @@ export default function SubscriptionScreen() {
                   className="mt-4 self-start rounded-xl bg-accent px-4 py-2 active:bg-accent-dark disabled:opacity-60"
                 >
                   {busy === tier.id ? (
-                    <ActivityIndicator color="#08090B" />
+                    <ActivityIndicator color="#FFFFFF" />
                   ) : (
-                    <Text className="font-semibold text-ink-950">
+                    <Text className="font-semibold text-white">
                       Upgrade to {tier.label}
                     </Text>
                   )}

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -12,17 +13,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppleCard } from '@/components/apple/AppleCard';
+import { AppleHeader } from '@/components/apple/AppleHeader';
+import { VehicleThumb } from '@/components/apple/ApplePrimitives';
 import { useAuth } from '@/lib/auth-context';
-import { supabase } from '@/lib/supabase';
-import type { Database } from '@/types/database';
-
-type Vehicle = Database['public']['Tables']['vehicles']['Row'];
-type VehicleWithCount = Vehicle & { mod_count: number };
+import { colors } from '@/lib/theme';
+import { listUserVehicles, type VehicleSummary } from '@/lib/users';
 
 export default function GarageScreen() {
-  const { session, isLoading: authLoading, signOut } = useAuth();
+  const { session, isLoading: authLoading } = useAuth();
   const router = useRouter();
-  const [vehicles, setVehicles] = useState<VehicleWithCount[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -34,34 +35,17 @@ export default function GarageScreen() {
       }
       return;
     }
-    const { data: rows, error } = await supabase
-      .from('vehicles')
-      .select('*')
-      .eq('current_owner_id', session.user.id)
-      .order('created_at', { ascending: false });
 
-    if (error) {
-      Alert.alert('Could not load garage', error.message);
-      setVehicles([]);
+    try {
+      const list = await listUserVehicles(session.user.id);
+      setVehicles(list);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not load garage';
+      Alert.alert('Error', message);
+    } finally {
       setLoading(false);
       setRefreshing(false);
-      return;
     }
-
-    const list = rows ?? [];
-    const counts = await Promise.all(
-      list.map(async (v) => {
-        const { count } = await supabase
-          .from('mods')
-          .select('id', { count: 'exact', head: true })
-          .eq('vehicle_id', v.id);
-        return count ?? 0;
-      })
-    );
-
-    setVehicles(list.map((v, i) => ({ ...v, mod_count: counts[i] })));
-    setLoading(false);
-    setRefreshing(false);
   }, [session, authLoading]);
 
   useFocusEffect(
@@ -70,17 +54,22 @@ export default function GarageScreen() {
     }, [load])
   );
 
-  function handleAdd() {
-    router.push('/garage/add-vehicle');
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-apple-bg2" edges={['top']}>
+        <ActivityIndicator color={colors.accent} />
+      </SafeAreaView>
+    );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-ink-950" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-apple-bg2" edges={['top']}>
+      <AppleHeader title="Garage" />
       <ScrollView
-        contentContainerClassName="px-6 pt-6 pb-24"
+        contentContainerClassName="px-4 pb-28 pt-2"
         refreshControl={
           <RefreshControl
-            tintColor="#F5A524"
+            tintColor={colors.accent}
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
@@ -89,111 +78,103 @@ export default function GarageScreen() {
           />
         }
       >
-        <View className="flex-row items-center justify-between">
-          <View>
-            <Text className="text-accent text-xs font-semibold tracking-[3px]">GARAGE</Text>
-            <Text className="mt-1 text-3xl font-bold text-white">Your vehicles</Text>
-          </View>
-          <Pressable
-            onPress={handleAdd}
-            className="rounded-full bg-accent px-4 py-2 active:bg-accent-dark"
-          >
-            <Text className="font-semibold text-ink-950">+ Add</Text>
-          </Pressable>
-        </View>
-
-        {loading ? (
-          <View className="mt-12 items-center">
-            <ActivityIndicator color="#F5A524" />
-          </View>
-        ) : vehicles.length === 0 ? (
-          <View className="mt-8 rounded-2xl border border-ink-700 bg-ink-900 p-6">
-            <Text className="text-ink-200 text-base font-semibold">No vehicles yet</Text>
-            <Text className="mt-1 text-ink-300">
-              Add your 4WD to start logging mods against its VIN.
+        {vehicles.length === 0 ? (
+          <AppleCard padded style={{ marginTop: 8 }}>
+            <Text className="text-base font-semibold text-apple-ink">No vehicles yet</Text>
+            <Text className="mt-1 text-apple-secondary">
+              Add your 4WD to start planning mods and tracking spend.
             </Text>
             <Pressable
-              onPress={handleAdd}
-              className="mt-4 self-start rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
+              onPress={() => router.push('/garage/add-vehicle')}
+              className="mt-4 self-start rounded-[14px] bg-accent px-4 py-3 active:opacity-90"
             >
-              <Text className="font-semibold text-ink-950">Add your vehicle</Text>
+              <Text className="font-semibold text-white">Add your vehicle</Text>
+            </Pressable>
+          </AppleCard>
+        ) : (
+          <View className="gap-3">
+            {vehicles.map((v) => (
+              <VehicleListCard
+                key={v.id}
+                vehicle={v}
+                onPress={() => router.push(`/vehicle/${v.id}`)}
+              />
+            ))}
+
+            <Pressable
+              onPress={() => router.push('/garage/add-vehicle')}
+              className="mt-2 active:opacity-80"
+            >
+              <AppleCard
+                style={{
+                  padding: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  borderStyle: 'dashed',
+                }}
+              >
+                <View
+                  className="h-11 w-11 items-center justify-center rounded-xl"
+                  style={{ backgroundColor: colors.accentSoft }}
+                >
+                  <Ionicons name="add" size={24} color={colors.accent} />
+                </View>
+                <Text className="text-[15px] font-semibold text-accent">Add another vehicle</Text>
+              </AppleCard>
             </Pressable>
           </View>
-        ) : (
-          <View className="mt-6 gap-3">
-            {vehicles.map((v) => (
-              <Pressable
-                key={v.id}
-                onPress={() => router.push(`/vehicle/${v.id}`)}
-                className="overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 active:bg-ink-800"
-              >
-                {v.cover_photo_url ? (
-                  <Image
-                    source={{ uri: v.cover_photo_url }}
-                    className="h-28 w-full bg-ink-800"
-                    resizeMode="cover"
-                  />
-                ) : null}
-                <View className="p-5">
-                <Text className="text-xs uppercase tracking-wider text-ink-300">
-                  {v.year} · {v.make} · {v.model}
-                  {v.trim ? ` · ${v.trim}` : ''}
-                </Text>
-                <View className="mt-1 flex-row items-center gap-2">
-                  <Text className="flex-1 text-xl font-bold text-white">
-                    {v.nickname ?? `${v.make} ${v.model}`}
-                  </Text>
-                  <Text
-                    className={`rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-                      v.is_public
-                        ? 'bg-accent/20 text-accent'
-                        : 'bg-ink-800 text-ink-300'
-                    }`}
-                  >
-                    {v.is_public ? 'Public' : 'Private'}
-                  </Text>
-                  {v.is_for_sale ? (
-                    <Text className="rounded-md bg-signal-green/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-signal-green">
-                      For sale
-                    </Text>
-                  ) : null}
-                </View>
-                <Text className="mt-2 font-mono text-xs text-ink-300">
-                  VIN ····{v.vin.slice(-6)}
-                </Text>
-                <View className="mt-4 flex-row gap-6">
-                  <Stat label="Mods" value={String(v.mod_count)} />
-                  <Stat
-                    label="Spent"
-                    value={`$${Number(v.total_spend).toLocaleString()}`}
-                  />
-                  <Stat
-                    label="Est. value"
-                    value={v.build_value ? `$${Number(v.build_value).toLocaleString()}` : '—'}
-                  />
-                </View>
-                </View>
-              </Pressable>
-            ))}
-          </View>
         )}
-
-        <Pressable
-          onPress={() => signOut()}
-          className="mt-12 self-start rounded-xl border border-ink-700 px-4 py-2"
-        >
-          <Text className="text-ink-300">Sign out</Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function VehicleListCard({
+  vehicle,
+  onPress,
+}: {
+  vehicle: VehicleSummary;
+  onPress: () => void;
+}) {
+  const title =
+    vehicle.nickname ?? `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+
   return (
-    <View>
-      <Text className="text-[10px] uppercase tracking-wider text-ink-300">{label}</Text>
-      <Text className="mt-1 text-base font-semibold text-white">{value}</Text>
-    </View>
+    <Pressable onPress={onPress} className="active:opacity-90">
+      <AppleCard style={{ padding: 0, overflow: 'hidden' }}>
+        {vehicle.cover_photo_url ? (
+          <Image
+            source={{ uri: vehicle.cover_photo_url }}
+            className="aspect-[16/9] w-full bg-apple-bg2"
+            resizeMode="cover"
+          />
+        ) : (
+          <View
+            className="aspect-[16/9] w-full items-center justify-center"
+            style={{ backgroundColor: `${colors.accent}10` }}
+          >
+            <Ionicons name="car-sport-outline" size={48} color={colors.accent} />
+          </View>
+        )}
+        <View className="flex-row items-center gap-3 p-4">
+          <VehicleThumb size={48} color={colors.accent} />
+          <View className="min-w-0 flex-1">
+            <Text className="text-[17px] font-semibold text-apple-ink" numberOfLines={1}>
+              {title}
+            </Text>
+            <Text className="text-[13px] text-apple-secondary">
+              {vehicle.year} {vehicle.make} {vehicle.model}
+              {vehicle.trim ? ` · ${vehicle.trim}` : ''}
+            </Text>
+            <Text className="mt-1 text-[13px] text-apple-secondary">
+              {vehicle.mod_count} mod{vehicle.mod_count === 1 ? '' : 's'} · $
+              {(Number(vehicle.total_spend) / 1000).toFixed(1)}k invested
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.tertiary} />
+        </View>
+      </AppleCard>
+    </Pressable>
   );
 }

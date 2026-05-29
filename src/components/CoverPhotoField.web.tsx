@@ -87,7 +87,7 @@ export function CoverPhotoField({ previewUri, onPick, onRemove }: Props) {
         <Text className="mt-2 text-sm font-semibold text-accent">
           {dragOver ? 'Drop to set cover' : 'Click or drag an image here'}
         </Text>
-        <Text className="mt-1 text-xs text-ink-400">JPEG or PNG · resized on save</Text>
+        <Text className="mt-1 text-xs text-apple-tertiary">JPEG or PNG · resized on save</Text>
       </Pressable>
 
       {previewUri ? (
@@ -104,14 +104,14 @@ function CoverPreview({ previewUri }: { previewUri: string | null }) {
     return (
       <Image
         source={{ uri: previewUri }}
-        className="h-40 w-full rounded-2xl bg-ink-800"
+        className="h-40 w-full rounded-2xl bg-apple-bg2"
         resizeMode="cover"
       />
     );
   }
   return (
-    <View className="h-40 w-full items-center justify-center rounded-2xl border border-dashed border-ink-600 bg-ink-900 px-4">
-      <Text className="text-center text-ink-300">Drag and drop a cover photo</Text>
+    <View className="h-40 w-full items-center justify-center rounded-2xl border border-dashed border-apple-border bg-white px-4">
+      <Text className="text-center text-apple-secondary">Drag and drop a cover photo</Text>
     </View>
   );
 }

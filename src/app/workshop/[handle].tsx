@@ -33,17 +33,17 @@ export default function WorkshopPublicScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
-        <ActivityIndicator color="#F5A524" />
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
 
   if (!user || !user.is_workshop) {
     return (
-      <View className="flex-1 bg-ink-950 px-6 pt-12">
+      <View className="flex-1 bg-apple-bg2 px-6 pt-12">
         <Stack.Screen options={{ title: 'Workshop' }} />
-        <Text className="text-white">Workshop not found.</Text>
+        <Text className="text-apple-ink">Workshop not found.</Text>
       </View>
     );
   }
@@ -51,7 +51,7 @@ export default function WorkshopPublicScreen() {
   const businessName = user.workshop_name ?? user.display_name;
 
   return (
-    <ScrollView className="flex-1 bg-ink-950" contentContainerClassName="pb-12">
+    <ScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="pb-12">
       <Stack.Screen options={{ title: businessName }} />
       <ScreenHeader
         eyebrow="WORKSHOP"
@@ -61,25 +61,25 @@ export default function WorkshopPublicScreen() {
 
       <View className="mx-6 mt-4 flex-row flex-wrap items-center gap-2">
         <UserBadges user={user} size="lg" />
-        <Text className="text-ink-300">@{user.handle}</Text>
+        <Text className="text-apple-secondary">@{user.handle}</Text>
       </View>
 
       <View className="mx-6 mt-6 gap-3">
         {user.workshop_phone ? (
           <Pressable
             onPress={() => Linking.openURL(`tel:${user.workshop_phone}`)}
-            className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-3"
+            className="rounded-xl border border-apple-border bg-white px-4 py-3"
           >
-            <Text className="text-ink-300 text-xs uppercase">Phone</Text>
-            <Text className="mt-1 font-semibold text-white">{user.workshop_phone}</Text>
+            <Text className="text-apple-secondary text-xs uppercase">Phone</Text>
+            <Text className="mt-1 font-semibold text-apple-ink">{user.workshop_phone}</Text>
           </Pressable>
         ) : null}
         {user.workshop_website ? (
           <Pressable
             onPress={() => Linking.openURL(user.workshop_website!)}
-            className="rounded-xl border border-ink-700 bg-ink-900 px-4 py-3"
+            className="rounded-xl border border-apple-border bg-white px-4 py-3"
           >
-            <Text className="text-ink-300 text-xs uppercase">Website</Text>
+            <Text className="text-apple-secondary text-xs uppercase">Website</Text>
             <Text className="mt-1 font-semibold text-accent">{user.workshop_website}</Text>
           </Pressable>
         ) : null}
@@ -95,13 +95,13 @@ export default function WorkshopPublicScreen() {
           }}
           className="rounded-xl bg-accent py-3.5"
         >
-          <Text className="text-center font-semibold text-ink-950">Contact workshop</Text>
+          <Text className="text-center font-semibold text-white">Contact workshop</Text>
         </Pressable>
         <Pressable
           onPress={() => router.push(`/user/${user.handle}`)}
-          className="rounded-xl border border-ink-700 py-3"
+          className="rounded-xl border border-apple-border py-3"
         >
-          <Text className="text-center font-semibold text-ink-200">View builder profile</Text>
+          <Text className="text-center font-semibold text-apple-secondary">View builder profile</Text>
         </Pressable>
       </View>
     </ScrollView>

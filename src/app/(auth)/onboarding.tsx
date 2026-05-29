@@ -49,40 +49,40 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-ink-950">
+    <SafeAreaView className="flex-1 bg-apple-bg2">
       <Stack.Screen options={{ title: 'Welcome' }} />
       <View className="flex-1 justify-center px-6">
         <Text className="text-accent text-xs font-semibold tracking-[3px]">WELCOME</Text>
-        <Text className="mt-2 text-3xl font-bold text-white">Set up your profile</Text>
-        <Text className="mt-2 text-ink-300">
+        <Text className="mt-2 text-3xl font-bold text-apple-ink">Set up your profile</Text>
+        <Text className="mt-2 text-apple-secondary">
           Pick a handle and display name, then add your first 4WD to start logging mods.
         </Text>
 
         <View className="mt-8 gap-4">
           <View>
-            <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">Handle</Text>
-            <View className="flex-row items-center rounded-xl bg-ink-800 px-4">
-              <Text className="text-ink-300">@</Text>
+            <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">Handle</Text>
+            <View className="flex-row items-center rounded-xl bg-apple-bg2 px-4">
+              <Text className="text-apple-secondary">@</Text>
               <TextInput
                 value={handle}
                 onChangeText={(t) => setHandle(normalizeHandle(t))}
                 autoCapitalize="none"
                 placeholder="your_handle"
-                placeholderTextColor="#5A6373"
-                className="flex-1 py-3 pl-1 text-white"
+                placeholderTextColor="#A1A1A6"
+                className="flex-1 py-3 pl-1 text-apple-ink"
               />
             </View>
           </View>
           <View>
-            <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
+            <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
               Display name
             </Text>
             <TextInput
               value={displayName}
               onChangeText={setDisplayName}
               placeholder="Jamie Patterson"
-              placeholderTextColor="#5A6373"
-              className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+              placeholderTextColor="#A1A1A6"
+              className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
             />
           </View>
         </View>
@@ -93,14 +93,14 @@ export default function OnboardingScreen() {
           className="mt-8 rounded-xl bg-accent py-3.5 active:bg-accent-dark disabled:opacity-60"
         >
           {submitting ? (
-            <ActivityIndicator color="#08090B" />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text className="text-center font-semibold text-ink-950">Continue → Add vehicle</Text>
+            <Text className="text-center font-semibold text-white">Continue → Add vehicle</Text>
           )}
         </Pressable>
 
         <Pressable onPress={handleSkip} className="mt-4 py-2">
-          <Text className="text-center text-ink-300">Skip for now</Text>
+          <Text className="text-center text-apple-secondary">Skip for now</Text>
         </Pressable>
       </View>
     </SafeAreaView>

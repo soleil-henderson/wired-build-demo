@@ -28,11 +28,11 @@ export default function ForgotPasswordScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-ink-950">
+    <SafeAreaView className="flex-1 bg-apple-bg2">
       <Stack.Screen options={{ title: 'Reset password' }} />
       <View className="flex-1 justify-center px-6">
-        <Text className="text-2xl font-bold text-white">Forgot password?</Text>
-        <Text className="mt-2 text-ink-300">
+        <Text className="text-2xl font-bold text-apple-ink">Forgot password?</Text>
+        <Text className="mt-2 text-apple-secondary">
           We&apos;ll email a link to reset your password. Check spam if it doesn&apos;t arrive.
         </Text>
 
@@ -48,8 +48,8 @@ export default function ForgotPasswordScreen() {
               autoCapitalize="none"
               keyboardType="email-address"
               placeholder="you@example.com"
-              placeholderTextColor="#5A6373"
-              className="mt-6 rounded-xl bg-ink-800 px-4 py-3 text-white"
+              placeholderTextColor="#A1A1A6"
+              className="mt-6 rounded-xl bg-apple-bg2 px-4 py-3 text-apple-ink"
             />
             <Pressable
               onPress={handleSubmit}
@@ -57,9 +57,9 @@ export default function ForgotPasswordScreen() {
               className="mt-4 rounded-xl bg-accent py-3.5 active:bg-accent-dark disabled:opacity-60"
             >
               {submitting ? (
-                <ActivityIndicator color="#08090B" />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text className="text-center font-semibold text-ink-950">Send reset link</Text>
+                <Text className="text-center font-semibold text-white">Send reset link</Text>
               )}
             </Pressable>
           </>

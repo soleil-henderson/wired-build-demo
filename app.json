@@ -76,6 +76,13 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Wired Build to access your photos to set profile and mod images.",
+          "cameraPermission": "Allow Wired Build to use the camera for profile photos and VIN scans."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "color": "#F5A524"

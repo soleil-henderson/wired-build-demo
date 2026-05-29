@@ -69,16 +69,16 @@ export default function WorkshopProfileScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
-        <ActivityIndicator color="#F5A524" />
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-ink-950" contentContainerClassName="px-6 pb-12">
+    <ScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="px-6 pb-12">
       <Stack.Screen options={{ title: 'Workshop profile' }} />
-      <Text className="mt-4 text-ink-300">
+      <Text className="mt-4 text-apple-secondary">
         Workshops appear in the installer picker when builders log mods. Upgrade to the
         Workshop subscription tier for lead-gen perks (see Subscription).
       </Text>
@@ -89,10 +89,10 @@ export default function WorkshopProfileScreen() {
       >
         <View
           className={`h-6 w-6 rounded border ${
-            isWorkshop ? 'border-accent bg-accent' : 'border-ink-500'
+            isWorkshop ? 'border-accent bg-accent' : 'border-apple-border'
           }`}
         />
-        <Text className="text-white">List me as a workshop on the platform</Text>
+        <Text className="text-apple-ink">List me as a workshop on the platform</Text>
       </Pressable>
 
       <Field label="Business name" value={workshopName} onChange={setWorkshopName} />
@@ -110,9 +110,9 @@ export default function WorkshopProfileScreen() {
         className="mt-8 rounded-xl bg-accent py-3.5 disabled:opacity-60"
       >
         {saving ? (
-          <ActivityIndicator color="#08090B" />
+          <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text className="text-center font-semibold text-ink-950">Save</Text>
+          <Text className="text-center font-semibold text-white">Save</Text>
         )}
       </Pressable>
     </ScrollView>
@@ -132,14 +132,14 @@ function Field({
 }) {
   return (
     <View className="mt-4">
-      <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">{label}</Text>
+      <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">{label}</Text>
       <TextInput
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor="#5A6373"
+        placeholderTextColor="#A1A1A6"
         autoCapitalize="none"
-        className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+        className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
       />
     </View>
   );

@@ -1,10 +1,8 @@
-import * as ImagePicker from 'expo-image-picker';
 import { Stack, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,6 +12,11 @@ import {
   View,
 } from 'react-native';
 
+import {
+  AvatarPhotoField,
+  type PickedAvatarImage,
+} from '@/components/AvatarPhotoField';
+import { showAppAlert } from '@/lib/app-alert';
 import { useAuth } from '@/lib/auth-context';
 import {
   getMyProfile,
@@ -22,17 +25,12 @@ import {
   validateHandle,
 } from '@/lib/profile';
 import { deleteMyAccount } from '@/lib/auth-account';
+import { supabase } from '@/lib/supabase';
 import {
   deleteStorageObjects,
   storageKeyFromModPhotoPublicUrl,
   uploadAvatar,
 } from '@/lib/storage';
-
-type LocalAvatar = {
-  uri: string;
-  width?: number;
-  height?: number;
-};
 
 export default function EditProfileScreen() {
   const { session } = useAuth();
@@ -45,7 +43,7 @@ export default function EditProfileScreen() {
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [localAvatar, setLocalAvatar] = useState<LocalAvatar | null>(null);
+  const [localAvatar, setLocalAvatar] = useState<PickedAvatarImage | null>(null);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -72,50 +70,16 @@ export default function EditProfileScreen() {
     load();
   }, [load]);
 
-  async function pickAvatar(source: 'library' | 'camera') {
-    const permission =
-      source === 'camera'
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission needed', 'Allow photo access to set your avatar.');
-      return;
-    }
-
-    const result =
-      source === 'camera'
-        ? await ImagePicker.launchCameraAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 1,
-          })
-        : await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 1,
-          });
-
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    setLocalAvatar({
-      uri: asset.uri,
-      width: asset.width,
-      height: asset.height,
-    });
-  }
-
-  function showAvatarPicker() {
-    Alert.alert('Profile photo', undefined, [
-      { text: 'Take photo', onPress: () => pickAvatar('camera') },
-      { text: 'Choose from library', onPress: () => pickAvatar('library') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  }
-
   async function handleSave() {
     if (!session) return;
+
+    const {
+      data: { session: liveSession },
+    } = await supabase.auth.getSession();
+    if (!liveSession) {
+      showAppAlert('Sign in required', 'Your session expired. Sign in again to save changes.');
+      return;
+    }
 
     const normalized = normalizeHandle(handle);
     const handleErr = validateHandle(normalized);
@@ -139,13 +103,13 @@ export default function EditProfileScreen() {
       if (localAvatar) {
         nextAvatarUrl = await uploadAvatar({
           uri: localAvatar.uri,
-          ownerId: session.user.id,
+          ownerId: liveSession.user.id,
           width: localAvatar.width,
           height: localAvatar.height,
         });
       }
 
-      await updateProfile(session.user.id, {
+      await updateProfile(liveSession.user.id, {
         handle: normalized,
         display_name: displayName.trim(),
         bio: bio.trim() || null,
@@ -159,7 +123,7 @@ export default function EditProfileScreen() {
       router.back();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not save profile';
-      Alert.alert('Save failed', message);
+      showAppAlert('Save failed', message);
     } finally {
       setSubmitting(false);
     }
@@ -169,9 +133,9 @@ export default function EditProfileScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'Edit profile' }} />
-        <ActivityIndicator color="#F5A524" />
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
@@ -179,38 +143,27 @@ export default function EditProfileScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-ink-950"
+      className="flex-1 bg-apple-bg2"
     >
       <Stack.Screen options={{ title: 'Edit profile' }} />
       <ScrollView contentContainerClassName="px-6 pt-6 pb-24">
-        <Text className="text-ink-300">
+        <Text className="text-apple-secondary">
           Your handle is how people find you (@handle). Display name and bio
           show on your public profile and across the feed.
         </Text>
 
-        <Pressable
-          onPress={showAvatarPicker}
-          className="mt-6 items-center active:opacity-80"
-        >
-          {previewUri ? (
-            <Image
-              source={{ uri: previewUri }}
-              className="h-24 w-24 rounded-full bg-ink-800"
-            />
-          ) : (
-            <View className="h-24 w-24 items-center justify-center rounded-full bg-ink-800">
-              <Text className="text-3xl font-bold text-ink-300">
-                {(displayName || handle || '?')[0].toUpperCase()}
-              </Text>
-            </View>
-          )}
-          <Text className="mt-2 text-sm font-semibold text-accent">Change photo</Text>
-        </Pressable>
+        <View className="mt-6">
+          <AvatarPhotoField
+            previewUri={previewUri}
+            fallbackInitial={(displayName || handle || '?')[0].toUpperCase()}
+            onPick={setLocalAvatar}
+          />
+        </View>
 
         <View className="mt-8 gap-4">
           <Field label="Handle">
-            <View className="flex-row items-center rounded-xl bg-ink-800 px-4">
-              <Text className="text-ink-300">@</Text>
+            <View className="flex-row items-center rounded-xl bg-apple-bg2 px-4">
+              <Text className="text-apple-secondary">@</Text>
               <TextInput
                 value={handle}
                 onChangeText={(t) => setHandle(normalizeHandle(t))}
@@ -218,11 +171,11 @@ export default function EditProfileScreen() {
                 autoCorrect={false}
                 maxLength={30}
                 placeholder="your_handle"
-                placeholderTextColor="#5A6373"
-                className="flex-1 py-3 pl-1 font-mono text-white"
+                placeholderTextColor="#A1A1A6"
+                className="flex-1 py-3 pl-1 font-mono text-apple-ink"
               />
             </View>
-            <Text className="mt-1 text-xs text-ink-300">
+            <Text className="mt-1 text-xs text-apple-secondary">
               3–30 chars, lowercase letters, numbers, underscores
             </Text>
           </Field>
@@ -232,8 +185,8 @@ export default function EditProfileScreen() {
               value={displayName}
               onChangeText={setDisplayName}
               placeholder="Jamie Patterson"
-              placeholderTextColor="#5A6373"
-              className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+              placeholderTextColor="#A1A1A6"
+              className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
             />
           </Field>
 
@@ -242,10 +195,10 @@ export default function EditProfileScreen() {
               value={bio}
               onChangeText={setBio}
               placeholder="What are you building?"
-              placeholderTextColor="#5A6373"
+              placeholderTextColor="#A1A1A6"
               multiline
               numberOfLines={4}
-              className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+              className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
               style={{ minHeight: 96, textAlignVertical: 'top' }}
             />
           </Field>
@@ -257,9 +210,9 @@ export default function EditProfileScreen() {
           className="mt-8 rounded-xl bg-accent py-3.5 active:bg-accent-dark disabled:opacity-60"
         >
           {submitting ? (
-            <ActivityIndicator color="#08090B" />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text className="text-center text-base font-semibold text-ink-950">
+            <Text className="text-center text-base font-semibold text-white">
               Save profile
             </Text>
           )}
@@ -305,7 +258,7 @@ export default function EditProfileScreen() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View>
-      <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">{label}</Text>
+      <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">{label}</Text>
       {children}
     </View>
   );

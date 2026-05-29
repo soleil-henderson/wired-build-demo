@@ -49,18 +49,18 @@ export default function ModerationScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'Moderation' }} />
-        <ActivityIndicator color="#F5A524" />
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
 
   if (!allowed) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950 px-6">
+      <View className="flex-1 items-center justify-center bg-apple-bg2 px-6">
         <Stack.Screen options={{ title: 'Moderation' }} />
-        <Text className="text-center text-ink-300">Admin access required.</Text>
+        <Text className="text-center text-apple-secondary">Admin access required.</Text>
         <Pressable onPress={() => router.back()} className="mt-4">
           <Text className="text-accent">Go back</Text>
         </Pressable>
@@ -69,26 +69,26 @@ export default function ModerationScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-ink-950" contentContainerClassName="px-6 py-6 pb-24">
+    <ScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="px-6 py-6 pb-24">
       <Stack.Screen options={{ title: 'Moderation' }} />
-      <Text className="text-2xl font-bold text-white">Custom parts queue</Text>
+      <Text className="text-2xl font-bold text-apple-ink">Custom parts queue</Text>
       {parts.length === 0 ? (
-        <Text className="mt-4 text-ink-300">No pending submissions.</Text>
+        <Text className="mt-4 text-apple-secondary">No pending submissions.</Text>
       ) : (
         parts.map((p) => (
           <View
             key={p.id}
-            className="mt-4 rounded-2xl border border-ink-700 bg-ink-900 p-4"
+            className="mt-4 rounded-2xl border border-apple-border bg-white p-4"
           >
-            <Text className="font-semibold text-white">
+            <Text className="font-semibold text-apple-ink">
               {p.brand} — {p.name}
             </Text>
-            <Text className="mt-1 text-xs uppercase text-ink-300">{p.category}</Text>
+            <Text className="mt-1 text-xs uppercase text-apple-secondary">{p.category}</Text>
             <Pressable
               onPress={() => handleApprove(p.id)}
               className="mt-3 self-start rounded-lg bg-accent px-4 py-2"
             >
-              <Text className="font-semibold text-ink-950">Approve</Text>
+              <Text className="font-semibold text-white">Approve</Text>
             </Pressable>
           </View>
         ))

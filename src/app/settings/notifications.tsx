@@ -37,17 +37,17 @@ export default function NotificationSettingsScreen() {
 
   if (loading || !prefs) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'Notifications' }} />
-        <ActivityIndicator color="#F5A524" />
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-ink-950 px-6 pt-6">
+    <View className="flex-1 bg-apple-bg2 px-6 pt-6">
       <Stack.Screen options={{ title: 'Notifications' }} />
-      <Text className="text-ink-300">Choose which alerts you receive as push notifications.</Text>
+      <Text className="text-apple-secondary">Choose which alerts you receive as push notifications.</Text>
       <View className="mt-6 gap-4">
         <PrefRow
           label="New followers"
@@ -84,8 +84,8 @@ function PrefRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <View className="flex-row items-center justify-between rounded-xl border border-ink-700 bg-ink-900 px-4 py-3">
-      <Text className="text-white">{label}</Text>
+    <View className="flex-row items-center justify-between rounded-xl border border-apple-border bg-white px-4 py-3">
+      <Text className="text-apple-ink">{label}</Text>
       <Switch value={value} onValueChange={onChange} trackColor={{ true: '#F5A524' }} />
     </View>
   );

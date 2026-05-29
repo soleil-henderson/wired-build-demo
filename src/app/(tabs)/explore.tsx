@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -14,9 +15,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppleCard } from '@/components/apple/AppleCard';
+import { AppleHeader } from '@/components/apple/AppleHeader';
+import { MoneyText, VehicleThumb } from '@/components/apple/ApplePrimitives';
 import { UserBadges } from '@/components/UserBadges';
 import { showAppAlert } from '@/lib/app-alert';
 import { useAuth } from '@/lib/auth-context';
+import { colors } from '@/lib/theme';
 import type { FeedPost } from '@/lib/feed';
 import {
   listBuildsForSale,
@@ -145,13 +150,14 @@ export default function ExploreScreen() {
   const hasQuery = query.trim().length >= 2;
 
   return (
-    <SafeAreaView className="flex-1 bg-ink-950" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-apple-bg2" edges={['top']}>
+      <AppleHeader title="Explore" />
       <ScrollView
         contentContainerClassName="pb-24"
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
-            tintColor="#F5A524"
+            tintColor={colors.accent}
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
@@ -160,22 +166,18 @@ export default function ExploreScreen() {
           />
         }
       >
-        <View className="px-6 pt-6">
-          <Text className="text-accent text-xs font-semibold tracking-[3px]">EXPLORE</Text>
-          <Text className="mt-1 text-3xl font-bold text-white">Discover builds</Text>
-          <Text className="mt-2 text-ink-300">
-            Find people, parts, and what&apos;s being installed this month.
-          </Text>
-
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search people or parts…"
-            placeholderTextColor="#5A6373"
-            autoCapitalize="none"
-            autoCorrect={false}
-            className="mt-5 rounded-xl bg-ink-900 px-4 py-3 text-white"
-          />
+        <View className="px-4 pt-2">
+          <AppleCard style={{ marginBottom: 24, padding: 0, overflow: 'hidden' }}>
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search builds, parts, people"
+              placeholderTextColor={colors.tertiary}
+              autoCapitalize="none"
+              autoCorrect={false}
+              className="px-4 py-3.5 text-base text-apple-ink"
+            />
+          </AppleCard>
           {hasQuery && session ? (
             <Pressable
               onPress={async () => {
@@ -197,7 +199,7 @@ export default function ExploreScreen() {
               }}
               className="mt-2 self-start"
             >
-              <Text className="text-sm font-semibold text-accent">Save this search</Text>
+              <Text className="text-sm font-semibold text-signal-blue">Save this search</Text>
             </Pressable>
           ) : null}
         </View>
@@ -207,26 +209,26 @@ export default function ExploreScreen() {
           <View className="mt-4">
             {searching ? (
               <View className="items-center py-6">
-                <ActivityIndicator color="#F5A524" />
+                <ActivityIndicator color={colors.accent} />
               </View>
             ) : userHits.length === 0 && partHits.length === 0 ? (
-              <View className="mx-6 mt-2 rounded-2xl border border-ink-700 bg-ink-900 p-5">
-                <Text className="text-ink-200 font-semibold">No matches</Text>
-                <Text className="mt-1 text-sm text-ink-300">
-                  Try a brand, part name, handle or builder name.
-                </Text>
+              <View className="mx-4 mt-2">
+                <AppleCard padded>
+                  <Text className="font-semibold text-apple-ink">No matches</Text>
+                  <Text className="mt-1 text-sm text-apple-secondary">
+                    Try a brand, part name, handle or builder name.
+                  </Text>
+                </AppleCard>
               </View>
             ) : (
               <View className="gap-5">
                 {userHits.length > 0 ? (
                   <View>
                     <SectionLabel>People</SectionLabel>
-                    <View className="gap-2 px-6 pt-2">
+                    <View className="gap-2 px-4 pt-2">
                       {userHits.map((u) => (
-                        <View
-                          key={u.id}
-                          className="flex-row items-center gap-3 rounded-2xl border border-ink-700 bg-ink-900 p-3"
-                        >
+                        <AppleCard key={u.id} style={{ padding: 12 }}>
+                        <View className="flex-row items-center gap-3">
                           <Pressable
                             onPress={() =>
                               router.push(
@@ -238,36 +240,37 @@ export default function ExploreScreen() {
                             {u.avatar_url ? (
                               <Image
                                 source={{ uri: u.avatar_url }}
-                                className="h-10 w-10 rounded-full bg-ink-700"
+                                className="h-10 w-10 rounded-full bg-apple-bg2"
                               />
                             ) : (
-                              <View className="h-10 w-10 items-center justify-center rounded-full bg-ink-700">
-                                <Text className="font-bold text-white">
+                              <View className="h-10 w-10 items-center justify-center rounded-full bg-apple-bg2">
+                                <Text className="font-bold text-apple-ink">
                                   {(u.display_name || u.handle || '?')[0].toUpperCase()}
                                 </Text>
                               </View>
                             )}
                             <View className="flex-1">
                               <View className="flex-row items-center gap-1.5">
-                                <Text className="font-semibold text-white">
+                                <Text className="font-semibold text-apple-ink">
                                   {u.is_workshop && u.workshop_name
                                     ? u.workshop_name
                                     : u.display_name}
                                 </Text>
                                 <UserBadges user={u} />
                               </View>
-                              <Text className="text-xs text-ink-300">@{u.handle}</Text>
+                              <Text className="text-xs text-apple-secondary">@{u.handle}</Text>
                             </View>
                           </Pressable>
                           {u.is_workshop && u.workshop_phone ? (
                             <Pressable
                               onPress={() => Linking.openURL(`tel:${u.workshop_phone}`)}
-                              className="rounded-lg bg-accent px-3 py-2 active:bg-accent-dark"
+                              className="rounded-xl bg-accent px-3 py-2 active:opacity-90"
                             >
-                              <Text className="text-xs font-semibold text-ink-950">Contact</Text>
+                              <Text className="text-xs font-semibold text-white">Contact</Text>
                             </Pressable>
                           ) : null}
                         </View>
+                        </AppleCard>
                       ))}
                     </View>
                   </View>
@@ -276,7 +279,7 @@ export default function ExploreScreen() {
                 {partHits.length > 0 ? (
                   <View>
                     <SectionLabel>Parts</SectionLabel>
-                    <View className="gap-2 px-6 pt-2">
+                    <View className="gap-2 px-4 pt-2">
                       {partHits.map((p) => (
                         <PartRow
                           key={p.id}
@@ -294,52 +297,88 @@ export default function ExploreScreen() {
           </View>
         ) : loading ? (
           <View className="mt-12 items-center">
-            <ActivityIndicator color="#F5A524" />
+            <ActivityIndicator color={colors.accent} />
           </View>
         ) : (
           <View className="gap-6 pt-2">
+            {/* Builds like yours — horizontal carousel */}
             {forSale.length > 0 ? (
-              <View className="mt-8">
-                <SectionLabel inline>Builds for sale</SectionLabel>
-                <View className="mt-3 gap-3">
-                  {forSale.map((b) => (
-                    <Pressable
-                      key={b.id}
-                      onPress={() => router.push(`/build/${b.id}`)}
-                      className="overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 active:bg-ink-800"
-                    >
-                      {b.cover_photo_url ? (
-                        <Image
-                          source={{ uri: b.cover_photo_url }}
-                          className="h-24 w-full bg-ink-800"
-                          resizeMode="cover"
-                        />
-                      ) : null}
-                      <View className="p-4">
-                        <Text className="font-semibold text-white">
-                          {b.nickname ?? `${b.make} ${b.model}`}
-                        </Text>
-                        {b.asking_price != null ? (
-                          <Text className="mt-1 text-accent">
-                            ${Number(b.asking_price).toLocaleString()}
-                          </Text>
-                        ) : null}
-                      </View>
-                    </Pressable>
-                  ))}
+              <View className="mt-2">
+                <View className="mb-3.5 flex-row items-baseline justify-between px-4">
+                  <Text
+                    className="text-[22px] font-bold text-apple-ink"
+                    style={{ letterSpacing: -0.44 }}
+                  >
+                    Builds like yours
+                  </Text>
+                  <Text className="text-[15px] font-semibold text-signal-blue">See all</Text>
                 </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 4 }}
+                >
+                  {forSale.map((b, i) => {
+                    const accent = [colors.accent, colors.green, colors.amber][i % 3];
+                    return (
+                      <Pressable
+                        key={b.id}
+                        onPress={() => router.push(`/build/${b.id}`)}
+                        style={{ width: 200 }}
+                      >
+                        <AppleCard style={{ overflow: 'hidden', padding: 0 }}>
+                          {b.cover_photo_url ? (
+                            <Image
+                              source={{ uri: b.cover_photo_url }}
+                              className="aspect-[4/3] w-full bg-apple-bg2"
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <View
+                              className="aspect-[4/3] w-full items-center justify-center"
+                              style={{ backgroundColor: `${accent}14` }}
+                            >
+                              <Ionicons name="car-sport-outline" size={48} color={accent} />
+                            </View>
+                          )}
+                          <View className="p-3.5">
+                            <Text className="text-base font-semibold text-apple-ink">
+                              {b.nickname ?? `${b.make} ${b.model}`}
+                            </Text>
+                            <Text className="text-[13px] text-apple-secondary">
+                              {b.year} {b.make} {b.model}
+                            </Text>
+                            {b.asking_price != null ? (
+                              <View className="mt-3 flex-row items-center justify-between border-t border-apple-border pt-3">
+                                <Text className="text-[13px] text-apple-secondary">Asking</Text>
+                                <MoneyText
+                                  value={Number(b.asking_price)}
+                                  size={16}
+                                  color={colors.accent}
+                                  weight="700"
+                                />
+                              </View>
+                            ) : null}
+                          </View>
+                        </AppleCard>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
               </View>
             ) : null}
 
-            {/* ---- Popular parts ---- */}
             <View>
-              <View className="flex-row items-end justify-between px-6 pt-4">
-                <SectionLabel inline>Popular parts</SectionLabel>
-                <Text className="text-[10px] uppercase tracking-wider text-ink-300">
-                  by install count
+              <View className="flex-row items-end justify-between px-4 pt-4">
+                <Text
+                  className="text-[22px] font-bold text-apple-ink"
+                  style={{ letterSpacing: -0.44 }}
+                >
+                  Popular parts
                 </Text>
+                <Text className="text-xs font-medium text-apple-tertiary">by installs</Text>
               </View>
-              <View className="mt-2 gap-2 px-6">
+              <View className="mt-2 gap-2 px-4">
                 {popularParts.map((p) => (
                   <PartRow
                     key={p.id}
@@ -352,30 +391,38 @@ export default function ExploreScreen() {
               </View>
             </View>
 
-            {/* ---- Trending posts ---- */}
             <View>
-              <View className="flex-row items-end justify-between px-6 pt-2">
-                <SectionLabel inline>Trending this month</SectionLabel>
-                <Text className="text-[10px] uppercase tracking-wider text-ink-300">
-                  top reactions
+              <View className="mb-3.5 flex-row items-center gap-2 px-4">
+                <Text
+                  className="text-[22px] font-bold text-apple-ink"
+                  style={{ letterSpacing: -0.44 }}
+                >
+                  Trending
                 </Text>
+                <Ionicons name="flame" size={22} color={colors.accent} />
               </View>
               {trending.length === 0 ? (
-                <View className="mx-6 mt-2 rounded-2xl border border-ink-700 bg-ink-900 p-5">
-                  <Text className="text-ink-200 font-semibold">Nothing trending yet</Text>
-                  <Text className="mt-1 text-sm text-ink-300">
-                    Log a public mod or like one to seed the charts.
-                  </Text>
+                <View className="mx-4">
+                  <AppleCard padded>
+                    <Text className="font-semibold text-apple-ink">Nothing trending yet</Text>
+                    <Text className="mt-1 text-sm text-apple-secondary">
+                      Log a public mod or like one to seed the charts.
+                    </Text>
+                  </AppleCard>
                 </View>
               ) : (
-                <View className="mt-2 gap-2 px-6">
-                  {trending.map((post) => (
-                    <TrendingCard
-                      key={post.id}
-                      post={post}
-                      onPress={() => router.push(`/post/${post.id}`)}
-                    />
-                  ))}
+                <View className="mx-4">
+                  <AppleCard style={{ padding: 0, overflow: 'hidden' }}>
+                    {trending.map((post, idx) => (
+                      <TrendingRow
+                        key={post.id}
+                        post={post}
+                        rank={idx + 1}
+                        last={idx === trending.length - 1}
+                        onPress={() => router.push(`/post/${post.id}`)}
+                      />
+                    ))}
+                  </AppleCard>
                 </View>
               )}
             </View>
@@ -395,9 +442,10 @@ function SectionLabel({
 }) {
   return (
     <Text
-      className={`text-xs font-semibold uppercase tracking-[2px] text-ink-300 ${
-        inline ? '' : 'px-6'
+      className={`text-[13px] font-semibold text-apple-secondary ${
+        inline ? 'px-4' : 'px-4'
       }`}
+      style={{ letterSpacing: -0.13 }}
     >
       {children}
     </Text>
@@ -417,18 +465,19 @@ function PartRow({
 }) {
   const router = useRouter();
   return (
-    <View className="flex-row items-center gap-3 rounded-2xl border border-ink-700 bg-ink-900 px-3 py-3">
+    <AppleCard style={{ padding: 12 }}>
+      <View className="flex-row items-center gap-3">
       <View className="min-w-0 flex-1">
         <Pressable
           onPress={() => router.push(`/part/${part.id}`)}
           className="active:opacity-80"
         >
-          <Text className="text-[10px] uppercase tracking-wider text-ink-300">
+          <Text className="text-[10px] font-semibold uppercase tracking-wider text-apple-tertiary">
             {part.category.replace('_', ' ')}
           </Text>
-          <Text className="mt-0.5 text-base font-semibold text-white">{part.brand}</Text>
-          <Text className="text-sm text-ink-200">{part.name}</Text>
-          <Text className="mt-1 text-[11px] text-ink-300">
+          <Text className="mt-0.5 text-base font-semibold text-apple-ink">{part.brand}</Text>
+          <Text className="text-sm text-apple-secondary">{part.name}</Text>
+          <Text className="mt-1 text-[11px] text-apple-tertiary">
             {part.install_count} install{part.install_count === 1 ? '' : 's'}
           </Text>
         </Pressable>
@@ -436,57 +485,64 @@ function PartRow({
       <Pressable
         onPress={onSave}
         disabled={saving || saved}
-        className={`shrink-0 rounded-lg px-3 py-1.5 disabled:opacity-60 ${
-          saved ? 'bg-ink-700' : 'bg-accent/20 active:bg-accent/30'
+        className={`shrink-0 rounded-xl px-3 py-1.5 disabled:opacity-60 ${
+          saved ? 'bg-apple-bg2' : 'bg-accent-soft active:opacity-80'
         }`}
         accessibilityRole="button"
         accessibilityLabel={saved ? 'Saved to wishlist' : 'Add to wishlist'}
       >
         {saving ? (
-          <ActivityIndicator color="#F5A524" />
+          <ActivityIndicator color={colors.accent} />
         ) : (
           <Text
-            className={`text-xs font-semibold ${saved ? 'text-ink-300' : 'text-accent'}`}
+            className={`text-xs font-semibold ${saved ? 'text-apple-tertiary' : 'text-accent'}`}
           >
             {saved ? 'Saved' : '+ Wishlist'}
           </Text>
         )}
       </Pressable>
-    </View>
+      </View>
+    </AppleCard>
   );
 }
 
-function TrendingCard({ post, onPress }: { post: FeedPost; onPress: () => void }) {
+function TrendingRow({
+  post,
+  rank,
+  last,
+  onPress,
+}: {
+  post: FeedPost;
+  rank: number;
+  last: boolean;
+  onPress: () => void;
+}) {
   const partLabel = post.mod?.part
     ? `${post.mod.part.brand} ${post.mod.part.name}`
-    : post.mod?.custom_part_name ?? 'Build update';
+    : post.mod?.custom_part_name ?? `${post.vehicle.make} ${post.vehicle.model}`;
+  const likes =
+    post.reaction_count >= 1000
+      ? `${(post.reaction_count / 1000).toFixed(1)}k`
+      : String(post.reaction_count);
+
   return (
     <Pressable
       onPress={onPress}
-      className="overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 active:bg-ink-800"
+      className={`flex-row items-center gap-3.5 px-4 py-3.5 active:bg-apple-bg2 ${
+        last ? '' : 'border-b border-apple-border'
+      }`}
     >
-      {post.mod?.photo_url ? (
-        <Image
-          source={{ uri: post.mod.photo_url }}
-          className="h-40 w-full bg-ink-800"
-          resizeMode="cover"
-        />
-      ) : null}
-      <View className="p-4">
-        <Text className="text-[11px] uppercase tracking-wider text-ink-300">
-          {post.vehicle.year} · {post.vehicle.make} · {post.vehicle.model}
-        </Text>
-        <Text className="mt-1 text-base font-semibold text-white" numberOfLines={1}>
+      <Text className="w-6 text-xl font-bold text-accent">{rank}</Text>
+      <VehicleThumb size={48} color={colors.accent} />
+      <View className="min-w-0 flex-1">
+        <Text className="text-[15px] font-semibold text-apple-ink" numberOfLines={1}>
           {partLabel}
         </Text>
-        <View className="mt-2 flex-row items-center justify-between">
-          <Text className="text-xs text-ink-300">@{post.author.handle}</Text>
-          <View className="flex-row gap-3">
-            <Text className="text-xs text-ink-300">♥ {post.reaction_count}</Text>
-            <Text className="text-xs text-ink-300">💬 {post.comment_count}</Text>
-          </View>
-        </View>
+        <Text className="text-[13px] text-apple-secondary">
+          @{post.author.handle} · {likes} likes
+        </Text>
       </View>
+      <Ionicons name="chevron-forward" size={20} color={colors.tertiary} />
     </Pressable>
   );
 }

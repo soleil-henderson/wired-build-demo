@@ -115,19 +115,19 @@ export default function ScanVinScreen() {
 
   if (!permission) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'Scan VIN' }} />
-        <ActivityIndicator color="#F5A524" />
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
 
   if (!permission.granted) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950 px-6">
+      <View className="flex-1 items-center justify-center bg-apple-bg2 px-6">
         <Stack.Screen options={{ title: 'Scan VIN' }} />
-        <Text className="text-2xl font-bold text-white">Camera access needed</Text>
-        <Text className="mt-2 text-center text-ink-300">
+        <Text className="text-2xl font-bold text-apple-ink">Camera access needed</Text>
+        <Text className="mt-2 text-center text-apple-secondary">
           Wired Build uses the camera to read the VIN barcode on your door jamb.
           We never store the photo — only the decoded 17-character string.
         </Text>
@@ -135,17 +135,17 @@ export default function ScanVinScreen() {
           onPress={requestPermission}
           className="mt-6 rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
         >
-          <Text className="font-semibold text-ink-950">Allow camera</Text>
+          <Text className="font-semibold text-white">Allow camera</Text>
         </Pressable>
         <Pressable onPress={showOcrPicker} disabled={ocrLoading} className="mt-4">
           {ocrLoading ? (
-            <ActivityIndicator color="#F5A524" />
+            <ActivityIndicator color="#FF6A2B" />
           ) : (
             <Text className="text-sm text-accent">Photograph VIN (OCR)</Text>
           )}
         </Pressable>
         <Pressable onPress={() => setManualOpen(true)} className="mt-2">
-          <Text className="text-sm text-ink-300">Enter VIN manually</Text>
+          <Text className="text-sm text-apple-secondary">Enter VIN manually</Text>
         </Pressable>
         {manualOpen ? (
           <ManualEntry
@@ -187,10 +187,10 @@ export default function ScanVinScreen() {
             <Pressable
               onPress={showOcrPicker}
               disabled={ocrLoading}
-              className="rounded-xl border border-accent/60 bg-ink-900/90 px-4 py-2.5 active:bg-ink-800 disabled:opacity-60"
+              className="rounded-xl border border-accent/60 bg-white/90 px-4 py-2.5 active:bg-apple-bg2 disabled:opacity-60"
             >
               {ocrLoading ? (
-                <ActivityIndicator color="#F5A524" />
+                <ActivityIndicator color="#FF6A2B" />
               ) : (
                 <Text className="font-semibold text-accent">
                   Photograph VIN (OCR fallback)
@@ -199,7 +199,7 @@ export default function ScanVinScreen() {
             </Pressable>
             <Pressable
               onPress={() => setManualOpen((v) => !v)}
-              className="rounded-xl bg-ink-900/90 px-4 py-2.5 active:bg-ink-800"
+              className="rounded-xl bg-white/90 px-4 py-2.5 active:bg-apple-bg2"
             >
               <Text className="font-semibold text-white">
                 {manualOpen ? 'Hide manual entry' : 'Enter VIN manually'}
@@ -237,14 +237,14 @@ function ManualEntry({
         autoCorrect={false}
         maxLength={17}
         placeholder="1HGCM82633A123456"
-        placeholderTextColor="#5A6373"
-        className="rounded-xl bg-ink-900/90 px-4 py-3 font-mono text-white"
+        placeholderTextColor="#A1A1A6"
+        className="rounded-xl bg-white/90 px-4 py-3 font-mono text-apple-ink"
       />
       <Pressable
         onPress={onSubmit}
         className="rounded-xl bg-accent px-4 py-3 active:bg-accent-dark"
       >
-        <Text className="text-center font-semibold text-ink-950">
+        <Text className="text-center font-semibold text-white">
           Use this VIN
         </Text>
       </Pressable>

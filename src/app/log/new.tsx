@@ -485,7 +485,7 @@ export default function LogNewScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-ink-950"
+      className="flex-1 bg-apple-bg2"
     >
       <Stack.Screen
         options={{ title: promotedFromWishlist ? 'Log from wishlist' : 'Log a mod' }}
@@ -494,18 +494,18 @@ export default function LogNewScreen() {
         contentContainerClassName="px-6 pt-6 pb-24"
         keyboardShouldPersistTaps="handled"
       >
-        <Text className="text-3xl font-bold text-white">
+        <Text className="text-3xl font-bold text-apple-ink">
           {promotedFromWishlist ? 'Install it' : 'Log a mod'}
         </Text>
-        <Text className="mt-2 text-ink-300">
+        <Text className="mt-2 text-apple-secondary">
           {promotedFromWishlist
             ? 'Confirm the install details. We pre-filled what we could from your wishlist; this entry will replace the wishlist row.'
             : 'Target: under 90 seconds. Photo → part → cost → confirm.'}
         </Text>
         {prefilling ? (
           <View className="mt-4 flex-row items-center gap-2">
-            <ActivityIndicator color="#F5A524" />
-            <Text className="text-sm text-ink-300">Loading wishlist details…</Text>
+            <ActivityIndicator color="#FF6A2B" />
+            <Text className="text-sm text-apple-secondary">Loading wishlist details…</Text>
           </View>
         ) : null}
 
@@ -516,14 +516,14 @@ export default function LogNewScreen() {
             <View key={p.uri} className="relative">
               <Image
                 source={{ uri: p.uri }}
-                className="h-20 w-20 rounded-xl bg-ink-800"
+                className="h-20 w-20 rounded-xl bg-apple-bg2"
                 resizeMode="cover"
               />
               <Pressable
                 onPress={() => removePhotoAt(idx)}
-                className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-ink-950 border border-ink-700"
+                className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-apple-bg2 border border-apple-border"
               >
-                <Text className="text-xs font-bold text-white">×</Text>
+                <Text className="text-xs font-bold text-apple-ink">×</Text>
               </Pressable>
             </View>
           ))}
@@ -531,17 +531,17 @@ export default function LogNewScreen() {
             <>
               <Pressable
                 onPress={handleTakePhoto}
-                className="h-20 w-20 items-center justify-center rounded-xl border border-dashed border-ink-600 bg-ink-900"
+                className="h-20 w-20 items-center justify-center rounded-xl border border-dashed border-apple-border bg-white"
               >
-                <Text className="text-xl text-ink-300">+</Text>
-                <Text className="text-[10px] text-ink-300">Camera</Text>
+                <Text className="text-xl text-apple-secondary">+</Text>
+                <Text className="text-[10px] text-apple-secondary">Camera</Text>
               </Pressable>
               <Pressable
                 onPress={handlePickFromLibrary}
-                className="h-20 w-20 items-center justify-center rounded-xl border border-dashed border-ink-600 bg-ink-900"
+                className="h-20 w-20 items-center justify-center rounded-xl border border-dashed border-apple-border bg-white"
               >
-                <Text className="text-xl text-ink-300">+</Text>
-                <Text className="text-[10px] text-ink-300">Library</Text>
+                <Text className="text-xl text-apple-secondary">+</Text>
+                <Text className="text-[10px] text-apple-secondary">Library</Text>
               </Pressable>
             </>
           ) : null}
@@ -550,15 +550,15 @@ export default function LogNewScreen() {
         {/* ---- Part picker ---- */}
         <SectionHeading>Part</SectionHeading>
         {partDescriptor ? (
-          <View className="rounded-2xl border border-ink-700 bg-ink-900 p-4">
-            <Text className="text-xs uppercase tracking-wider text-ink-300">
+          <View className="rounded-2xl border border-apple-border bg-white p-4">
+            <Text className="text-xs uppercase tracking-wider text-apple-secondary">
               {partDescriptor.category.replace('_', ' ')}
               {customMode ? ' · pending approval' : ''}
             </Text>
-            <Text className="mt-1 text-lg font-semibold text-white">
+            <Text className="mt-1 text-lg font-semibold text-apple-ink">
               {partDescriptor.brand}
             </Text>
-            <Text className="text-ink-200">{partDescriptor.name}</Text>
+            <Text className="text-apple-secondary">{partDescriptor.name}</Text>
             <Pressable onPress={clearPart} className="mt-3 self-start">
               <Text className="text-sm font-semibold text-accent">Change</Text>
             </Pressable>
@@ -569,30 +569,30 @@ export default function LogNewScreen() {
               value={partQuery}
               onChangeText={setPartQuery}
               placeholder="Search brand or part name…"
-              placeholderTextColor="#5A6373"
+              placeholderTextColor="#A1A1A6"
               autoCapitalize="none"
               autoCorrect={false}
-              className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+              className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
             />
             {searching ? (
-              <Text className="mt-2 text-xs text-ink-300">Searching…</Text>
+              <Text className="mt-2 text-xs text-apple-secondary">Searching…</Text>
             ) : null}
 
             {partResults.length > 0 ? (
-              <View className="mt-2 overflow-hidden rounded-xl border border-ink-700">
+              <View className="mt-2 overflow-hidden rounded-xl border border-apple-border">
                 {partResults.map((p, idx) => (
                   <Pressable
                     key={p.id}
                     onPress={() => setSelectedPart(p)}
-                    className={`bg-ink-900 px-4 py-3 active:bg-ink-800 ${
-                      idx > 0 ? 'border-t border-ink-700' : ''
+                    className={`bg-white px-4 py-3 active:bg-apple-bg2 ${
+                      idx > 0 ? 'border-t border-apple-border' : ''
                     }`}
                   >
-                    <Text className="text-xs uppercase tracking-wider text-ink-300">
+                    <Text className="text-xs uppercase tracking-wider text-apple-secondary">
                       {p.category.replace('_', ' ')}
                     </Text>
-                    <Text className="mt-0.5 font-semibold text-white">{p.brand}</Text>
-                    <Text className="text-ink-200">{p.name}</Text>
+                    <Text className="mt-0.5 font-semibold text-apple-ink">{p.brand}</Text>
+                    <Text className="text-apple-secondary">{p.name}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -603,40 +603,40 @@ export default function LogNewScreen() {
                 setCustomMode(true);
                 setCustomBrand((b) => b || partQuery.trim());
               }}
-              className="mt-3 rounded-xl border border-dashed border-ink-600 px-4 py-3"
+              className="mt-3 rounded-xl border border-dashed border-apple-border px-4 py-3"
             >
-              <Text className="text-center text-sm font-semibold text-ink-200">
+              <Text className="text-center text-sm font-semibold text-apple-secondary">
                 + Add a custom part (not in catalogue)
               </Text>
             </Pressable>
 
             {customMode ? (
-              <View className="mt-3 gap-3 rounded-2xl border border-ink-700 bg-ink-900 p-4">
+              <View className="mt-3 gap-3 rounded-2xl border border-apple-border bg-white p-4">
                 <View>
-                  <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
+                  <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
                     Brand
                   </Text>
                   <TextInput
                     value={customBrand}
                     onChangeText={setCustomBrand}
                     placeholder="e.g. ARB"
-                    placeholderTextColor="#5A6373"
-                    className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+                    placeholderTextColor="#A1A1A6"
+                    className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
                   />
                 </View>
                 <View>
-                  <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
+                  <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
                     Part name
                   </Text>
                   <TextInput
                     value={customName}
                     onChangeText={setCustomName}
                     placeholder="e.g. Summit Bull Bar"
-                    placeholderTextColor="#5A6373"
-                    className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+                    placeholderTextColor="#A1A1A6"
+                    className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
                   />
                 </View>
-                <Text className="text-xs text-ink-300">
+                <Text className="text-xs text-apple-secondary">
                   Submitted custom parts go to a moderation queue and are visible to you
                   while pending.
                 </Text>
@@ -656,15 +656,15 @@ export default function LogNewScreen() {
         {/* ---- Cost ---- */}
         <SectionHeading>Cost (AUD)</SectionHeading>
         <View className="flex-row items-center gap-3">
-          <View className="flex-1 flex-row items-center rounded-xl bg-ink-800 px-4">
-            <Text className="text-ink-300">$</Text>
+          <View className="flex-1 flex-row items-center rounded-xl bg-apple-bg2 px-4">
+            <Text className="text-apple-secondary">$</Text>
             <TextInput
               value={cost}
               onChangeText={setCost}
               placeholder="0.00"
-              placeholderTextColor="#5A6373"
+              placeholderTextColor="#A1A1A6"
               keyboardType="decimal-pad"
-              className="ml-2 flex-1 py-3 text-white"
+              className="ml-2 flex-1 py-3 text-apple-ink"
             />
           </View>
           <Toggle
@@ -673,7 +673,7 @@ export default function LogNewScreen() {
             label="Approx"
           />
         </View>
-        <Text className="mt-2 text-xs text-ink-300">
+        <Text className="mt-2 text-xs text-apple-secondary">
           Leave empty if it was a gift or undisclosed.
         </Text>
 
@@ -683,7 +683,7 @@ export default function LogNewScreen() {
           <View className="relative self-start">
             <Image
               source={{ uri: receipt.uri }}
-              className="h-28 w-40 rounded-xl bg-ink-800"
+              className="h-28 w-40 rounded-xl bg-apple-bg2"
               resizeMode="cover"
             />
             <Pressable
@@ -691,28 +691,28 @@ export default function LogNewScreen() {
                 setReceipt(null);
                 setReceiptCostHint(null);
               }}
-              className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-ink-950 border border-ink-700"
+              className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-apple-bg2 border border-apple-border"
             >
-              <Text className="text-xs font-bold text-white">×</Text>
+              <Text className="text-xs font-bold text-apple-ink">×</Text>
             </Pressable>
           </View>
         ) : (
           <Pressable
             onPress={showReceiptPicker}
-            className="self-start rounded-xl border border-dashed border-ink-600 px-4 py-3 active:bg-ink-900"
+            className="self-start rounded-xl border border-dashed border-apple-border px-4 py-3 active:bg-white"
           >
-            <Text className="font-semibold text-ink-200">+ Attach receipt</Text>
+            <Text className="font-semibold text-apple-secondary">+ Attach receipt</Text>
           </Pressable>
         )}
         {scanningReceipt ? (
           <View className="mt-2 flex-row items-center gap-2">
-            <ActivityIndicator color="#F5A524" size="small" />
-            <Text className="text-xs text-ink-300">Reading receipt…</Text>
+            <ActivityIndicator color="#FF6A2B" size="small" />
+            <Text className="text-xs text-apple-secondary">Reading receipt…</Text>
           </View>
         ) : receiptCostHint ? (
           <Text className="mt-2 text-xs text-signal-green">{receiptCostHint}</Text>
         ) : (
-          <Text className="mt-2 text-xs text-ink-300">
+          <Text className="mt-2 text-xs text-apple-secondary">
             Stored privately — never on the public feed. We try to read the
             total when cost is empty (device OCR; may need a dev build, not Expo
             Go web).
@@ -744,8 +744,8 @@ export default function LogNewScreen() {
                 }
               }}
               placeholder="Search workshop by name or handle"
-              placeholderTextColor="#5A6373"
-              className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+              placeholderTextColor="#A1A1A6"
+              className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
             />
             <View className="mt-2 gap-2">
               {workshopHits.map((w) => (
@@ -755,13 +755,17 @@ export default function LogNewScreen() {
                   className={`rounded-xl border px-4 py-3 ${
                     installerWorkshopId === w.id
                       ? 'border-accent bg-accent/10'
-                      : 'border-ink-700 bg-ink-900'
+                      : 'border-apple-border bg-white'
                   }`}
                 >
-                  <Text className="font-semibold text-white">
+                  <Text
+                    className={`font-semibold ${
+                      installerWorkshopId === w.id ? 'text-accent' : 'text-apple-ink'
+                    }`}
+                  >
                     {w.workshop_name ?? w.display_name}
                   </Text>
-                  <Text className="text-sm text-ink-300">@{w.handle}</Text>
+                  <Text className="text-sm text-apple-secondary">@{w.handle}</Text>
                 </Pressable>
               ))}
             </View>
@@ -792,10 +796,10 @@ export default function LogNewScreen() {
           value={notes}
           onChangeText={setNotes}
           placeholder="Anything worth remembering…"
-          placeholderTextColor="#5A6373"
+          placeholderTextColor="#A1A1A6"
           multiline
           numberOfLines={3}
-          className="min-h-[80px] rounded-xl bg-ink-800 px-4 py-3 text-white"
+          className="min-h-[80px] rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
         />
 
         {/* ---- Privacy ---- */}
@@ -808,16 +812,20 @@ export default function LogNewScreen() {
                 key={p.value}
                 onPress={() => setPrivacy(p.value)}
                 className={`flex-row items-center justify-between rounded-xl border px-4 py-3 ${
-                  active ? 'border-accent bg-ink-900' : 'border-ink-700 bg-ink-900'
+                  active ? 'border-accent bg-white' : 'border-apple-border bg-white'
                 }`}
               >
                 <View className="flex-1">
-                  <Text className="font-semibold text-white">{p.label}</Text>
-                  <Text className="text-xs text-ink-300">{p.hint}</Text>
+                  <Text
+                    className={`font-semibold ${active ? 'text-accent' : 'text-apple-ink'}`}
+                  >
+                    {p.label}
+                  </Text>
+                  <Text className="text-xs text-apple-secondary">{p.hint}</Text>
                 </View>
                 <View
                   className={`h-5 w-5 rounded-full border-2 ${
-                    active ? 'border-accent bg-accent' : 'border-ink-500 bg-transparent'
+                    active ? 'border-accent bg-accent' : 'border-apple-border bg-transparent'
                   }`}
                 />
               </Pressable>
@@ -832,9 +840,9 @@ export default function LogNewScreen() {
           className="mt-8 rounded-xl bg-accent py-3.5 active:bg-accent-dark disabled:opacity-60"
         >
           {submitting ? (
-            <ActivityIndicator color="#08090B" />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text className="text-center text-base font-semibold text-ink-950">
+            <Text className="text-center text-base font-semibold text-white">
               Log mod
             </Text>
           )}
@@ -846,7 +854,7 @@ export default function LogNewScreen() {
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <Text className="mb-2 mt-6 text-xs font-semibold uppercase tracking-[2px] text-ink-300">
+    <Text className="mb-2 mt-6 text-xs font-semibold uppercase tracking-[2px] text-apple-secondary">
       {children}
     </Text>
   );
@@ -872,12 +880,12 @@ function Chips<T extends string>({
             className={`rounded-full border px-3.5 py-2 ${
               active
                 ? 'border-accent bg-accent'
-                : 'border-ink-700 bg-ink-900'
+                : 'border-apple-border bg-white'
             }`}
           >
             <Text
               className={`text-xs font-semibold ${
-                active ? 'text-ink-950' : 'text-ink-200'
+                active ? 'text-apple-ink' : 'text-apple-secondary'
               }`}
             >
               {opt.label}
@@ -902,12 +910,12 @@ function Toggle({
     <Pressable
       onPress={() => onChange(!value)}
       className={`rounded-full border px-3 py-2 ${
-        value ? 'border-accent bg-accent' : 'border-ink-700 bg-ink-900'
+        value ? 'border-accent bg-accent' : 'border-apple-border bg-white'
       }`}
     >
       <Text
         className={`text-xs font-semibold ${
-          value ? 'text-ink-950' : 'text-ink-200'
+          value ? 'text-apple-ink' : 'text-apple-secondary'
         }`}
       >
         {label}

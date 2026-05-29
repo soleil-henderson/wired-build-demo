@@ -374,9 +374,9 @@ export default function EditModScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-ink-950">
+      <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'Edit mod' }} />
-        <ActivityIndicator color="#F5A524" />
+        <ActivityIndicator color="#FF6A2B" />
       </View>
     );
   }
@@ -390,33 +390,33 @@ export default function EditModScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-ink-950"
+      className="flex-1 bg-apple-bg2"
     >
       <Stack.Screen options={{ title: 'Edit mod' }} />
       <ScrollView contentContainerClassName="px-6 pt-6 pb-24">
-        <Text className="text-ink-300">
+        <Text className="text-apple-secondary">
           Update install details. The catalogue part cannot be swapped after
           logging — delete and re-log if you picked the wrong item.
         </Text>
 
-        <View className="mt-6 rounded-2xl border border-ink-700 bg-ink-900 p-4">
-          <Text className="text-[11px] uppercase tracking-wider text-ink-300">
+        <View className="mt-6 rounded-2xl border border-apple-border bg-white p-4">
+          <Text className="text-[11px] uppercase tracking-wider text-apple-secondary">
             Part
           </Text>
-          <Text className="mt-1 text-lg font-semibold text-white">{partLabel}</Text>
+          <Text className="mt-1 text-lg font-semibold text-apple-ink">{partLabel}</Text>
           {!mod.part_id ? (
             <TextInput
               value={customPartName}
               onChangeText={setCustomPartName}
               placeholder="Custom part name"
-              placeholderTextColor="#5A6373"
-              className="mt-3 rounded-xl bg-ink-800 px-4 py-3 text-white"
+              placeholderTextColor="#A1A1A6"
+              className="mt-3 rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
             />
           ) : null}
         </View>
 
         <View className="mt-6">
-          <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
+          <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
             Photos ({totalPhotoCount}/{MAX_PHOTOS})
           </Text>
           <View className="flex-row flex-wrap gap-2">
@@ -424,11 +424,11 @@ export default function EditModScreen() {
               <View key={p.id} className="relative">
                 <Image
                   source={{ uri: p.url }}
-                  className="h-20 w-20 rounded-xl bg-ink-800"
+                  className="h-20 w-20 rounded-xl bg-apple-bg2"
                 />
                 <Pressable
                   onPress={() => removeExistingPhoto(p.id)}
-                  className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-ink-950"
+                  className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-apple-bg2"
                 >
                   <Text className="text-xs text-signal-red">✕</Text>
                 </Pressable>
@@ -438,11 +438,11 @@ export default function EditModScreen() {
               <View key={p.uri} className="relative">
                 <Image
                   source={{ uri: p.uri }}
-                  className="h-20 w-20 rounded-xl bg-ink-800"
+                  className="h-20 w-20 rounded-xl bg-apple-bg2"
                 />
                 <Pressable
                   onPress={() => removeNewPhotoAt(idx)}
-                  className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-ink-950"
+                  className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-apple-bg2"
                 >
                   <Text className="text-xs text-signal-red">✕</Text>
                 </Pressable>
@@ -451,16 +451,16 @@ export default function EditModScreen() {
             {canAddMore ? (
               <Pressable
                 onPress={showPhotoPicker}
-                className="h-20 w-20 items-center justify-center rounded-xl border border-dashed border-ink-600 active:bg-ink-800"
+                className="h-20 w-20 items-center justify-center rounded-xl border border-dashed border-apple-border active:bg-apple-bg2"
               >
-                <Text className="text-2xl text-ink-400">+</Text>
+                <Text className="text-2xl text-apple-tertiary">+</Text>
               </Pressable>
             ) : null}
           </View>
         </View>
 
         <View className="mt-6">
-          <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
+          <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
             Category
           </Text>
           <View className="flex-row flex-wrap gap-2">
@@ -476,7 +476,7 @@ export default function EditModScreen() {
         </View>
 
         <View className="mt-4">
-          <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
+          <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
             Cost (AUD)
           </Text>
           <TextInput
@@ -484,8 +484,8 @@ export default function EditModScreen() {
             onChangeText={setCost}
             keyboardType="decimal-pad"
             placeholder="Optional"
-            placeholderTextColor="#5A6373"
-            className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+            placeholderTextColor="#A1A1A6"
+            className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
           />
           <Pressable
             onPress={() => setCostIsApproximate((v) => !v)}
@@ -493,22 +493,22 @@ export default function EditModScreen() {
           >
             <View
               className={`h-5 w-5 rounded border ${
-                costIsApproximate ? 'border-accent bg-accent' : 'border-ink-500'
+                costIsApproximate ? 'border-accent bg-accent' : 'border-apple-border'
               }`}
             />
-            <Text className="text-sm text-ink-200">Approximate cost</Text>
+            <Text className="text-sm text-apple-secondary">Approximate cost</Text>
           </Pressable>
         </View>
 
         <View className="mt-4">
-          <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
+          <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
             Receipt (private)
           </Text>
           {receiptPreviewUri ? (
             <View className="relative self-start">
               <Image
                 source={{ uri: receiptPreviewUri }}
-                className="h-28 w-40 rounded-xl bg-ink-800"
+                className="h-28 w-40 rounded-xl bg-apple-bg2"
                 resizeMode="cover"
               />
               <Pressable
@@ -521,7 +521,7 @@ export default function EditModScreen() {
                     setReceiptCostHint(null);
                   }
                 }}
-                className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-ink-950"
+                className="absolute -right-1 -top-1 h-6 w-6 items-center justify-center rounded-full bg-apple-bg2"
               >
                 <Text className="text-xs text-signal-red">✕</Text>
               </Pressable>
@@ -529,20 +529,20 @@ export default function EditModScreen() {
           ) : (
             <Pressable
               onPress={showReceiptPicker}
-              className="self-start rounded-xl border border-dashed border-ink-600 px-4 py-3 active:bg-ink-900"
+              className="self-start rounded-xl border border-dashed border-apple-border px-4 py-3 active:bg-white"
             >
-              <Text className="font-semibold text-ink-200">+ Attach receipt</Text>
+              <Text className="font-semibold text-apple-secondary">+ Attach receipt</Text>
             </Pressable>
           )}
           {scanningReceipt ? (
             <View className="mt-2 flex-row items-center gap-2">
-              <ActivityIndicator color="#F5A524" size="small" />
-              <Text className="text-xs text-ink-300">Reading receipt…</Text>
+              <ActivityIndicator color="#FF6A2B" size="small" />
+              <Text className="text-xs text-apple-secondary">Reading receipt…</Text>
             </View>
           ) : receiptCostHint ? (
             <Text className="mt-2 text-xs text-signal-green">{receiptCostHint}</Text>
           ) : (
-            <Text className="mt-2 text-xs text-ink-300">
+            <Text className="mt-2 text-xs text-apple-secondary">
               Never shown on the public feed. OCR fills cost when the field is
               empty.
             </Text>
@@ -550,7 +550,7 @@ export default function EditModScreen() {
         </View>
 
         <View className="mt-4">
-          <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
+          <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
             Installed by
           </Text>
           <View className="flex-row flex-wrap gap-2">
@@ -579,8 +579,8 @@ export default function EditModScreen() {
                   }
                 }}
                 placeholder="Search workshop"
-                placeholderTextColor="#5A6373"
-                className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+                placeholderTextColor="#A1A1A6"
+                className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
               />
               {workshopHits.map((w) => (
                 <Pressable
@@ -589,10 +589,10 @@ export default function EditModScreen() {
                   className={`mt-2 rounded-xl border px-4 py-3 ${
                     installerWorkshopId === w.id
                       ? 'border-accent bg-accent/10'
-                      : 'border-ink-700'
+                      : 'border-apple-border'
                   }`}
                 >
-                  <Text className="text-white">{w.workshop_name ?? w.display_name}</Text>
+                  <Text className="text-apple-ink">{w.workshop_name ?? w.display_name}</Text>
                 </Pressable>
               ))}
             </View>
@@ -600,7 +600,7 @@ export default function EditModScreen() {
         </View>
 
         <View className="mt-4">
-          <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
+          <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
             Install date
           </Text>
           <InstallDateField
@@ -615,15 +615,15 @@ export default function EditModScreen() {
           >
             <View
               className={`h-5 w-5 rounded border ${
-                dateIsApproximate ? 'border-accent bg-accent' : 'border-ink-500'
+                dateIsApproximate ? 'border-accent bg-accent' : 'border-apple-border'
               }`}
             />
-            <Text className="text-sm text-ink-200">Approximate date</Text>
+            <Text className="text-sm text-apple-secondary">Approximate date</Text>
           </Pressable>
         </View>
 
         <View className="mt-4">
-          <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
+          <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
             Notes
           </Text>
           <TextInput
@@ -632,14 +632,14 @@ export default function EditModScreen() {
             multiline
             numberOfLines={3}
             placeholder="Optional"
-            placeholderTextColor="#5A6373"
-            className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+            placeholderTextColor="#A1A1A6"
+            className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
             style={{ minHeight: 80, textAlignVertical: 'top' }}
           />
         </View>
 
         <View className="mt-4">
-          <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">
+          <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
             Privacy
           </Text>
           <View className="flex-row flex-wrap gap-2">
@@ -652,7 +652,7 @@ export default function EditModScreen() {
               />
             ))}
           </View>
-          <Text className="mt-2 text-xs text-ink-300">
+          <Text className="mt-2 text-xs text-apple-secondary">
             Switching to public creates a feed post if one does not exist yet.
           </Text>
         </View>
@@ -663,9 +663,9 @@ export default function EditModScreen() {
           className="mt-8 rounded-xl bg-accent py-3.5 active:bg-accent-dark disabled:opacity-60"
         >
           {submitting ? (
-            <ActivityIndicator color="#08090B" />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text className="text-center text-base font-semibold text-ink-950">
+            <Text className="text-center text-base font-semibold text-white">
               Save changes
             </Text>
           )}
@@ -674,7 +674,7 @@ export default function EditModScreen() {
         <Pressable
           onPress={handleDelete}
           disabled={submitting}
-          className="mt-3 rounded-xl border border-signal-red/50 py-3.5 active:bg-ink-900 disabled:opacity-60"
+          className="mt-3 rounded-xl border border-signal-red/50 py-3.5 active:bg-white disabled:opacity-60"
         >
           <Text className="text-center text-base font-semibold text-signal-red">
             Delete mod
@@ -698,11 +698,11 @@ function Chip({
     <Pressable
       onPress={onPress}
       className={`rounded-lg px-3 py-1.5 ${
-        active ? 'bg-accent' : 'border border-ink-700 bg-ink-900'
+        active ? 'bg-accent' : 'border border-apple-border bg-white'
       }`}
     >
       <Text
-        className={`text-sm ${active ? 'font-semibold text-ink-950' : 'text-ink-200'}`}
+        className={`text-sm ${active ? 'font-semibold text-apple-ink' : 'text-apple-secondary'}`}
       >
         {label}
       </Text>

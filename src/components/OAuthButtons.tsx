@@ -6,6 +6,7 @@ import {
   signInWithOAuthProvider,
   type OAuthProvider,
 } from '@/lib/oauth';
+import { colors } from '@/lib/theme';
 
 type Props = {
   /** Disable the buttons while another auth action is in progress. */
@@ -29,8 +30,6 @@ export function OAuthButtons({ disabled }: Props) {
       } else {
         await signInWithOAuthProvider(provider);
       }
-      // Successful auth lands in AuthProvider's onAuthStateChange and
-      // the root layout redirects to the tabs.
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not sign in';
       Alert.alert(`${labelFor(provider)} sign-in failed`, message);
@@ -41,22 +40,16 @@ export function OAuthButtons({ disabled }: Props) {
 
   return (
     <View className="gap-2">
-      {/* Apple — primary on iOS per Apple's HIG. */}
       {Platform.OS !== 'android' ? (
         <Pressable
           onPress={() => handle('apple')}
           disabled={disabled || working !== null}
-          className="flex-row items-center justify-center gap-2 rounded-xl bg-white py-3 active:opacity-80 disabled:opacity-60"
+          className="flex-row items-center justify-center gap-2 rounded-xl border border-apple-border bg-apple-ink py-3 active:opacity-80 disabled:opacity-60"
         >
           {working === 'apple' ? (
-            <ActivityIndicator color="#08090B" />
+            <ActivityIndicator color="#fff" />
           ) : (
-            <>
-              <Text className="text-base"></Text>
-              <Text className="text-base font-semibold text-ink-950">
-                Continue with Apple
-              </Text>
-            </>
+            <Text className="text-base font-semibold text-apple-ink">Continue with Apple</Text>
           )}
         </Pressable>
       ) : null}
@@ -64,16 +57,14 @@ export function OAuthButtons({ disabled }: Props) {
       <Pressable
         onPress={() => handle('google')}
         disabled={disabled || working !== null}
-        className="flex-row items-center justify-center gap-2 rounded-xl border border-ink-700 bg-ink-900 py-3 active:bg-ink-800 disabled:opacity-60"
+        className="flex-row items-center justify-center gap-2 rounded-xl border border-apple-border bg-white py-3 active:bg-apple-bg2 disabled:opacity-60"
       >
         {working === 'google' ? (
-          <ActivityIndicator color="#F5A524" />
+          <ActivityIndicator color={colors.accent} />
         ) : (
           <>
             <Text className="text-base font-bold text-accent">G</Text>
-            <Text className="text-base font-semibold text-white">
-              Continue with Google
-            </Text>
+            <Text className="text-base font-semibold text-apple-ink">Continue with Google</Text>
           </>
         )}
       </Pressable>

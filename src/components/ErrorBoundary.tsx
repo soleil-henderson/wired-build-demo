@@ -18,16 +18,16 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <View className="flex-1 items-center justify-center bg-ink-950 px-6">
-          <Text className="text-xl font-bold text-white">Something went wrong</Text>
-          <Text className="mt-2 text-center text-ink-300">
+        <View className="flex-1 items-center justify-center bg-apple-bg2 px-6">
+          <Text className="text-xl font-bold text-apple-ink">Something went wrong</Text>
+          <Text className="mt-2 text-center text-apple-secondary">
             {this.state.error.message || 'An unexpected error occurred.'}
           </Text>
           <Pressable
             onPress={() => this.setState({ error: null })}
-            className="mt-6 rounded-xl bg-accent px-5 py-3"
+            className="mt-6 rounded-xl bg-accent px-5 py-3 active:opacity-90"
           >
-            <Text className="font-semibold text-ink-950">Try again</Text>
+            <Text className="font-semibold text-white">Try again</Text>
           </Pressable>
         </View>
       );

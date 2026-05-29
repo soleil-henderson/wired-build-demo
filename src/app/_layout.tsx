@@ -15,14 +15,17 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { WebAppShell } from '@/components/layout/WebAppShell';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { subscribeToNotificationTaps } from '@/lib/push-notifications';
+import { stackScreenOptions } from '@/lib/theme';
 import { UnreadNotificationsProvider } from '@/lib/unread-notifications-context';
+
+const stackHeaderLight = stackScreenOptions;
 
 SplashScreen.preventAutoHideAsync();
 
@@ -71,24 +74,19 @@ function RootStack() {
       <Stack.Screen
         name="notifications"
         options={{
-          headerShown: true,
+          ...stackHeaderLight,
           title: 'Notifications',
-          headerStyle: { backgroundColor: '#0E1014' },
-          headerTintColor: '#E2E5EC',
-          headerTitleStyle: { color: '#E2E5EC' },
-          contentStyle: { backgroundColor: '#08090B' },
         }}
       />
       <Stack.Screen name="build" />
-      <Stack.Screen name="legal" options={{ headerShown: true }} />
-      <Stack.Screen name="settings" options={{ headerShown: true }} />
-      <Stack.Screen name="admin" options={{ headerShown: true }} />
+      <Stack.Screen name="legal" options={stackHeaderLight} />
+      <Stack.Screen name="settings" options={stackHeaderLight} />
+      <Stack.Screen name="admin" options={stackHeaderLight} />
     </Stack>
   );
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -111,14 +109,16 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <ErrorBoundary>
-          <AuthProvider>
-            <UnreadNotificationsProvider>
-              <RootStack />
-              <StatusBar style={colorScheme === 'light' ? 'dark' : 'light'} />
-            </UnreadNotificationsProvider>
-          </AuthProvider>
-        </ErrorBoundary>
+        <WebAppShell>
+          <ErrorBoundary>
+            <AuthProvider>
+              <UnreadNotificationsProvider>
+                <RootStack />
+                <StatusBar style="dark" />
+              </UnreadNotificationsProvider>
+            </AuthProvider>
+          </ErrorBoundary>
+        </WebAppShell>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

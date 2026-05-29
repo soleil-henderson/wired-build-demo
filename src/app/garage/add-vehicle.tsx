@@ -153,12 +153,12 @@ export default function AddVehicleScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-ink-950"
+      className="flex-1 bg-apple-bg2"
     >
       <Stack.Screen options={{ title: 'Add vehicle' }} />
       <ScrollView contentContainerClassName="px-6 pt-6 pb-24">
-        <Text className="text-3xl font-bold text-white">Add your 4WD</Text>
-        <Text className="mt-2 text-ink-300">
+        <Text className="text-3xl font-bold text-apple-ink">Add your 4WD</Text>
+        <Text className="mt-2 text-apple-secondary">
           The VIN is the spine of the whole record. Build history attaches to it and
           travels with the car.
         </Text>
@@ -173,20 +173,20 @@ export default function AddVehicleScreen() {
                 autoCorrect={false}
                 maxLength={17}
                 placeholder="1HGCM82633A123456"
-                placeholderTextColor="#5A6373"
-                className="flex-1 rounded-xl bg-ink-800 px-4 py-3 font-mono text-white"
+                placeholderTextColor="#A1A1A6"
+                className="flex-1 rounded-xl border border-apple-border bg-white px-4 py-3 font-mono text-apple-ink"
               />
               <Pressable
                 onPress={() => router.push('/garage/scan-vin')}
-                className="items-center justify-center rounded-xl border border-accent bg-ink-800 px-4 active:bg-ink-700"
+                className="items-center justify-center rounded-xl border border-accent bg-apple-bg2 px-4 active:opacity-80"
               >
                 <Text className="text-xs font-semibold text-accent">Scan</Text>
               </Pressable>
             </View>
             {decoding ? (
               <View className="mt-2 flex-row items-center gap-2">
-                <ActivityIndicator color="#F5A524" size="small" />
-                <Text className="text-xs text-ink-300">
+                <ActivityIndicator color="#FF6A2B" size="small" />
+                <Text className="text-xs text-apple-secondary">
                   Looking up vehicle from VIN…
                 </Text>
               </View>
@@ -195,7 +195,7 @@ export default function AddVehicleScreen() {
                 Auto-filled from VIN — review and edit anything that&apos;s wrong.
               </Text>
             ) : (
-              <Text className="mt-2 text-xs text-ink-300">
+              <Text className="mt-2 text-xs text-apple-secondary">
                 Tap <Text className="text-accent">Scan</Text> to read the
                 barcode on the driver&apos;s door jamb sticker.
               </Text>
@@ -211,8 +211,8 @@ export default function AddVehicleScreen() {
                   keyboardType="number-pad"
                   maxLength={4}
                   placeholder="2018"
-                  placeholderTextColor="#5A6373"
-                  className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+                  placeholderTextColor="#A1A1A6"
+                  className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
                 />
               </Field>
             </View>
@@ -222,8 +222,8 @@ export default function AddVehicleScreen() {
                   value={make}
                   onChangeText={setMake}
                   placeholder="Toyota"
-                  placeholderTextColor="#5A6373"
-                  className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+                  placeholderTextColor="#A1A1A6"
+                  className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
                 />
               </Field>
             </View>
@@ -236,8 +236,8 @@ export default function AddVehicleScreen() {
                   value={model}
                   onChangeText={setModel}
                   placeholder="LandCruiser 79"
-                  placeholderTextColor="#5A6373"
-                  className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+                  placeholderTextColor="#A1A1A6"
+                  className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
                 />
               </Field>
             </View>
@@ -247,8 +247,8 @@ export default function AddVehicleScreen() {
                   value={trim}
                   onChangeText={setTrim}
                   placeholder="GXL"
-                  placeholderTextColor="#5A6373"
-                  className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+                  placeholderTextColor="#A1A1A6"
+                  className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
                 />
               </Field>
             </View>
@@ -259,8 +259,8 @@ export default function AddVehicleScreen() {
               value={nickname}
               onChangeText={setNickname}
               placeholder="Project Patrol"
-              placeholderTextColor="#5A6373"
-              className="rounded-xl bg-ink-800 px-4 py-3 text-white"
+              placeholderTextColor="#A1A1A6"
+              className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
             />
           </Field>
 
@@ -271,17 +271,17 @@ export default function AddVehicleScreen() {
                 className={`flex-1 rounded-xl border px-4 py-3 ${
                   isPublic
                     ? 'border-accent bg-accent/15'
-                    : 'border-ink-700 bg-ink-900'
+                    : 'border-apple-border bg-white'
                 }`}
               >
                 <Text
                   className={`text-center font-semibold ${
-                    isPublic ? 'text-accent' : 'text-ink-200'
+                    isPublic ? 'text-accent' : 'text-apple-secondary'
                   }`}
                 >
                   Public
                 </Text>
-                <Text className="mt-1 text-center text-xs text-ink-300">
+                <Text className="mt-1 text-center text-xs text-apple-secondary">
                   Share link when you&apos;re ready
                 </Text>
               </Pressable>
@@ -290,17 +290,17 @@ export default function AddVehicleScreen() {
                 className={`flex-1 rounded-xl border px-4 py-3 ${
                   !isPublic
                     ? 'border-accent bg-accent/15'
-                    : 'border-ink-700 bg-ink-900'
+                    : 'border-apple-border bg-white'
                 }`}
               >
                 <Text
                   className={`text-center font-semibold ${
-                    !isPublic ? 'text-accent' : 'text-ink-200'
+                    !isPublic ? 'text-accent' : 'text-apple-secondary'
                   }`}
                 >
                   Private
                 </Text>
-                <Text className="mt-1 text-center text-xs text-ink-300">
+                <Text className="mt-1 text-center text-xs text-apple-secondary">
                   Only you until you change it
                 </Text>
               </Pressable>
@@ -314,9 +314,9 @@ export default function AddVehicleScreen() {
           className="mt-8 rounded-xl bg-accent py-3.5 active:bg-accent-dark disabled:opacity-60"
         >
           {submitting ? (
-            <ActivityIndicator color="#08090B" />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text className="text-center text-base font-semibold text-ink-950">
+            <Text className="text-center text-base font-semibold text-white">
               Add vehicle
             </Text>
           )}
@@ -329,7 +329,7 @@ export default function AddVehicleScreen() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View>
-      <Text className="mb-2 text-xs uppercase tracking-wider text-ink-300">{label}</Text>
+      <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">{label}</Text>
       {children}
     </View>
   );

@@ -36,7 +36,7 @@ export default function SavedSearchesScreen() {
   );
 
   return (
-    <ScrollView className="flex-1 bg-ink-950" contentContainerClassName="pb-12">
+    <ScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="pb-12">
       <Stack.Screen options={{ title: 'Saved searches' }} />
       <ScreenHeader
         eyebrow="EXPLORE"
@@ -44,9 +44,9 @@ export default function SavedSearchesScreen() {
         subtitle="Member perk — quick access to Explore queries you saved."
       />
       {loading ? (
-        <ActivityIndicator color="#F5A524" className="mt-8" />
+        <ActivityIndicator color="#FF6A2B" className="mt-8" />
       ) : items.length === 0 ? (
-        <Text className="mx-6 mt-6 text-ink-300">
+        <Text className="mx-6 mt-6 text-apple-secondary">
           No saved searches yet. Run a search on Explore and tap Save this search.
         </Text>
       ) : (
@@ -54,9 +54,9 @@ export default function SavedSearchesScreen() {
           {items.map((item) => (
             <View
               key={item.id}
-              className="flex-row items-center justify-between rounded-xl border border-ink-700 bg-ink-900 px-4 py-3"
+              className="flex-row items-center justify-between rounded-xl border border-apple-border bg-white px-4 py-3"
             >
-              <Text className="flex-1 font-medium text-white">{item.query}</Text>
+              <Text className="flex-1 font-medium text-apple-ink">{item.query}</Text>
               <Pressable
                 onPress={() => {
                   Alert.alert('Remove search?', item.query, [

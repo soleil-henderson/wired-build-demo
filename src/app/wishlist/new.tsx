@@ -120,7 +120,7 @@ export default function WishlistNewScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-ink-950"
+      className="flex-1 bg-apple-bg2"
     >
       <Stack.Screen options={{ title: 'Add to wishlist' }} />
       <ScrollView
@@ -130,12 +130,12 @@ export default function WishlistNewScreen() {
         {/* Part picker */}
         <Section title="Part">
           {selectedPart ? (
-            <View className="flex-row items-start gap-3 rounded-2xl border border-accent/60 bg-ink-900 p-3">
+            <View className="flex-row items-start gap-3 rounded-2xl border border-accent/60 bg-white p-3">
               <View className="flex-1">
                 <Text className="text-[11px] uppercase tracking-wider text-accent">
                   {selectedPart.category.replace('_', ' ')}
                 </Text>
-                <Text className="mt-1 font-semibold text-white">
+                <Text className="mt-1 font-semibold text-apple-ink">
                   {selectedPart.brand} {selectedPart.name}
                 </Text>
               </View>
@@ -144,22 +144,22 @@ export default function WishlistNewScreen() {
                   setSelectedPart(null);
                   setPartQuery('');
                 }}
-                className="rounded-lg border border-ink-600 px-3 py-1.5"
+                className="rounded-lg border border-apple-border px-3 py-1.5"
               >
-                <Text className="text-xs text-ink-200">Change</Text>
+                <Text className="text-xs text-apple-secondary">Change</Text>
               </Pressable>
             </View>
           ) : customMode ? (
-            <View className="rounded-2xl border border-ink-700 bg-ink-900 p-3">
-              <Text className="text-[11px] uppercase tracking-wider text-ink-300">
+            <View className="rounded-2xl border border-apple-border bg-white p-3">
+              <Text className="text-[11px] uppercase tracking-wider text-apple-secondary">
                 Custom item
               </Text>
               <TextInput
                 value={customName}
                 onChangeText={setCustomName}
                 placeholder='e.g. "Stedi Type-X 32&quot; light bar"'
-                placeholderTextColor="#5A6373"
-                className="mt-2 rounded-lg bg-ink-800 px-3 py-2 text-white"
+                placeholderTextColor="#A1A1A6"
+                className="mt-2 rounded-lg bg-apple-bg2 px-3 py-2 text-apple-ink"
               />
               <Pressable
                 onPress={() => {
@@ -168,7 +168,7 @@ export default function WishlistNewScreen() {
                 }}
                 className="mt-3 self-start"
               >
-                <Text className="text-xs text-ink-300 underline">Back to catalogue search</Text>
+                <Text className="text-xs text-apple-secondary underline">Back to catalogue search</Text>
               </Pressable>
             </View>
           ) : (
@@ -177,15 +177,15 @@ export default function WishlistNewScreen() {
                 value={partQuery}
                 onChangeText={setPartQuery}
                 placeholder="Search brand or part name…"
-                placeholderTextColor="#5A6373"
-                className="rounded-lg bg-ink-900 px-3 py-2 text-white"
+                placeholderTextColor="#A1A1A6"
+                className="rounded-lg bg-white px-3 py-2 text-apple-ink"
                 autoCapitalize="none"
                 autoCorrect={false}
               />
               {searching ? (
-                <ActivityIndicator color="#F5A524" className="mt-2" />
+                <ActivityIndicator color="#FF6A2B" className="mt-2" />
               ) : partResults.length > 0 ? (
-                <View className="mt-2 overflow-hidden rounded-xl border border-ink-700">
+                <View className="mt-2 overflow-hidden rounded-xl border border-apple-border">
                   {partResults.map((p) => (
                     <Pressable
                       key={p.id}
@@ -195,19 +195,19 @@ export default function WishlistNewScreen() {
                         setPartQuery('');
                         setPartResults([]);
                       }}
-                      className="border-b border-ink-700 bg-ink-900 px-3 py-2 active:bg-ink-800"
+                      className="border-b border-apple-border bg-white px-3 py-2 active:bg-apple-bg2"
                     >
-                      <Text className="text-white">
+                      <Text className="text-apple-ink">
                         <Text className="font-semibold">{p.brand}</Text> {p.name}
                       </Text>
-                      <Text className="text-[11px] uppercase tracking-wider text-ink-300">
+                      <Text className="text-[11px] uppercase tracking-wider text-apple-secondary">
                         {p.category.replace('_', ' ')}
                       </Text>
                     </Pressable>
                   ))}
                 </View>
               ) : partQuery.trim().length >= 2 ? (
-                <Text className="mt-2 text-sm text-ink-300">No matches yet.</Text>
+                <Text className="mt-2 text-sm text-apple-secondary">No matches yet.</Text>
               ) : null}
 
               <Pressable
@@ -230,12 +230,12 @@ export default function WishlistNewScreen() {
                 className={`rounded-full border px-3 py-1.5 ${
                   category === c.value
                     ? 'border-accent bg-accent/20'
-                    : 'border-ink-700 bg-ink-900'
+                    : 'border-apple-border bg-white'
                 }`}
               >
                 <Text
                   className={`text-xs ${
-                    category === c.value ? 'font-semibold text-accent' : 'text-ink-200'
+                    category === c.value ? 'font-semibold text-accent' : 'text-apple-secondary'
                   }`}
                 >
                   {c.label}
@@ -251,9 +251,9 @@ export default function WishlistNewScreen() {
             value={targetCost}
             onChangeText={setTargetCost}
             placeholder="Leave blank if you're not sure"
-            placeholderTextColor="#5A6373"
+            placeholderTextColor="#A1A1A6"
             keyboardType="decimal-pad"
-            className="rounded-lg bg-ink-900 px-3 py-2 text-white"
+            className="rounded-lg bg-white px-3 py-2 text-apple-ink"
           />
         </Section>
 
@@ -267,18 +267,18 @@ export default function WishlistNewScreen() {
                 className={`flex-row items-center justify-between rounded-xl border px-3 py-2.5 ${
                   priority === p.value
                     ? 'border-accent bg-accent/15'
-                    : 'border-ink-700 bg-ink-900'
+                    : 'border-apple-border bg-white'
                 }`}
               >
                 <View>
                   <Text
                     className={`text-sm font-semibold ${
-                      priority === p.value ? 'text-accent' : 'text-white'
+                      priority === p.value ? 'text-accent' : 'text-apple-ink'
                     }`}
                   >
                     {p.label}
                   </Text>
-                  <Text className="text-[11px] text-ink-300">{p.hint}</Text>
+                  <Text className="text-[11px] text-apple-secondary">{p.hint}</Text>
                 </View>
                 {priority === p.value ? (
                   <Text className="text-accent">✓</Text>
@@ -294,9 +294,9 @@ export default function WishlistNewScreen() {
             value={notes}
             onChangeText={setNotes}
             placeholder='e.g. "Wait for end-of-financial-year sales"'
-            placeholderTextColor="#5A6373"
+            placeholderTextColor="#A1A1A6"
             multiline
-            className="min-h-[80px] rounded-lg bg-ink-900 px-3 py-2 text-white"
+            className="min-h-[80px] rounded-lg bg-white px-3 py-2 text-apple-ink"
           />
         </Section>
 
@@ -306,9 +306,9 @@ export default function WishlistNewScreen() {
           className="mt-6 rounded-xl bg-accent px-5 py-3.5 active:bg-accent-dark disabled:opacity-60"
         >
           {submitting ? (
-            <ActivityIndicator color="#08090B" />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text className="text-center text-base font-semibold text-ink-950">
+            <Text className="text-center text-base font-semibold text-white">
               Add to wishlist
             </Text>
           )}
@@ -321,7 +321,7 @@ export default function WishlistNewScreen() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View className="mt-5">
-      <Text className="mb-2 text-[11px] font-semibold uppercase tracking-[2px] text-ink-300">
+      <Text className="mb-2 text-[11px] font-semibold uppercase tracking-[2px] text-apple-secondary">
         {title}
       </Text>
       {children}
