@@ -1,6 +1,5 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { supabase } from './supabase';
@@ -12,34 +11,12 @@ import { supabase } from './supabase';
  *     client just has to keep `users.push_token` accurate.
  *   - Client side: register on sign-in, clear on sign-out, route to
  *     `data.url` when the user taps a notification.
+ *
+ * expo-notifications is loaded lazily so Expo Go (SDK 53+) without an EAS
+ * project id does not import the native module or spam the dev console.
  */
 
-// Foreground display: show banners even when the app is open, so a comment
-// landing while the user is in the Feed is still visible.
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    // Badge count is synced from the notifications table via setAppBadgeCount.
-    shouldSetBadge: false,
-  }),
-});
-
-/** Sync the iOS home-screen app icon badge (no-op on web/Android). */
-export async function setAppBadgeCount(count: number): Promise<void> {
-  if (Platform.OS !== 'ios') return;
-  try {
-    await Notifications.setBadgeCountAsync(Math.max(0, count));
-  } catch (err) {
-    console.warn('[push] failed to set badge count', err);
-  }
-}
-
-function getProjectId(): string | undefined {
-  // SDK 54 / EAS: the project id lives in expoConfig.extra.eas.projectId
-  // once `eas init` has been run. Pre-EAS / dev: undefined — we still try
-  // to get a token because Expo Go's legacy fallback works without one.
+export function getEasProjectId(): string | undefined {
   const cfg = Constants.expoConfig as
     | { extra?: { eas?: { projectId?: string } } }
     | null
@@ -47,6 +24,53 @@ function getProjectId(): string | undefined {
   const eas = (Constants as unknown as { easConfig?: { projectId?: string } })
     .easConfig;
   return cfg?.extra?.eas?.projectId ?? eas?.projectId;
+}
+
+/** Remote push tokens are unavailable in Expo Go until `eas init` adds a project id. */
+export function isRemotePushSupported(): boolean {
+  if (Platform.OS === 'web') return false;
+  if (!Device.isDevice) return false;
+  if (Constants.appOwnership === 'expo') {
+    return Boolean(getEasProjectId());
+  }
+  return true;
+}
+
+type NotificationsModule = typeof import('expo-notifications');
+
+let notificationsModule: NotificationsModule | null = null;
+let notificationsLoad: Promise<NotificationsModule | null> | null = null;
+
+async function loadNotifications(): Promise<NotificationsModule | null> {
+  if (!isRemotePushSupported()) return null;
+  if (notificationsModule) return notificationsModule;
+  if (!notificationsLoad) {
+    notificationsLoad = import('expo-notifications').then((mod) => {
+      mod.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: false,
+          shouldSetBadge: false,
+        }),
+      });
+      notificationsModule = mod;
+      return mod;
+    });
+  }
+  return notificationsLoad;
+}
+
+/** Sync the iOS home-screen app icon badge (no-op on web/Android/Expo Go without EAS). */
+export async function setAppBadgeCount(count: number): Promise<void> {
+  if (Platform.OS !== 'ios') return;
+  const Notifications = await loadNotifications();
+  if (!Notifications) return;
+  try {
+    await Notifications.setBadgeCountAsync(Math.max(0, count));
+  } catch (err) {
+    console.warn('[push] failed to set badge count', err);
+  }
 }
 
 /**
@@ -60,9 +84,11 @@ function getProjectId(): string | undefined {
 export async function registerForPushNotificationsAsync(
   userId: string
 ): Promise<string | null> {
-  if (!Device.isDevice) return null;
+  if (!isRemotePushSupported()) return null;
 
-  // Android needs a channel before tokens can be issued.
+  const Notifications = await loadNotifications();
+  if (!Notifications) return null;
+
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'default',
@@ -80,16 +106,14 @@ export async function registerForPushNotificationsAsync(
   }
   if (status !== 'granted') return null;
 
+  const projectId = getEasProjectId();
+  if (!projectId) return null;
+
   let token: string;
   try {
-    const projectId = getProjectId();
-    const res = await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined
-    );
+    const res = await Notifications.getExpoPushTokenAsync({ projectId });
     token = res.data;
   } catch (err) {
-    // Expo Go without an EAS project id will fall back to legacy; if even
-    // that fails (e.g. tunnelled session without project) we silently bail.
     console.warn('[push] could not fetch Expo push token', err);
     return null;
   }
@@ -127,11 +151,25 @@ export async function clearPushToken(userId: string): Promise<void> {
 export function subscribeToNotificationTaps(
   navigate: (url: string) => void
 ): () => void {
-  const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-    const data = response.notification.request.content.data as { url?: string };
-    if (data?.url) {
-      navigate(data.url);
-    }
+  if (!isRemotePushSupported()) return () => {};
+
+  let removed = false;
+  let removeListener: (() => void) | undefined;
+
+  void loadNotifications().then((Notifications) => {
+    if (!Notifications || removed) return;
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as { url?: string };
+      if (data?.url) {
+        navigate(data.url);
+      }
+    });
+    removeListener = () => sub.remove();
+    if (removed) removeListener();
   });
-  return () => sub.remove();
+
+  return () => {
+    removed = true;
+    removeListener?.();
+  };
 }

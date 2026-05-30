@@ -1,4 +1,4 @@
-import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,6 +13,9 @@ import {
   View,
 } from 'react-native';
 
+import { ProductPriceRangeCard } from '@/components/product/ProductPriceRangeCard';
+import { ModsUsingProductSection } from '@/components/product/ModsUsingProductSection';
+import { WhereToBuySection } from '@/components/product/WhereToBuySection';
 import { UserBadges } from '@/components/UserBadges';
 import { showAppAlert } from '@/lib/app-alert';
 import { useAuth } from '@/lib/auth-context';
@@ -34,9 +37,12 @@ import {
   type ReviewWithAuthor,
 } from '@/lib/reviews';
 import { extractAffiliate } from '@/lib/affiliate';
+import type { ShoppingOffer } from '@/lib/mod-products';
+import { fetchProductShopping } from '@/lib/product-resolve';
 import { getUserSubscriptionTier, hasMemberAffiliateRates } from '@/lib/subscription';
 import { addWishlistItem } from '@/lib/wishlist';
 import { routeParam } from '@/lib/route-param';
+import { useFocusData } from '@/lib/use-focus-data';
 import type { ModCategory } from '@/types/database';
 
 export default function PartDetailScreen() {
@@ -54,6 +60,10 @@ export default function PartDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [memberAffiliate, setMemberAffiliate] = useState(false);
+  const [shopping, setShopping] = useState<ShoppingOffer[]>([]);
+  const [shoppingSearchUrl, setShoppingSearchUrl] = useState<string | null>(null);
+  const [shoppingLoading, setShoppingLoading] = useState(true);
+  const [shoppingError, setShoppingError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) {
@@ -76,6 +86,31 @@ export default function PartDetailScreen() {
       setInstalls(i);
       setReviews(rv);
       setMyReview(mine);
+
+      if (p) {
+        setShoppingLoading(true);
+        setShoppingError(null);
+        const aff = extractAffiliate(p.affiliate_links, {
+          memberRates: hasMemberAffiliateRates(tier),
+          region: 'au',
+        });
+        const primaryUrl = aff?.url ?? null;
+        fetchProductShopping({
+          query: `${p.brand} ${p.name}`,
+          url: primaryUrl,
+        })
+          .then((result) => {
+            setShopping(result.shopping);
+            setShoppingSearchUrl(result.shopping_search_url);
+            setShoppingError(result.error ?? null);
+          })
+          .catch((err) => {
+            setShopping([]);
+            setShoppingSearchUrl(null);
+            setShoppingError(err instanceof Error ? err.message : 'Could not load prices');
+          })
+          .finally(() => setShoppingLoading(false));
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load part';
       Alert.alert('Error', message);
@@ -85,10 +120,18 @@ export default function PartDetailScreen() {
     }
   }, [id, session?.user.id]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
+  const resetEntity = useCallback(() => {
+    setPart(null);
+    setLoading(true);
+  }, []);
+
+  useFocusData(
+    async ({ isInitial }) => {
+      if (isInitial) setLoading(true);
+      await load();
+    },
+    [load],
+    { cacheKey: id, onCacheKeyChange: resetEntity }
   );
 
   async function handleAffiliate(url: string) {
@@ -129,7 +172,7 @@ export default function PartDetailScreen() {
       });
       showAppAlert(
         'Saved',
-        `${part.brand} ${part.name} added to your wishlist. View it from Profile → My wishlist.`
+        `${part.brand} ${part.name} added to your wishlist. View it from Garage → Saved parts.`
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not save';
@@ -139,7 +182,7 @@ export default function PartDetailScreen() {
     }
   }
 
-  if (loading) {
+  if (loading && !part) {
     return (
       <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'Part' }} />
@@ -272,6 +315,40 @@ export default function PartDetailScreen() {
         </View>
       </View>
 
+      <View className="px-6 pt-6">
+        <ProductPriceRangeCard
+          offers={shopping}
+          targetPrice={stats?.averageCost ?? null}
+          targetLabel="Avg install cost"
+          loading={shoppingLoading}
+          error={shoppingError}
+          shoppingSearchUrl={shoppingSearchUrl}
+        />
+      </View>
+
+      <View className="px-6 pt-6">
+        <WhereToBuySection
+          offers={shopping}
+          shoppingSearchUrl={shoppingSearchUrl}
+          extraLinks={(() => {
+            const aff = extractAffiliate(part.affiliate_links, {
+              memberRates: memberAffiliate,
+              region: 'au',
+            });
+            return aff
+              ? [
+                  {
+                    url: aff.url,
+                    label: aff.label ?? part.brand,
+                    subtitle: `${part.brand} ${part.name}`,
+                  },
+                ]
+              : [];
+          })()}
+          onOpenLink={(url) => handleAffiliate(url)}
+        />
+      </View>
+
       {/* ---- Reviews ---- */}
       <ReviewsSection
         partLabel={`${part.brand} ${part.name}`}
@@ -309,90 +386,7 @@ export default function PartDetailScreen() {
         onOpenUser={(handle) => router.push(`/user/${handle}`)}
       />
 
-      {/* ---- Recent installs ---- */}
-      <View className="px-6 pt-6">
-        <Text className="text-xs font-semibold uppercase tracking-[2px] text-apple-secondary">
-          Recent installs
-        </Text>
-        {installs.length === 0 ? (
-          <View className="mt-3 rounded-2xl border border-apple-border bg-white p-5">
-            <Text className="text-base font-semibold text-apple-secondary">
-              No public installs yet
-            </Text>
-            <Text className="mt-1 text-sm text-apple-secondary">
-              Be the first to log this part on one of your builds.
-            </Text>
-          </View>
-        ) : (
-          <View className="mt-3 gap-3">
-            {installs.map((row) => (
-              <Pressable
-                key={row.modId}
-                onPress={() => {
-                  if (row.vehicle?.id) router.push(`/vehicle/${row.vehicle.id}`);
-                }}
-                disabled={!row.vehicle?.id}
-                className="overflow-hidden rounded-2xl border border-apple-border bg-white active:bg-apple-bg2"
-              >
-                {row.photoUrl ? (
-                  <Image
-                    source={{ uri: row.photoUrl }}
-                    className="h-44 w-full bg-apple-bg2"
-                    resizeMode="cover"
-                  />
-                ) : null}
-                <View className="p-4">
-                  <View className="flex-row items-center gap-2">
-                    {row.owner ? (
-                      <Pressable
-                        onPress={() => router.push(`/user/${row.owner!.handle}`)}
-                        className="flex-row items-center gap-2 active:opacity-80"
-                      >
-                        {row.owner.avatar_url ? (
-                          <Image
-                            source={{ uri: row.owner.avatar_url }}
-                            className="h-7 w-7 rounded-full bg-apple-bg2"
-                          />
-                        ) : (
-                          <View className="h-7 w-7 items-center justify-center rounded-full bg-apple-bg2">
-                            <Text className="text-[10px] font-bold text-apple-ink">
-                              {(row.owner.display_name || row.owner.handle || '?')[0].toUpperCase()}
-                            </Text>
-                          </View>
-                        )}
-                        <Text className="text-sm font-semibold text-apple-ink">
-                          @{row.owner.handle}
-                        </Text>
-                        <UserBadges user={row.owner} />
-                      </Pressable>
-                    ) : null}
-                    <Text className="ml-auto text-[11px] text-apple-secondary">
-                      {formatDate(row.installDate)}
-                      {row.dateIsApproximate ? ' ~' : ''}
-                    </Text>
-                  </View>
-                  {row.vehicle ? (
-                    <Text className="mt-2 text-xs uppercase tracking-wider text-apple-secondary">
-                      {row.vehicle.nickname ??
-                        `${row.vehicle.year} ${row.vehicle.make} ${row.vehicle.model}`}
-                    </Text>
-                  ) : null}
-                  <View className="mt-2 flex-row items-center justify-between">
-                    <Text className="text-xs text-apple-secondary">
-                      {labelForInstaller(row.installerType)}
-                    </Text>
-                    <Text className="text-sm font-semibold text-apple-ink">
-                      {row.cost == null
-                        ? '—'
-                        : `${row.costIsApproximate ? '~' : ''}$${Number(row.cost).toLocaleString()}`}
-                    </Text>
-                  </View>
-                </View>
-              </Pressable>
-            ))}
-          </View>
-        )}
-      </View>
+      <ModsUsingProductSection installs={installs} />
     </ScrollView>
   );
 }

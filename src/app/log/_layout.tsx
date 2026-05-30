@@ -1,7 +1,5 @@
-import { Stack } from 'expo-router';
+import { ThemeStack } from '@/components/navigation/ThemeStack';
 
-import { stackScreenOptions } from '@/lib/theme';
-
-export default function LogStackLayout() {
-  return <Stack screenOptions={stackScreenOptions} />;
+export default function LogLayout() {
+  return <ThemeStack />;
 }

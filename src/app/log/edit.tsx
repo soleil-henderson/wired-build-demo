@@ -5,14 +5,14 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+
+import { KeyboardSafeScrollView } from '@/components/ui/KeyboardSafeView';
 
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -25,8 +25,25 @@ import {
   type ModPhoto,
 } from '@/lib/mods';
 import { InstallDateField } from '@/components/InstallDateField';
+import { ModToolsForm } from '@/components/mods/ModToolsForm';
+import {
+  ExtraProductUrlField,
+  ProductUrlResolver,
+} from '@/components/social/ProductUrlResolver';
+import { emptyProductLinks } from '@/lib/mod-products';
 import { extractReceiptCostFromImage } from '@/lib/receipt-ocr';
+import {
+  parseProductLinks,
+  serializeProductLinks,
+  type ModProductLinks,
+} from '@/lib/mod-products';
 import { attachReceiptToMod, removeReceiptFromMod } from '@/lib/receipts';
+import {
+  listModTools,
+  modToolToDraft,
+  saveModTools,
+  type ModToolDraft,
+} from '@/lib/mod-tools';
 import { canUseReceiptOcr, getUserSubscriptionTier } from '@/lib/subscription';
 import { searchWorkshops, type WorkshopUser } from '@/lib/workshops';
 import type { InstallerType, ModCategory, ModPrivacy } from '@/types/database';
@@ -94,6 +111,8 @@ export default function EditModScreen() {
   const [dateIsApproximate, setDateIsApproximate] = useState(false);
   const [notes, setNotes] = useState('');
   const [privacy, setPrivacy] = useState<ModPrivacy>('public');
+  const [productLinks, setProductLinks] = useState<ModProductLinks>(emptyProductLinks());
+  const [tools, setTools] = useState<ModToolDraft[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<ModPhoto[]>([]);
   const [removedPhotoIds, setRemovedPhotoIds] = useState<string[]>([]);
   const [newPhotos, setNewPhotos] = useState<PendingPhoto[]>([]);
@@ -129,6 +148,9 @@ export default function EditModScreen() {
       setDateIsApproximate(m.date_is_approximate);
       setNotes(m.notes ?? '');
       setPrivacy(m.privacy);
+      setProductLinks(parseProductLinks(m.product_links));
+      const modTools = await listModTools(modId).catch(() => []);
+      setTools(modTools.map(modToolToDraft));
       setExistingPhotos(m.photos);
       setRemovedPhotoIds([]);
       setNewPhotos([]);
@@ -308,7 +330,10 @@ export default function EditModScreen() {
         notes: notes.trim() || null,
         privacy,
         custom_part_name: mod.part_id ? null : customPartName.trim() || null,
+        product_links: serializeProductLinks(productLinks),
       });
+
+      await saveModTools(mod.id, tools);
 
       for (const mediaId of removedPhotoIds) {
         await deleteModMedia(mediaId);
@@ -388,12 +413,9 @@ export default function EditModScreen() {
     : mod.custom_part_name ?? 'Custom part';
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-apple-bg2"
-    >
+    <>
       <Stack.Screen options={{ title: 'Edit mod' }} />
-      <ScrollView contentContainerClassName="px-6 pt-6 pb-24">
+      <KeyboardSafeScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="px-6 pt-6">
         <Text className="text-apple-secondary">
           Update install details. The catalogue part cannot be swapped after
           logging — delete and re-log if you picked the wrong item.
@@ -624,6 +646,67 @@ export default function EditModScreen() {
 
         <View className="mt-4">
           <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
+            Product link
+          </Text>
+          <ProductUrlResolver
+            productLinks={productLinks}
+            onProductLinksChange={setProductLinks}
+            resolvedPart={
+              mod.part
+                ? { brand: mod.part.brand, name: mod.part.name }
+                : mod.custom_part_name
+                  ? { brand: 'Custom', name: mod.custom_part_name }
+                  : null
+            }
+            onPartResolved={() => {}}
+            onClearPart={() => setProductLinks(emptyProductLinks())}
+          />
+          {productLinks.extras.map((extra, i) => (
+            <View key={i} className="mt-3">
+              <ExtraProductUrlField
+                url={extra.url}
+                purpose={extra.purpose ?? ''}
+                onChangeUrl={(url) => {
+                  const extras = [...productLinks.extras];
+                  extras[i] = { ...extras[i], url };
+                  setProductLinks({ ...productLinks, extras });
+                }}
+                onChangePurpose={(purpose) => {
+                  const extras = [...productLinks.extras];
+                  extras[i] = { ...extras[i], purpose };
+                  setProductLinks({ ...productLinks, extras });
+                }}
+                onRemove={() =>
+                  setProductLinks({
+                    ...productLinks,
+                    extras: productLinks.extras.filter((_, idx) => idx !== i),
+                  })
+                }
+              />
+            </View>
+          ))}
+          <Pressable
+            onPress={() =>
+              setProductLinks({
+                ...productLinks,
+                extras: [...productLinks.extras, { name: '', url: '', purpose: '' }],
+              })
+            }
+            className="mt-3 flex-row items-center justify-center gap-2 rounded-xl border border-dashed border-apple-border py-3"
+          >
+            <Text className="font-semibold text-accent">+ Add another product link</Text>
+          </Pressable>
+        </View>
+
+        <View className="mt-4">
+          <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
+            Tools used (optional)
+          </Text>
+          <ModToolsForm tools={tools} onChange={setTools} />
+        </View>
+
+        <View className="mt-4">
+          <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
             Notes
           </Text>
           <TextInput
@@ -680,8 +763,8 @@ export default function EditModScreen() {
             Delete mod
           </Text>
         </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardSafeScrollView>
+    </>
   );
 }
 

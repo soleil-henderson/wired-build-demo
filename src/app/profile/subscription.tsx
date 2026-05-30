@@ -1,4 +1,4 @@
-import { Stack, useFocusEffect } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,64 +16,10 @@ import {
   restoreIosPurchases,
   startSubscriptionCheckout,
 } from '@/lib/payments';
+import { SUBSCRIPTION_TIER_CATALOG, tierPriceLabel } from '@/lib/subscription-tiers';
 import { supabase } from '@/lib/supabase';
+import { useFocusData } from '@/lib/use-focus-data';
 import type { SubscriptionTier } from '@/types/database';
-
-type TierMeta = {
-  id: SubscriptionTier;
-  label: string;
-  pitch: string;
-  perks: string[];
-};
-
-const TIERS: TierMeta[] = [
-  {
-    id: 'free',
-    label: 'Free',
-    pitch: 'Track your builds with no limits on mods or photos.',
-    perks: [
-      'Up to 3 vehicles in your garage',
-      'Unlimited mod logging + photos',
-      'Public build profile',
-      'Read-only access to parts catalogue',
-    ],
-  },
-  {
-    id: 'member',
-    label: 'Member',
-    pitch: 'For builders who want to share and discover.',
-    perks: [
-      'Unlimited vehicles',
-      'Member-rate affiliate links on the parts catalogue',
-      'Comment + react on any public build',
-      'Saved searches in Explore',
-    ],
-  },
-  {
-    id: 'pro',
-    label: 'Pro',
-    pitch: 'For serious builders + content creators.',
-    perks: [
-      'Everything in Member',
-      'PRO badge on your profile and posts',
-      'Detailed spend analytics + export to CSV',
-      'Receipt OCR + auto-extracted cost / supplier',
-      'Priority verification review',
-    ],
-  },
-  {
-    id: 'workshop',
-    label: 'Workshop',
-    pitch: 'For installers, retailers and shops.',
-    perks: [
-      'Everything in Pro',
-      'WORKSHOP badge + verified business profile',
-      'Tag your installs on customer vehicles',
-      'Inventory cross-sell on the parts catalogue',
-      'Lead generation from Explore search',
-    ],
-  },
-];
 
 export default function SubscriptionScreen() {
   const { session } = useAuth();
@@ -90,11 +36,7 @@ export default function SubscriptionScreen() {
     if (data?.subscription_tier) setCurrentTier(data.subscription_tier);
   }, [session]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  useFocusData(() => load(), [load], { cacheKey: session?.user.id });
 
   async function handleUpgrade(tier: SubscriptionTier) {
     setBusy(tier);
@@ -147,7 +89,7 @@ export default function SubscriptionScreen() {
       </View>
 
       <View className="mt-6 gap-3 px-6">
-        {TIERS.map((tier) => {
+        {SUBSCRIPTION_TIER_CATALOG.map((tier) => {
           const isCurrent = tier.id === currentTier;
           return (
             <View
@@ -155,21 +97,34 @@ export default function SubscriptionScreen() {
               className={`rounded-2xl border p-5 ${
                 isCurrent
                   ? 'border-accent bg-accent/10'
-                  : 'border-apple-border bg-white'
+                  : tier.featured
+                    ? 'border-forest bg-forest/5'
+                    : 'border-apple-border bg-white'
               }`}
             >
               <View className="flex-row items-center justify-between">
-                <Text
-                  className={`text-lg font-bold ${
-                    isCurrent ? 'text-accent' : 'text-apple-ink'
-                  }`}
-                >
-                  {tier.label}
-                </Text>
+                <View>
+                  <Text
+                    className={`text-lg font-bold ${
+                      isCurrent ? 'text-accent' : 'text-apple-ink'
+                    }`}
+                  >
+                    {tier.label}
+                  </Text>
+                  <Text className="mt-0.5 text-sm font-semibold text-apple-secondary">
+                    {tierPriceLabel(tier.id)}
+                  </Text>
+                </View>
                 {isCurrent ? (
                   <View className="rounded-full bg-accent px-2 py-0.5">
                     <Text className="text-[10px] font-bold uppercase tracking-wider text-white">
                       Current
+                    </Text>
+                  </View>
+                ) : tier.featured ? (
+                  <View className="rounded-full bg-forest px-2 py-0.5">
+                    <Text className="text-[10px] font-bold uppercase tracking-wider text-white">
+                      Popular
                     </Text>
                   </View>
                 ) : null}
@@ -192,9 +147,7 @@ export default function SubscriptionScreen() {
                   {busy === tier.id ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
-                    <Text className="font-semibold text-white">
-                      Upgrade to {tier.label}
-                    </Text>
+                    <Text className="font-semibold text-white">{tier.ctaLabel}</Text>
                   )}
                 </Pressable>
               ) : null}

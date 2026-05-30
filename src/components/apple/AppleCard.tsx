@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { View, type ViewProps } from 'react-native';
 
+import { useTheme } from '@/lib/theme-context';
 import { cardShadow, colors } from '@/lib/theme';
 
 type Props = ViewProps & {
@@ -8,14 +9,16 @@ type Props = ViewProps & {
   padded?: boolean;
 };
 
-/** White card with Apple-style border radius and subtle shadow. */
+/** Themed card with border radius and subtle shadow. */
 export function AppleCard({ children, padded = false, style, ...rest }: Props) {
+  const { theme } = useTheme();
+
   return (
     <View
       style={[
         {
           backgroundColor: colors.surface,
-          borderRadius: 18,
+          borderRadius: theme.borderRadius.card,
           borderWidth: 1,
           borderColor: colors.border,
           overflow: 'hidden',

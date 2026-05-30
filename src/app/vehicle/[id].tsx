@@ -1,9 +1,4 @@
-import {
-  Stack,
-  useFocusEffect,
-  useLocalSearchParams,
-  useRouter,
-} from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,21 +9,22 @@ import {
   RefreshControl,
   ScrollView,
   Linking,
-  Share,
   Text,
   View,
 } from 'react-native';
 
 import { useAuth } from '@/lib/auth-context';
+import { useFocusData } from '@/lib/use-focus-data';
 import { buildCsvExport, csvExportFilename, shareCsvExport } from '@/lib/export-build';
 import { listVehicleMods, type ModWithPart } from '@/lib/mods';
+import { navigateToModDetail } from '@/lib/mod-nav';
 import { getReceiptSignedUrl } from '@/lib/receipts';
 import { canExportBuildData, getUserSubscriptionTier } from '@/lib/subscription';
 import {
   listOwnershipHistory,
   type OwnershipTransferRow,
 } from '@/lib/ownership';
-import { publicBuildUrl } from '@/lib/public-build';
+import { sharePublicBuild } from '@/lib/share-build';
 import { routeParam } from '@/lib/route-param';
 import { buildValueFootnote, buildValueLabel } from '@/lib/valuation';
 import { supabase } from '@/lib/supabase';
@@ -39,12 +35,13 @@ import {
   type WishlistItem,
 } from '@/lib/wishlist';
 import type { Database } from '@/types/database';
+import { SaveButton } from '@/components/social/SaveButton';
 import { VehicleGarageHub } from '@/components/vehicle/VehicleGarageHub';
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
 export default function VehicleProfileScreen() {
-  const params = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; tab?: string }>();
   const id = routeParam(params.id);
   const router = useRouter();
   const { session, isLoading: authLoading } = useAuth();
@@ -57,7 +54,7 @@ export default function VehicleProfileScreen() {
 
   const isOwner = !!(session && vehicle && session.user.id === vehicle.current_owner_id);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ isInitial }: { isInitial: boolean }) => {
     if (!id) {
       setLoading(false);
       setRefreshing(false);
@@ -65,7 +62,7 @@ export default function VehicleProfileScreen() {
     }
     if (authLoading) return;
 
-    setLoading(true);
+    if (isInitial) setLoading(true);
     try {
       const { data: v, error: vErr } = await supabase
         .from('vehicles')
@@ -146,16 +143,7 @@ export default function VehicleProfileScreen() {
     if (!vehicle) return;
     const shareTitle =
       vehicle.nickname ?? `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
-    const url = publicBuildUrl(vehicle.id);
-    try {
-      await Share.share({
-        message: `Check out this build on Wired Build: ${shareTitle} — ${url}`,
-        url,
-        title: shareTitle,
-      });
-    } catch {
-      // user dismissed
-    }
+    await sharePublicBuild(vehicle.id, shareTitle);
   }
 
   async function handleRemoveWishlistItem(itemId: string) {
@@ -170,13 +158,17 @@ export default function VehicleProfileScreen() {
     }
   }
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  const resetEntity = useCallback(() => {
+    setVehicle(null);
+    setMods([]);
+    setWishlist([]);
+    setHistory([]);
+    setLoading(true);
+  }, []);
 
-  if (authLoading || loading) {
+  useFocusData(load, [load], { cacheKey: id, onCacheKeyChange: resetEntity });
+
+  if (authLoading || (loading && !vehicle)) {
     return (
       <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'Build profile' }} />
@@ -206,7 +198,7 @@ export default function VehicleProfileScreen() {
   }
 
   if (isOwner) {
-    return <VehicleGarageHub vehicleId={vehicle.id} />;
+    return <VehicleGarageHub vehicleId={vehicle.id} initialTab={params.tab} />;
   }
 
   const title = vehicle.nickname ?? `${vehicle.make} ${vehicle.model}`;
@@ -222,12 +214,24 @@ export default function VehicleProfileScreen() {
           refreshing={refreshing}
           onRefresh={() => {
             setRefreshing(true);
-            load();
+            load({ isInitial: false });
           }}
         />
       }
     >
-      <Stack.Screen options={{ title }} />
+      <Stack.Screen
+        options={{
+          title,
+          headerRight: () =>
+            session && vehicle.is_public ? (
+              <SaveButton
+                targetType="vehicle"
+                targetId={vehicle.id}
+                className="mr-2 px-2 active:opacity-70"
+              />
+            ) : null,
+        }}
+      />
 
       {/* ---- Hero ---- */}
       <View className="bg-white px-6 pt-6 pb-8">
@@ -267,12 +271,6 @@ export default function VehicleProfileScreen() {
         ) : null}
 
         <View className="mt-6 flex-row flex-wrap gap-2">
-          <Pressable
-            onPress={() => router.push(`/log/new?vehicleId=${vehicle.id}`)}
-            className="rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
-          >
-            <Text className="font-semibold text-white">+ Log a mod</Text>
-          </Pressable>
           {vehicle.is_public ? (
             <Pressable
               onPress={handleShare}
@@ -280,40 +278,6 @@ export default function VehicleProfileScreen() {
             >
               <Text className="font-semibold text-apple-secondary">Share</Text>
             </Pressable>
-          ) : null}
-          {isOwner ? (
-            <>
-              <Pressable
-                onPress={() =>
-                  router.push(`/vehicle/edit?vehicleId=${vehicle.id}`)
-                }
-                className="rounded-xl border border-apple-border bg-white px-4 py-2.5 active:bg-apple-bg2"
-              >
-                <Text className="font-semibold text-apple-secondary">Edit</Text>
-              </Pressable>
-              <Pressable
-                onPress={handleExportCsv}
-                className="rounded-xl border border-apple-border bg-white px-4 py-2.5 active:bg-apple-bg2"
-              >
-                <Text className="font-semibold text-apple-secondary">Export CSV</Text>
-              </Pressable>
-              <Pressable
-                onPress={() =>
-                  router.push(`/vehicle/transfer?vehicleId=${vehicle.id}`)
-                }
-                className="rounded-xl border border-apple-border bg-white px-4 py-2.5 active:bg-apple-bg2"
-              >
-                <Text className="font-semibold text-apple-secondary">Transfer</Text>
-              </Pressable>
-              <Pressable
-                onPress={() =>
-                  router.push(`/vehicle/plan?vehicleId=${vehicle.id}`)
-                }
-                className="rounded-xl border border-apple-border bg-white px-4 py-2.5 active:bg-apple-bg2"
-              >
-                <Text className="font-semibold text-apple-secondary">Build plan</Text>
-              </Pressable>
-            </>
           ) : null}
         </View>
       </View>
@@ -419,23 +383,18 @@ export default function VehicleProfileScreen() {
         </Text>
         {mods.length === 0 ? (
           <View className="mt-3 rounded-2xl border border-apple-border bg-white p-6">
-            <Text className="text-apple-secondary text-base font-semibold">No mods yet</Text>
+            <Text className="text-base font-semibold text-apple-secondary">No mods yet</Text>
             <Text className="mt-1 text-apple-secondary">
-              Log your first mod to start the build history.
+              This build does not have any logged mods yet.
             </Text>
-            <Pressable
-              onPress={() => router.push(`/log/new?vehicleId=${vehicle.id}`)}
-              className="mt-4 self-start rounded-xl bg-accent px-4 py-2.5 active:bg-accent-dark"
-            >
-              <Text className="font-semibold text-white">Log a mod</Text>
-            </Pressable>
           </View>
         ) : (
           <View className="mt-3 gap-3">
             {mods.map((m) => (
-              <View
+              <Pressable
                 key={m.id}
-                className="overflow-hidden rounded-2xl border border-apple-border bg-white"
+                onPress={() => navigateToModDetail(router, m.id)}
+                className="overflow-hidden rounded-2xl border border-apple-border bg-white active:opacity-95"
               >
                 {m.photo_url ? (
                   <Image
@@ -486,7 +445,7 @@ export default function VehicleProfileScreen() {
                     <View className="mt-4 flex-row flex-wrap gap-2">
                       {m.has_receipt ? (
                         <Pressable
-                          onPress={() => handleViewReceipt(m)}
+                          onPress={() => void handleViewReceipt(m)}
                           className="rounded-lg border border-apple-border px-3 py-1.5 active:bg-apple-bg2"
                         >
                           <Text className="text-xs font-semibold text-apple-secondary">
@@ -495,9 +454,7 @@ export default function VehicleProfileScreen() {
                         </Pressable>
                       ) : null}
                       <Pressable
-                        onPress={() =>
-                          router.push(`/log/edit?modId=${m.id}`)
-                        }
+                        onPress={() => router.push(`/log/edit?modId=${m.id}`)}
                         className="rounded-lg border border-apple-border px-3 py-1.5 active:bg-apple-bg2"
                       >
                         <Text className="text-xs font-semibold text-apple-secondary">
@@ -507,7 +464,7 @@ export default function VehicleProfileScreen() {
                     </View>
                   ) : null}
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         )}

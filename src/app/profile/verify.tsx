@@ -1,10 +1,11 @@
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { useAuth } from '@/lib/auth-context';
 import { startIdentityVerification } from '@/lib/payments';
 import { supabase } from '@/lib/supabase';
+import { useFocusData } from '@/lib/use-focus-data';
 
 export default function VerifyScreen() {
   const { session } = useAuth();
@@ -22,11 +23,7 @@ export default function VerifyScreen() {
     setVerified(!!data?.is_identity_verified);
   }, [session]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  useFocusData(() => load(), [load], { cacheKey: session?.user.id });
 
   async function handleStart() {
     setLoading(true);

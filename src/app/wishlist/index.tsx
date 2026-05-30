@@ -1,4 +1,4 @@
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,6 +12,7 @@ import {
 
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { useFocusData } from '@/lib/use-focus-data';
 import {
   listUserWishlist,
   removeWishlistItem,
@@ -88,10 +89,12 @@ export default function WishlistIndexScreen() {
     }
   }, [session]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
+  useFocusData(
+    async ({ isInitial }) => {
+      if (isInitial && groups.length === 0) setLoading(true);
+      await load();
+    },
+    [load]
   );
 
   async function handleRemove(id: string) {
@@ -110,10 +113,10 @@ export default function WishlistIndexScreen() {
     }
   }
 
-  if (loading) {
+  if (loading && groups.length === 0) {
     return (
       <View className="flex-1 items-center justify-center bg-apple-bg2">
-        <Stack.Screen options={{ title: 'My wishlist' }} />
+        <Stack.Screen options={{ title: 'Saved parts' }} />
         <ActivityIndicator color="#FF6A2B" />
       </View>
     );
@@ -134,7 +137,7 @@ export default function WishlistIndexScreen() {
         />
       }
     >
-      <Stack.Screen options={{ title: 'My wishlist' }} />
+      <Stack.Screen options={{ title: 'Saved parts' }} />
 
       <View className="px-6 pt-6">
         <Text className="text-accent text-xs font-semibold tracking-[3px]">WISHLIST</Text>

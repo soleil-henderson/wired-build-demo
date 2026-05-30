@@ -1,9 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { BottomTabBarHeightCallbackContext } from '@react-navigation/bottom-tabs';
+import { useContext } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, tabBarShadow } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
+import { tabBarShadow } from '@/lib/theme';
 
 const TAB_META: Record<
   string,
@@ -18,14 +21,18 @@ const TAB_META: Record<
 
 export function AppleTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
+  const { colors } = theme;
+  const onHeightChange = useContext(BottomTabBarHeightCallbackContext);
 
   return (
     <View
+      onLayout={(e) => onHeightChange?.(e.nativeEvent.layout.height)}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-around',
-        backgroundColor: 'rgba(255,255,255,0.92)',
+        backgroundColor: colors.tabBarBg,
         borderTopWidth: 1,
         borderTopColor: colors.border,
         paddingTop: 8,

@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { Database } from '@/types/database';
+import type { UserLocation } from '@/lib/user-location';
 
 export type UserProfileRow = Database['public']['Tables']['users']['Row'];
 
@@ -32,6 +33,8 @@ export type ProfileUpdateInput = {
   display_name: string;
   bio: string | null;
   avatar_url: string | null;
+  location?: UserLocation | null;
+  is_private?: boolean;
 };
 
 /**
@@ -57,16 +60,23 @@ export async function updateProfile(
       display_name: displayName,
       bio: input.bio?.trim() || null,
       avatar_url: input.avatar_url,
+      ...(input.location !== undefined ? { location: input.location } : {}),
+      ...(input.is_private !== undefined ? { is_private: input.is_private } : {}),
     })
     .eq('id', userId)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     if (error.code === '23505') {
       throw new Error('That handle is already taken. Try another.');
     }
     throw error;
+  }
+  if (!data) {
+    throw new Error(
+      'Could not save profile. Sign in again or check your connection.'
+    );
   }
 
   return data;

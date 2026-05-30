@@ -59,3 +59,8 @@ export async function addComment(input: {
   });
   if (error) throw error;
 }
+
+export async function deleteComment(commentId: string): Promise<void> {
+  const { error } = await supabase.from('comments').delete().eq('id', commentId);
+  if (error) throw error;
+}

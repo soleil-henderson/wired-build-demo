@@ -98,27 +98,38 @@ export async function openVehicleDocument(doc: VehicleDocument): Promise<void> {
   await Linking.openURL(url);
 }
 
-/** Native — pick PDF or image from Files / gallery. */
-export async function pickVehicleDocumentNative(): Promise<{
+export type PickedVehicleDocument = {
   uri: string;
   fileName: string;
   mimeType: string;
   fileSize: number | null;
-} | null> {
+};
+
+/** Native — pick PDF or image from Files / gallery. */
+export async function pickVehicleDocumentNative(
+  multiple = false
+): Promise<PickedVehicleDocument | null> {
+  const picked = await pickVehicleDocumentsNative(multiple);
+  return picked[0] ?? null;
+}
+
+/** Native — pick one or many PDFs / images. */
+export async function pickVehicleDocumentsNative(
+  multiple = false
+): Promise<PickedVehicleDocument[]> {
   const result = await DocumentPicker.getDocumentAsync({
     type: ['application/pdf', 'image/*'],
     copyToCacheDirectory: true,
-    multiple: false,
+    multiple,
   });
 
-  if (result.canceled || !result.assets?.[0]) return null;
-  const asset = result.assets[0];
-  return {
+  if (result.canceled || !result.assets?.length) return [];
+  return result.assets.map((asset) => ({
     uri: asset.uri,
     fileName: asset.name ?? 'document',
     mimeType: asset.mimeType ?? guessMimeFromName(asset.name ?? ''),
     fileSize: asset.size ?? null,
-  };
+  }));
 }
 
 function titleFromFileName(fileName: string): string {

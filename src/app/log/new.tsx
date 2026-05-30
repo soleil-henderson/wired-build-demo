@@ -1,30 +1,41 @@
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
 
+import { KeyboardSafeScrollView } from '@/components/ui/KeyboardSafeView';
+
 import { useAuth } from '@/lib/auth-context';
 import { getPartById, searchParts, submitCustomPart, type Part } from '@/lib/parts';
 import { InstallDateField } from '@/components/InstallDateField';
+import { ModToolsForm } from '@/components/mods/ModToolsForm';
+import {
+  ExtraProductUrlField,
+  ProductUrlResolver,
+  type ResolvedPartDescriptor,
+} from '@/components/social/ProductUrlResolver';
 import { extractReceiptCostFromImage } from '@/lib/receipt-ocr';
 import { attachReceiptToMod } from '@/lib/receipts';
 import { enqueueModPhotoUpload } from '@/lib/offline-queue';
 import { markPlanItemComplete } from '@/lib/plan-items';
 import { canUseReceiptOcr, getUserSubscriptionTier } from '@/lib/subscription';
 import { searchWorkshops, type WorkshopUser } from '@/lib/workshops';
-import { uploadModPhoto, type UploadedPhoto } from '@/lib/storage';
+import { uploadModPhoto, uploadModVideo, type UploadedPhoto } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
+import { serializeProductLinks, emptyProductLinks, type ModProductLinks } from '@/lib/mod-products';
+import { saveModTools, type ModToolDraft } from '@/lib/mod-tools';
+import { colors } from '@/lib/theme';
+import { getPostIdForMod } from '@/lib/feed';
 import { getWishlistItem, removeWishlistItem } from '@/lib/wishlist';
 import type { InstallerType, ModCategory, ModPrivacy } from '@/types/database';
 
@@ -35,6 +46,7 @@ type PendingPhoto = {
   width: number | null;
   height: number | null;
   mimeType: string | null;
+  kind: 'photo' | 'video';
 };
 
 type PendingReceipt = {
@@ -100,6 +112,9 @@ export default function LogNewScreen() {
   const [partResults, setPartResults] = useState<Part[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedPart, setSelectedPart] = useState<Part | null>(null);
+  const [urlResolvedPart, setUrlResolvedPart] = useState<ResolvedPartDescriptor | null>(null);
+  const [resolvedImageUrl, setResolvedImageUrl] = useState<string | null>(null);
+  const [showCatalogueSearch, setShowCatalogueSearch] = useState(false);
   const [customMode, setCustomMode] = useState(false);
   const [customBrand, setCustomBrand] = useState('');
   const [customName, setCustomName] = useState('');
@@ -116,10 +131,42 @@ export default function LogNewScreen() {
   const [dateIsApproximate, setDateIsApproximate] = useState(false);
   const [notes, setNotes] = useState('');
   const [privacy, setPrivacy] = useState<ModPrivacy>('public');
+  const [productLinks, setProductLinks] = useState<ModProductLinks>(emptyProductLinks());
+  const [tools, setTools] = useState<ModToolDraft[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
+  const [ownerCheck, setOwnerCheck] = useState<'pending' | 'ok' | 'denied'>('pending');
 
-  // Pre-fill the form when promoting a wishlist item. The wishlist row is
+  useEffect(() => {
+    if (!session || !vehicleId) {
+      setOwnerCheck('denied');
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from('vehicles')
+      .select('current_owner_id')
+      .eq('id', vehicleId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || !data || data.current_owner_id !== session.user.id) {
+          setOwnerCheck('denied');
+          Alert.alert(
+            'Not your vehicle',
+            'You can only log mods on builds in your own garage.',
+            [{ text: 'OK', onPress: () => router.back() }]
+          );
+          return;
+        }
+        setOwnerCheck('ok');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session, vehicleId, router]);
+
+  // Pre-fill the form when promoting a wishlist item.
   // deleted in handleSubmit *after* the mod insert succeeds, so a save failure
   // leaves the wishlist intact.
   useEffect(() => {
@@ -171,6 +218,7 @@ export default function LogNewScreen() {
         width: a.width ?? null,
         height: a.height ?? null,
         mimeType: a.mimeType ?? null,
+        kind: (a.type === 'video' ? 'video' : 'photo') as 'photo' | 'video',
       }));
       return [...current, ...next];
     });
@@ -183,9 +231,10 @@ export default function LogNewScreen() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ['images', 'videos'],
       allowsMultipleSelection: true,
       selectionLimit: MAX_PHOTOS - photos.length,
+      videoMaxDuration: 60,
       quality: 0.85,
     });
     addPhotosFromResult(result);
@@ -306,11 +355,18 @@ export default function LogNewScreen() {
     if (selectedPart) {
       return { brand: selectedPart.brand, name: selectedPart.name, category: selectedPart.category };
     }
+    if (urlResolvedPart) {
+      return {
+        brand: urlResolvedPart.brand,
+        name: urlResolvedPart.name,
+        category,
+      };
+    }
     if (customMode && customBrand && customName) {
       return { brand: customBrand, name: customName, category };
     }
     return null;
-  }, [selectedPart, customMode, customBrand, customName, category]);
+  }, [selectedPart, urlResolvedPart, customMode, customBrand, customName, category]);
 
   // When a catalogue part is picked, mirror its category onto the form.
   useEffect(() => {
@@ -319,10 +375,13 @@ export default function LogNewScreen() {
 
   const clearPart = useCallback(() => {
     setSelectedPart(null);
+    setUrlResolvedPart(null);
+    setResolvedImageUrl(null);
     setCustomMode(false);
     setCustomBrand('');
     setCustomName('');
     setPartQuery('');
+    setProductLinks(emptyProductLinks());
   }, []);
 
   async function handleSubmit() {
@@ -334,8 +393,26 @@ export default function LogNewScreen() {
       Alert.alert('Missing vehicle', 'This log flow needs a vehicle id in the URL.');
       return;
     }
+
+    const { data: ownedVehicle, error: ownerErr } = await supabase
+      .from('vehicles')
+      .select('current_owner_id')
+      .eq('id', vehicleId)
+      .maybeSingle();
+    if (
+      ownerErr ||
+      !ownedVehicle ||
+      ownedVehicle.current_owner_id !== session.user.id
+    ) {
+      Alert.alert(
+        'Not your vehicle',
+        'You can only log mods on builds in your own garage.'
+      );
+      return;
+    }
+
     if (!partDescriptor) {
-      Alert.alert('Pick a part', 'Search the catalogue or add a custom part.');
+      Alert.alert('Add a product', 'Paste a product link or pick from the catalogue.');
       return;
     }
 
@@ -355,8 +432,19 @@ export default function LogNewScreen() {
       let partId = selectedPart?.id ?? null;
       let customPartName: string | null = null;
 
-      // Custom-part fallback: create the moderation-queue row, link to it.
-      if (!selectedPart && customMode) {
+      // URL-resolved or custom-part fallback: create moderation-queue row or use custom name.
+      if (!selectedPart && urlResolvedPart) {
+        try {
+          const created = await submitCustomPart({
+            brand: urlResolvedPart.brand,
+            name: urlResolvedPart.name,
+            category,
+          });
+          partId = created.id;
+        } catch {
+          customPartName = `${urlResolvedPart.brand} ${urlResolvedPart.name}`.trim();
+        }
+      } else if (!selectedPart && customMode) {
         try {
           const created = await submitCustomPart({
             brand: customBrand.trim(),
@@ -386,38 +474,54 @@ export default function LogNewScreen() {
           date_is_approximate: dateIsApproximate,
           notes: notes.trim() || null,
           privacy,
+          product_links: serializeProductLinks(productLinks),
         })
         .select('id')
         .single();
 
       if (modErr) throw modErr;
 
+      if (tools.length > 0) {
+        await saveModTools(mod.id, tools);
+      }
+
       // Upload photos (if any) and create media rows linked to the mod.
       // We do this *after* the mod is saved so that if photo upload fails the
       // mod itself is still recorded — better to have the data than to lose
       // everything to a flaky network mid-upload.
       if (photos.length > 0 && mod) {
-        const uploaded: UploadedPhoto[] = [];
+        const uploaded: (UploadedPhoto & { kind: 'photo' | 'video' })[] = [];
         for (const p of photos) {
           try {
-            const result = await uploadModPhoto({
-              uri: p.uri,
-              ownerId: session.user.id,
-              mimeType: p.mimeType,
-              width: p.width,
-              height: p.height,
-            });
-            uploaded.push(result);
+            const result =
+              p.kind === 'video'
+                ? await uploadModVideo({
+                    uri: p.uri,
+                    ownerId: session.user.id,
+                    mimeType: p.mimeType,
+                    width: p.width,
+                    height: p.height,
+                  })
+                : await uploadModPhoto({
+                    uri: p.uri,
+                    ownerId: session.user.id,
+                    mimeType: p.mimeType,
+                    width: p.width,
+                    height: p.height,
+                  });
+            uploaded.push({ ...result, kind: p.kind });
           } catch (err) {
-            console.warn('Photo upload failed', err);
-            await enqueueModPhotoUpload({
-              modId: mod.id,
-              ownerId: session.user.id,
-              uri: p.uri,
-              mimeType: p.mimeType ?? undefined,
-              width: p.width ?? undefined,
-              height: p.height ?? undefined,
-            });
+            console.warn('Media upload failed', err);
+            if (p.kind === 'photo') {
+              await enqueueModPhotoUpload({
+                modId: mod.id,
+                ownerId: session.user.id,
+                uri: p.uri,
+                mimeType: p.mimeType ?? undefined,
+                width: p.width ?? undefined,
+                height: p.height ?? undefined,
+              });
+            }
           }
         }
 
@@ -428,7 +532,7 @@ export default function LogNewScreen() {
               mod_id: mod.id,
               url: u.url,
               storage_key: u.storage_key,
-              kind: 'photo' as const,
+              kind: u.kind,
               width: u.width,
               height: u.height,
               is_sensitive: false,
@@ -473,7 +577,15 @@ export default function LogNewScreen() {
         }
       }
 
-      router.back();
+      if (privacy === 'public' && mod) {
+        const postId = await getPostIdForMod(mod.id);
+        if (postId) {
+          router.replace('/(tabs)');
+          return;
+        }
+      }
+
+      router.replace(vehicleId ? `/vehicle/${vehicleId}` : '/(tabs)/garage');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not log mod';
       Alert.alert('Save failed', message);
@@ -483,21 +595,17 @@ export default function LogNewScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-apple-bg2"
-    >
+    <>
       <Stack.Screen
         options={{ title: promotedFromWishlist ? 'Log from wishlist' : 'Log a mod' }}
       />
-      <ScrollView
-        contentContainerClassName="px-6 pt-6 pb-24"
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text className="text-3xl font-bold text-apple-ink">
-          {promotedFromWishlist ? 'Install it' : 'Log a mod'}
-        </Text>
-        <Text className="mt-2 text-apple-secondary">
+      {ownerCheck !== 'ok' ? (
+        <View className="flex-1 items-center justify-center bg-apple-bg2">
+          <ActivityIndicator color={colors.accent} />
+        </View>
+      ) : (
+      <KeyboardSafeScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="px-6 pt-4">
+        <Text className="text-apple-secondary">
           {promotedFromWishlist
             ? 'Confirm the install details. We pre-filled what we could from your wishlist; this entry will replace the wishlist row.'
             : 'Target: under 90 seconds. Photo → part → cost → confirm.'}
@@ -547,24 +655,58 @@ export default function LogNewScreen() {
           ) : null}
         </View>
 
-        {/* ---- Part picker ---- */}
-        <SectionHeading>Part</SectionHeading>
-        {partDescriptor ? (
+        {/* ---- Product / part ---- */}
+        <SectionHeading>Product</SectionHeading>
+        {!selectedPart && !customMode ? (
+          <ProductUrlResolver
+            productLinks={productLinks}
+            onProductLinksChange={setProductLinks}
+            resolvedPart={urlResolvedPart}
+            resolvedImageUrl={resolvedImageUrl}
+            onPartResolved={(part) => {
+              setUrlResolvedPart(part);
+              setSelectedPart(null);
+              setCustomMode(false);
+            }}
+            onClearPart={clearPart}
+            onLookupComplete={(result) => {
+              setResolvedImageUrl(result.image_url);
+              if (result.price && !cost.trim()) {
+                const n = Number(result.price.replace(/[^0-9.]/g, ''));
+                if (!Number.isNaN(n) && n > 0) setCost(String(n));
+              }
+            }}
+          />
+        ) : null}
+
+        {partDescriptor && (selectedPart || customMode) ? (
           <View className="rounded-2xl border border-apple-border bg-white p-4">
             <Text className="text-xs uppercase tracking-wider text-apple-secondary">
               {partDescriptor.category.replace('_', ' ')}
-              {customMode ? ' · pending approval' : ''}
+              {customMode ? ' · pending approval' : ' · catalogue'}
             </Text>
-            <Text className="mt-1 text-lg font-semibold text-apple-ink">
-              {partDescriptor.brand}
-            </Text>
+            <Text className="mt-1 text-lg font-semibold text-apple-ink">{partDescriptor.brand}</Text>
             <Text className="text-apple-secondary">{partDescriptor.name}</Text>
             <Pressable onPress={clearPart} className="mt-3 self-start">
               <Text className="text-sm font-semibold text-accent">Change</Text>
             </Pressable>
           </View>
-        ) : (
-          <View>
+        ) : null}
+
+        {!partDescriptor ? (
+          <Pressable
+            onPress={() => setShowCatalogueSearch((v) => !v)}
+            className="mt-2 flex-row items-center gap-2"
+          >
+            <Ionicons name={showCatalogueSearch ? 'chevron-up' : 'chevron-down'} size={16} color={colors.secondary} />
+            <Text className="text-sm font-semibold text-apple-secondary">
+              Or search our parts catalogue
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {showCatalogueSearch && !partDescriptor ? (
+          <View className="mt-2">
             <TextInput
               value={partQuery}
               onChangeText={setPartQuery}
@@ -577,13 +719,16 @@ export default function LogNewScreen() {
             {searching ? (
               <Text className="mt-2 text-xs text-apple-secondary">Searching…</Text>
             ) : null}
-
             {partResults.length > 0 ? (
               <View className="mt-2 overflow-hidden rounded-xl border border-apple-border">
                 {partResults.map((p, idx) => (
                   <Pressable
                     key={p.id}
-                    onPress={() => setSelectedPart(p)}
+                    onPress={() => {
+                      setSelectedPart(p);
+                      setUrlResolvedPart(null);
+                      setShowCatalogueSearch(false);
+                    }}
                     className={`bg-white px-4 py-3 active:bg-apple-bg2 ${
                       idx > 0 ? 'border-t border-apple-border' : ''
                     }`}
@@ -597,53 +742,50 @@ export default function LogNewScreen() {
                 ))}
               </View>
             ) : null}
-
-            <Pressable
-              onPress={() => {
-                setCustomMode(true);
-                setCustomBrand((b) => b || partQuery.trim());
-              }}
-              className="mt-3 rounded-xl border border-dashed border-apple-border px-4 py-3"
-            >
-              <Text className="text-center text-sm font-semibold text-apple-secondary">
-                + Add a custom part (not in catalogue)
-              </Text>
-            </Pressable>
-
-            {customMode ? (
-              <View className="mt-3 gap-3 rounded-2xl border border-apple-border bg-white p-4">
-                <View>
-                  <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
-                    Brand
-                  </Text>
-                  <TextInput
-                    value={customBrand}
-                    onChangeText={setCustomBrand}
-                    placeholder="e.g. ARB"
-                    placeholderTextColor="#A1A1A6"
-                    className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
-                  />
-                </View>
-                <View>
-                  <Text className="mb-2 text-xs uppercase tracking-wider text-apple-secondary">
-                    Part name
-                  </Text>
-                  <TextInput
-                    value={customName}
-                    onChangeText={setCustomName}
-                    placeholder="e.g. Summit Bull Bar"
-                    placeholderTextColor="#A1A1A6"
-                    className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
-                  />
-                </View>
-                <Text className="text-xs text-apple-secondary">
-                  Submitted custom parts go to a moderation queue and are visible to you
-                  while pending.
-                </Text>
-              </View>
-            ) : null}
           </View>
-        )}
+        ) : null}
+
+        {urlResolvedPart && productLinks.primary?.url ? (
+          <View className="mt-4 gap-3">
+            <Text className="text-xs font-semibold uppercase tracking-wider text-apple-secondary">
+              Other products used
+            </Text>
+            {productLinks.extras.map((extra, i) => (
+              <ExtraProductUrlField
+                key={i}
+                url={extra.url}
+                purpose={extra.purpose ?? ''}
+                onChangeUrl={(url) => {
+                  const extras = [...productLinks.extras];
+                  extras[i] = { ...extras[i], url };
+                  setProductLinks({ ...productLinks, extras });
+                }}
+                onChangePurpose={(purpose) => {
+                  const extras = [...productLinks.extras];
+                  extras[i] = { ...extras[i], purpose };
+                  setProductLinks({ ...productLinks, extras });
+                }}
+                onRemove={() => {
+                  setProductLinks({
+                    ...productLinks,
+                    extras: productLinks.extras.filter((_, idx) => idx !== i),
+                  });
+                }}
+              />
+            ))}
+            <Pressable
+              onPress={() =>
+                setProductLinks({
+                  ...productLinks,
+                  extras: [...productLinks.extras, { name: '', url: '', purpose: '' }],
+                })
+              }
+              className="flex-row items-center justify-center gap-2 rounded-xl border border-dashed border-apple-border py-3"
+            >
+              <Text className="font-semibold text-accent">+ Add another product link</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         {/* ---- Category ---- */}
         <SectionHeading>Category</SectionHeading>
@@ -790,6 +932,10 @@ export default function LogNewScreen() {
           />
         </View>
 
+        {/* ---- Tools ---- */}
+        <SectionHeading>Tools used (optional)</SectionHeading>
+        <ModToolsForm tools={tools} onChange={setTools} />
+
         {/* ---- Notes ---- */}
         <SectionHeading>Notes (optional)</SectionHeading>
         <TextInput
@@ -847,8 +993,9 @@ export default function LogNewScreen() {
             </Text>
           )}
         </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardSafeScrollView>
+      )}
+    </>
   );
 }
 

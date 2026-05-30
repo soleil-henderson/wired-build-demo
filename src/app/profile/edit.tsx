@@ -3,10 +3,9 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
+  Switch,
   Text,
   TextInput,
   View,
@@ -16,7 +15,10 @@ import {
   AvatarPhotoField,
   type PickedAvatarImage,
 } from '@/components/AvatarPhotoField';
+import { MentionTextInput } from '@/components/social/MentionTextInput';
+import { KeyboardSafeScrollView } from '@/components/ui/KeyboardSafeView';
 import { showAppAlert } from '@/lib/app-alert';
+import { isWorkshopAccount } from '@/lib/account-routing';
 import { useAuth } from '@/lib/auth-context';
 import {
   getMyProfile,
@@ -24,6 +26,13 @@ import {
   updateProfile,
   validateHandle,
 } from '@/lib/profile';
+import * as Location from 'expo-location';
+import {
+  formatUserLocation,
+  mergeLocationCoords,
+  parseUserLocation,
+  serializeUserLocation,
+} from '@/lib/user-location';
 import { deleteMyAccount } from '@/lib/auth-account';
 import { supabase } from '@/lib/supabase';
 import {
@@ -42,8 +51,12 @@ export default function EditProfileScreen() {
   const [handle, setHandle] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
+  const [city, setCity] = useState('');
+  const [country, setCountry] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [localAvatar, setLocalAvatar] = useState<PickedAvatarImage | null>(null);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [isBusiness, setIsBusiness] = useState(false);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -57,7 +70,12 @@ export default function EditProfileScreen() {
       setHandle(p.handle);
       setDisplayName(p.display_name);
       setBio(p.bio ?? '');
+      const loc = parseUserLocation(p.location);
+      setCity(loc?.city ?? '');
+      setCountry(loc?.country ?? '');
       setAvatarUrl(p.avatar_url);
+      setIsPrivate(!!p.is_private);
+      setIsBusiness(isWorkshopAccount(p));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load profile';
       Alert.alert('Error', message);
@@ -69,6 +87,17 @@ export default function EditProfileScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  function handleAvatarPick(image: PickedAvatarImage) {
+    if (
+      Platform.OS === 'web' &&
+      localAvatar?.uri?.startsWith('blob:') &&
+      localAvatar.uri !== image.uri
+    ) {
+      URL.revokeObjectURL(localAvatar.uri);
+    }
+    setLocalAvatar(image);
+  }
 
   async function handleSave() {
     if (!session) return;
@@ -101,12 +130,36 @@ export default function EditProfileScreen() {
 
       let nextAvatarUrl = avatarUrl;
       if (localAvatar) {
-        nextAvatarUrl = await uploadAvatar({
-          uri: localAvatar.uri,
-          ownerId: liveSession.user.id,
-          width: localAvatar.width,
-          height: localAvatar.height,
-        });
+        try {
+          nextAvatarUrl = await uploadAvatar({
+            uri: localAvatar.uri,
+            ownerId: liveSession.user.id,
+            width: localAvatar.width,
+            height: localAvatar.height,
+          });
+        } catch (uploadErr) {
+          const detail =
+            uploadErr instanceof Error ? uploadErr.message : 'Upload failed';
+          throw new Error(`Could not upload photo: ${detail}`);
+        }
+      }
+
+      let location = serializeUserLocation(city, country);
+      if (location && Platform.OS !== 'web') {
+        const query = [city, country].filter(Boolean).join(', ');
+        if (query) {
+          try {
+            const hits = await Location.geocodeAsync(query);
+            if (hits[0]) {
+              location = mergeLocationCoords(location, {
+                lat: hits[0].latitude,
+                lng: hits[0].longitude,
+              });
+            }
+          } catch {
+            // City/country still saved without coordinates.
+          }
+        }
       }
 
       await updateProfile(liveSession.user.id, {
@@ -114,6 +167,8 @@ export default function EditProfileScreen() {
         display_name: displayName.trim(),
         bio: bio.trim() || null,
         avatar_url: nextAvatarUrl,
+        location,
+        is_private: isPrivate,
       });
 
       if (previousAvatarKey) {
@@ -141,12 +196,9 @@ export default function EditProfileScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-apple-bg2"
-    >
+    <>
       <Stack.Screen options={{ title: 'Edit profile' }} />
-      <ScrollView contentContainerClassName="px-6 pt-6 pb-24">
+      <KeyboardSafeScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="px-6 pt-6">
         <Text className="text-apple-secondary">
           Your handle is how people find you (@handle). Display name and bio
           show on your public profile and across the feed.
@@ -156,7 +208,7 @@ export default function EditProfileScreen() {
           <AvatarPhotoField
             previewUri={previewUri}
             fallbackInitial={(displayName || handle || '?')[0].toUpperCase()}
-            onPick={setLocalAvatar}
+            onPick={handleAvatarPick}
           />
         </View>
 
@@ -190,18 +242,66 @@ export default function EditProfileScreen() {
             />
           </Field>
 
+          {isBusiness ? (
+            <Pressable
+              onPress={() => router.push('/workshop/profile-edit')}
+              className="rounded-xl border border-apple-border bg-white px-4 py-4 active:bg-apple-bg2"
+            >
+              <Text className="font-semibold text-apple-ink">Business details</Text>
+              <Text className="mt-1 text-sm text-apple-secondary">
+                Hours, address, portfolio, booking link, and more
+              </Text>
+            </Pressable>
+          ) : null}
+
           <Field label="Bio">
-            <TextInput
+            <MentionTextInput
               value={bio}
               onChangeText={setBio}
-              placeholder="What are you building?"
-              placeholderTextColor="#A1A1A6"
+              placeholder="What are you building? Tag people with @handle"
               multiline
               numberOfLines={4}
               className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
               style={{ minHeight: 96, textAlignVertical: 'top' }}
             />
+            <Text className="mt-1 text-xs text-apple-secondary">
+              Type @ to mention other accounts in your bio.
+            </Text>
           </Field>
+
+          <Field label="Location">
+            <View className="flex-row gap-3">
+              <TextInput
+                value={city}
+                onChangeText={setCity}
+                placeholder="City"
+                placeholderTextColor="#A1A1A6"
+                className="flex-1 rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
+              />
+              <TextInput
+                value={country}
+                onChangeText={setCountry}
+                placeholder="Country"
+                placeholderTextColor="#A1A1A6"
+                className="flex-1 rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
+              />
+            </View>
+            <Text className="mt-1 text-xs text-apple-secondary">
+              Shown on your public profile so others know where you&apos;re based.
+            </Text>
+          </Field>
+
+          <View className="mt-2 rounded-xl border border-apple-border bg-white px-4 py-3.5">
+            <View className="flex-row items-center justify-between">
+              <View className="mr-3 flex-1">
+                <Text className="text-base font-semibold text-apple-ink">Private account</Text>
+                <Text className="mt-0.5 text-sm text-apple-secondary">
+                  Only approved followers can see your posts. Others must request to follow you.
+                </Text>
+              </View>
+              <Switch value={isPrivate} onValueChange={setIsPrivate} />
+            </View>
+          </View>
         </View>
 
         <Pressable
@@ -250,8 +350,8 @@ export default function EditProfileScreen() {
         >
           <Text className="text-center font-semibold text-signal-red">Delete account</Text>
         </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardSafeScrollView>
+    </>
   );
 }
 

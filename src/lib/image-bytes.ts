@@ -1,6 +1,6 @@
-import { Platform } from 'react-native';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { Image as RNImage, Platform } from 'react-native';
 
 /** JPEG quality for re-encoded uploads. */
 export const JPEG_QUALITY = 0.85;
@@ -26,21 +26,20 @@ export async function prepareImageForUpload(input: {
   }
 
   const maxEdge = input.maxEdgePx ?? 1920;
-  const ctx = ImageManipulator.manipulate(input.uri);
-
-  const w = input.width ?? 0;
-  const h = input.height ?? 0;
+  const { width: w, height: h } = await resolveImageDimensions(
+    input.uri,
+    input.width,
+    input.height
+  );
   const longest = Math.max(w, h);
-  if (longest > maxEdge) {
-    if (w >= h) {
-      ctx.resize({ width: maxEdge });
-    } else {
-      ctx.resize({ height: maxEdge });
-    }
-  }
+  const actions =
+    longest > maxEdge
+      ? w >= h
+        ? [{ resize: { width: maxEdge } }]
+        : [{ resize: { height: maxEdge } }]
+      : [];
 
-  const img = await ctx.renderAsync();
-  const result = await img.saveAsync({
+  const result = await manipulateAsync(input.uri, actions, {
     format: SaveFormat.JPEG,
     compress: JPEG_QUALITY,
   });
@@ -59,8 +58,9 @@ async function prepareImageForUploadWeb(input: {
   maxEdgePx?: number;
 }): Promise<PreparedImage> {
   const maxEdge = input.maxEdgePx ?? 1920;
-  const dims = await loadWebImageDimensions(input.uri, input.width, input.height);
-  let { width: w, height: h } = dims;
+  const oriented = await loadOrientedWebImage(input.uri);
+  let w = input.width && input.width > 0 ? input.width : oriented.width;
+  let h = input.height && input.height > 0 ? input.height : oriented.height;
 
   const longest = Math.max(w, h);
   if (longest > maxEdge) {
@@ -73,14 +73,13 @@ async function prepareImageForUploadWeb(input: {
     }
   }
 
-  const img = await loadWebImageElement(input.uri);
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Could not prepare image for upload');
 
-  ctx.drawImage(img, 0, 0, w, h);
+  ctx.drawImage(oriented, 0, 0, w, h);
 
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
@@ -97,14 +96,38 @@ async function prepareImageForUploadWeb(input: {
   };
 }
 
-export async function readUploadBytes(uri: string): Promise<ArrayBuffer> {
+export async function readUploadBytes(uri: string): Promise<Uint8Array> {
   if (Platform.OS === 'web') {
     const res = await fetch(uri);
     if (!res.ok) throw new Error('Could not read image data');
-    return res.arrayBuffer();
+    return new Uint8Array(await res.arrayBuffer());
   }
-  const file = new File(uri);
-  return file.arrayBuffer();
+
+  try {
+    const file = new File(uri);
+    return new Uint8Array(await file.arrayBuffer());
+  } catch {
+    const res = await fetch(uri);
+    if (!res.ok) throw new Error('Could not read image data');
+    return new Uint8Array(await res.arrayBuffer());
+  }
+}
+
+async function resolveImageDimensions(
+  uri: string,
+  width?: number | null,
+  height?: number | null
+): Promise<{ width: number; height: number }> {
+  if (width && height && width > 0 && height > 0) {
+    return { width, height };
+  }
+  return new Promise((resolve, reject) => {
+    RNImage.getSize(
+      uri,
+      (w, h) => resolve({ width: w, height: h }),
+      () => reject(new Error('Could not read image dimensions'))
+    );
+  });
 }
 
 export function imageDimensionsFromFile(
@@ -120,15 +143,31 @@ function loadWebImageDimensions(
   height?: number | null
 ): Promise<{ width: number; height: number }> {
   if (width && height) return Promise.resolve({ width, height });
-  return loadWebImageElement(uri).then((img) => ({
-    width: img.naturalWidth,
-    height: img.naturalHeight,
+  return loadOrientedWebImage(uri).then((img) => ({
+    width: img.width,
+    height: img.height,
   }));
+}
+
+/** Loads image with EXIF orientation applied (fixes sideways phone photos on web). */
+async function loadOrientedWebImage(
+  uri: string
+): Promise<HTMLImageElement | ImageBitmap> {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const res = await fetch(uri);
+      const blob = await res.blob();
+      return await createImageBitmap(blob, { imageOrientation: 'from-image' });
+    } catch {
+      // Fall through to HTMLImageElement.
+    }
+  }
+  return loadWebImageElement(uri);
 }
 
 function loadWebImageElement(uri: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
+    const img = document.createElement('img');
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('Could not load image'));
     img.src = uri;

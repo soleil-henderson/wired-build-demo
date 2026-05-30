@@ -3,16 +3,15 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
 
 import { CoverPhotoField, type PickedCoverImage } from '@/components/CoverPhotoField';
+import { KeyboardSafeScrollView } from '@/components/ui/KeyboardSafeView';
 import { useAuth } from '@/lib/auth-context';
 import { routeParam } from '@/lib/route-param';
 import {
@@ -203,12 +202,9 @@ export default function EditVehicleScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-apple-bg2"
-    >
+    <>
       <Stack.Screen options={{ title: 'Edit build' }} />
-      <ScrollView contentContainerClassName="px-6 pt-6 pb-24">
+      <KeyboardSafeScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="px-6 pt-6">
         <Text className="text-apple-secondary">{title}</Text>
         <Text className="mt-1 text-xs text-apple-secondary">
           VIN, year, make, and model are fixed after you add the vehicle.
@@ -367,8 +363,8 @@ export default function EditVehicleScreen() {
             Delete build
           </Text>
         </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardSafeScrollView>
+    </>
   );
 }
 

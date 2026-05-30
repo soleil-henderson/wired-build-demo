@@ -42,3 +42,12 @@ verify_jwt = false
 
 [functions.stripe-identity-webhook]
 verify_jwt = false
+
+[functions.wired-ai]
+verify_jwt = true
+
+[functions.search-parts]
+verify_jwt = true
+
+[functions.places-autocomplete]
+verify_jwt = true

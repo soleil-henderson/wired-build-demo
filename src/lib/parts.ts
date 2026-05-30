@@ -14,6 +14,7 @@ export type PartStats = {
 
 export type PartInstall = {
   modId: string;
+  postId: string | null;
   cost: number | null;
   costIsApproximate: boolean;
   installDate: string;
@@ -144,6 +145,7 @@ export async function listPartInstalls(
           subscription_tier, is_identity_verified, is_workshop
         )
       ),
+      posts ( id ),
       media!media_mod_id_fkey ( url, kind, is_sensitive )
     `
     )
@@ -181,12 +183,15 @@ export async function listPartInstalls(
         }
       | null;
     media: { url: string; kind: string; is_sensitive: boolean }[] | null;
+    posts: { id: string }[] | { id: string } | null;
   };
 
   return (data as RawRow[]).map((r) => {
     const photo = r.media?.find((m) => m.kind === 'photo' && !m.is_sensitive)?.url ?? null;
+    const postRow = Array.isArray(r.posts) ? r.posts[0] : r.posts;
     return {
       modId: r.id,
+      postId: postRow?.id ?? null,
       cost: r.cost,
       costIsApproximate: r.cost_is_approximate,
       installDate: r.install_date,

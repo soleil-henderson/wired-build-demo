@@ -1,4 +1,4 @@
-import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -7,20 +7,23 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  Share,
   Text,
   View,
 } from 'react-native';
 
+import { SaveButton } from '@/components/social/SaveButton';
 import { UserBadges } from '@/components/UserBadges';
+import { MentionText } from '@/components/social/MentionText';
 import { useAuth } from '@/lib/auth-context';
 import {
   getPublicBuild,
-  publicBuildUrl,
   type PublicBuild,
   type PublicBuildMod,
 } from '@/lib/public-build';
 import { routeParam } from '@/lib/route-param';
+import { useFocusData } from '@/lib/use-focus-data';
+import { navigateToModDetail } from '@/lib/mod-nav';
+import { sharePublicBuild } from '@/lib/share-build';
 import { buildValueFootnote, buildValueLabel } from '@/lib/valuation';
 
 export default function PublicBuildScreen() {
@@ -33,46 +36,44 @@ export default function PublicBuildScreen() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!id) {
-      setLoading(false);
-      setNotFound(true);
-      return;
-    }
+  const resetEntity = useCallback(() => {
+    setBuild(null);
+    setNotFound(false);
     setLoading(true);
-    const data = await getPublicBuild(id);
-    if (!data) {
-      setNotFound(true);
-    } else {
-      setBuild(data);
-    }
-    setLoading(false);
-  }, [id]);
+  }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
+  const load = useCallback(
+    async ({ isInitial }: { isInitial: boolean }) => {
+      if (!id) {
+        setLoading(false);
+        setNotFound(true);
+        return;
+      }
+      if (isInitial) setLoading(true);
+      const data = await getPublicBuild(id);
+      if (!data) {
+        setNotFound(true);
+        setBuild(null);
+      } else {
+        setBuild(data);
+        setNotFound(false);
+      }
+      setLoading(false);
+    },
+    [id]
   );
+
+  useFocusData(load, [load], { cacheKey: id, onCacheKeyChange: resetEntity });
 
   async function handleShare() {
     if (!build || !id) return;
     const title =
       build.vehicle.nickname ??
       `${build.vehicle.year} ${build.vehicle.make} ${build.vehicle.model}`;
-    const url = publicBuildUrl(id);
-    try {
-      await Share.share({
-        message: `Check out this build on Wired Build: ${title} — ${url}`,
-        url,
-        title,
-      });
-    } catch {
-      // user dismissed
-    }
+    await sharePublicBuild(id, title);
   }
 
-  if (loading) {
+  if (loading && !build) {
     return (
       <View className="flex-1 items-center justify-center bg-apple-bg2">
         <Stack.Screen options={{ title: 'Build' }} />
@@ -100,7 +101,19 @@ export default function PublicBuildScreen() {
 
   return (
     <ScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="pb-12">
-      <Stack.Screen options={{ title }} />
+      <Stack.Screen
+        options={{
+          title,
+          headerRight: () =>
+            session && !isViewerOwner ? (
+              <SaveButton
+                targetType="vehicle"
+                targetId={vehicle.id}
+                className="mr-2 px-2 active:opacity-70"
+              />
+            ) : null,
+        }}
+      />
 
       {/* ---- Wired Build banner (only when viewer is logged-out, for the
             marketplace pitch — the page works as a standalone URL) ---- */}
@@ -232,7 +245,10 @@ export default function PublicBuildScreen() {
             </View>
           </Pressable>
           {vehicle.owner.bio ? (
-            <Text className="mt-3 text-sm text-apple-secondary">{vehicle.owner.bio}</Text>
+            <MentionText
+              body={vehicle.owner.bio}
+              baseClassName="mt-3 text-sm text-apple-secondary"
+            />
           ) : null}
         </View>
       ) : null}
@@ -273,9 +289,10 @@ export default function PublicBuildScreen() {
         ) : (
           <View className="mt-3 gap-3">
             {mods.map((m) => (
-              <View
+              <Pressable
                 key={m.id}
-                className="overflow-hidden rounded-2xl border border-apple-border bg-white"
+                onPress={() => navigateToModDetail(router, m.id)}
+                className="overflow-hidden rounded-2xl border border-apple-border bg-white active:opacity-95"
               >
                 {m.photo_url ? (
                   <Image
@@ -323,7 +340,7 @@ export default function PublicBuildScreen() {
                     <Text className="mt-2 text-sm text-apple-secondary">{m.notes}</Text>
                   ) : null}
                 </View>
-              </View>
+              </Pressable>
             ))}
           </View>
         )}
@@ -393,7 +410,7 @@ export default function PublicBuildScreen() {
           </Pressable>
           {Platform.OS === 'web' ? (
             <Pressable
-              onPress={() => Linking.openURL('https://wiredbuild.app')}
+              onPress={() => Linking.openURL('https://wiredbuild.com')}
               className="mt-3 self-start"
             >
               <Text className="text-xs font-semibold text-accent">

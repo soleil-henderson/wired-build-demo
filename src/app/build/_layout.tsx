@@ -1,14 +1,5 @@
-import { Stack } from 'expo-router';
-
-import { stackScreenOptions } from '@/lib/theme';
+import { ThemeStack } from '@/components/navigation/ThemeStack';
 
 export default function BuildStackLayout() {
-  return (
-    <Stack
-      screenOptions={{
-        ...stackScreenOptions,
-        headerShown: true,
-      }}
-    />
-  );
+  return <ThemeStack screenOptions={{ headerShown: true }} />;
 }

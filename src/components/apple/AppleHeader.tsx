@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { NotificationBellButton } from '@/components/NotificationBellButton';
+import { WiredHeaderTitle } from '@/components/ui/WiredHeaderTitle';
 import { colors } from '@/lib/theme';
 
 type Props = {
@@ -13,7 +14,7 @@ type Props = {
   right?: ReactNode;
 };
 
-/** Large sticky-style screen title row — Apple HIG large title pattern. */
+/** Tab screen title row — matches the home feed header (bg, font, no divider). */
 export function AppleHeader({
   title,
   notificationCount = 0,
@@ -22,14 +23,11 @@ export function AppleHeader({
   right,
 }: Props) {
   return (
-    <View className="border-b border-apple-border bg-white px-4 pb-3.5 pt-2">
-      <View className="flex-row items-center justify-between">
-        <Text
-          className="flex-1 text-[28px] font-bold text-apple-ink"
-          style={{ letterSpacing: -0.84 }}
-        >
+    <View className="bg-apple-bg2 px-4 pb-2.5 pt-1">
+      <View className="h-11 flex-row items-center justify-between">
+        <WiredHeaderTitle size="screen" className="flex-1 text-apple-ink">
           {title}
-        </Text>
+        </WiredHeaderTitle>
         <View className="flex-row items-center gap-[18px]">
           {right}
           {onSearchPress ? (

@@ -1,36 +1,69 @@
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { OAuthButtons } from '@/components/OAuthButtons';
+import { AccountTypeSignInLinks } from '@/components/auth/AccountTypePicker';
+import { KeyboardSafeScrollView } from '@/components/ui/KeyboardSafeView';
+import { normalizeAuthEmail, resendSignupConfirmation } from '@/lib/auth-account';
+import { showAppAlert } from '@/lib/app-alert';
 import { useAuth } from '@/lib/auth-context';
 
 export default function SignInScreen() {
+  const router = useRouter();
   const { signInWithEmail } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showVerifyHelp, setShowVerifyHelp] = useState(false);
+  const [resending, setResending] = useState(false);
 
   async function handleSubmit() {
     if (!email.trim() || !password) {
-      Alert.alert('Missing details', 'Enter your email and password.');
+      showAppAlert('Missing details', 'Enter your email and password.');
       return;
     }
     setSubmitting(true);
+    setShowVerifyHelp(false);
     try {
       await signInWithEmail(email.trim(), password);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not sign in';
-      Alert.alert('Sign-in failed', message);
+      setShowVerifyHelp(true);
+      showAppAlert('Sign-in failed', message);
     } finally {
       setSubmitting(false);
     }
   }
 
+  async function handleResendVerification() {
+    if (!email.trim()) {
+      showAppAlert('Email required', 'Enter your email above first.');
+      return;
+    }
+    setResending(true);
+    try {
+      await resendSignupConfirmation(email);
+      showAppAlert(
+        'Verification sent',
+        'Check your inbox and spam folder for the confirmation link, then try signing in again.'
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not send email';
+      showAppAlert('Resend failed', message);
+    } finally {
+      setResending(false);
+    }
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-apple-bg2">
-      <View className="flex-1 justify-center px-6">
+      <KeyboardSafeScrollView
+        offsetHeader={false}
+        className="flex-1"
+        contentContainerClassName="flex-grow justify-center px-6 py-8"
+      >
         <Text className="text-accent text-sm font-semibold tracking-[3px]">WIRED BUILD</Text>
         <Text className="mt-2 text-3xl font-bold text-apple-ink">Sign in to your garage</Text>
         <Text className="mt-2 text-apple-secondary">
@@ -58,7 +91,7 @@ export default function SignInScreen() {
               keyboardType="email-address"
               placeholder="you@example.com"
               placeholderTextColor="#A1A1A6"
-              className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
+              className="rounded-xl border border-apple-border bg-white px-4 py-3 text-base text-apple-ink"
             />
           </View>
           <View>
@@ -69,7 +102,7 @@ export default function SignInScreen() {
               secureTextEntry
               placeholder="••••••••"
               placeholderTextColor="#A1A1A6"
-              className="rounded-xl border border-apple-border bg-white px-4 py-3 text-apple-ink"
+              className="rounded-xl border border-apple-border bg-white px-4 py-3 text-base text-apple-ink"
             />
           </View>
           <Link href="/(auth)/forgot-password" className="self-end">
@@ -77,8 +110,43 @@ export default function SignInScreen() {
           </Link>
         </View>
 
+        {showVerifyHelp ? (
+          <View className="mt-4 rounded-xl border border-apple-border bg-white p-4">
+            <Text className="text-sm font-semibold text-apple-ink">Just signed up?</Text>
+            <Text className="mt-1 text-sm text-apple-secondary">
+              Enter the 6-digit code from your email, or resend a new one.
+            </Text>
+            <Pressable
+              onPress={() => {
+                if (!email.trim()) {
+                  showAppAlert('Email required', 'Enter your email above first.');
+                  return;
+                }
+                router.push({
+                  pathname: '/(auth)/verify-email',
+                  params: { email: normalizeAuthEmail(email) },
+                });
+              }}
+              className="mt-3 self-start"
+            >
+              <Text className="text-sm font-semibold text-accent">Enter verification code</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => void handleResendVerification()}
+              disabled={resending}
+              className="mt-2 self-start"
+            >
+              {resending ? (
+                <ActivityIndicator color="#FF6A2B" />
+              ) : (
+                <Text className="text-sm font-semibold text-accent">Resend code</Text>
+              )}
+            </Pressable>
+          </View>
+        ) : null}
+
         <Pressable
-          onPress={handleSubmit}
+          onPress={() => void handleSubmit()}
           disabled={submitting}
           className="mt-6 rounded-xl bg-accent py-3.5 active:bg-accent-dark disabled:opacity-60"
         >
@@ -95,7 +163,9 @@ export default function SignInScreen() {
             <Text className="font-semibold text-accent">Create an account</Text>
           </Link>
         </View>
-      </View>
+
+        <AccountTypeSignInLinks />
+      </KeyboardSafeScrollView>
     </SafeAreaView>
   );
 }

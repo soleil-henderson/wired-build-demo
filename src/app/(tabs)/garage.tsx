@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -15,15 +15,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppleCard } from '@/components/apple/AppleCard';
 import { AppleHeader } from '@/components/apple/AppleHeader';
-import { VehicleThumb } from '@/components/apple/ApplePrimitives';
+import { VehicleGarageCard } from '@/components/garage/VehicleGarageCard';
 import { useAuth } from '@/lib/auth-context';
+import { listGarageVehicleCards, type GarageVehicleCard } from '@/lib/garage-cards';
+import { getMyProfile } from '@/lib/profile';
+import { listWorkshopCustomerJobs, type WorkshopCustomerJob } from '@/lib/workshop-jobs';
+import { isWorkshopAccount } from '@/lib/account-routing';
+import { TAB_SCROLL_BOTTOM_INSET } from '@/lib/tab-screen-layout';
 import { colors } from '@/lib/theme';
-import { listUserVehicles, type VehicleSummary } from '@/lib/users';
+import { useFocusData } from '@/lib/use-focus-data';
+import { listUserWishlist } from '@/lib/wishlist';
 
 export default function GarageScreen() {
   const { session, isLoading: authLoading } = useAuth();
   const router = useRouter();
-  const [vehicles, setVehicles] = useState<VehicleSummary[]>([]);
+  const [vehicles, setVehicles] = useState<GarageVehicleCard[]>([]);
+  const [workshopJobs, setWorkshopJobs] = useState<WorkshopCustomerJob[]>([]);
+  const [isWorkshop, setIsWorkshop] = useState(false);
+  const [wishlistCount, setWishlistCount] = useState(0);
+  const [wishlistPlanned, setWishlistPlanned] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -37,8 +47,26 @@ export default function GarageScreen() {
     }
 
     try {
-      const list = await listUserVehicles(session.user.id);
+      const profile = await getMyProfile(session.user.id);
+      const workshop = isWorkshopAccount(profile);
+      setIsWorkshop(workshop);
+
+      const [list, wishlist] = await Promise.all([
+        listGarageVehicleCards(session.user.id),
+        listUserWishlist(session.user.id).catch(() => []),
+      ]);
       setVehicles(list);
+      setWishlistCount(wishlist.length);
+      setWishlistPlanned(
+        wishlist.reduce((sum, item) => sum + Number(item.target_cost ?? 0), 0)
+      );
+
+      if (workshop) {
+        const jobs = await listWorkshopCustomerJobs(session.user.id);
+        setWorkshopJobs(jobs);
+      } else {
+        setWorkshopJobs([]);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load garage';
       Alert.alert('Error', message);
@@ -48,13 +76,15 @@ export default function GarageScreen() {
     }
   }, [session, authLoading]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
+  useFocusData(
+    async ({ isInitial }) => {
+      if (isInitial && vehicles.length === 0) setLoading(true);
+      await load();
+    },
+    [load]
   );
 
-  if (loading) {
+  if (loading && vehicles.length === 0 && workshopJobs.length === 0) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-apple-bg2" edges={['top']}>
         <ActivityIndicator color={colors.accent} />
@@ -66,7 +96,8 @@ export default function GarageScreen() {
     <SafeAreaView className="flex-1 bg-apple-bg2" edges={['top']}>
       <AppleHeader title="Garage" />
       <ScrollView
-        contentContainerClassName="px-4 pb-28 pt-2"
+        contentContainerClassName="px-4 pt-2"
+        contentContainerStyle={{ paddingBottom: TAB_SCROLL_BOTTOM_INSET }}
         refreshControl={
           <RefreshControl
             tintColor={colors.accent}
@@ -78,6 +109,44 @@ export default function GarageScreen() {
           />
         }
       >
+        {isWorkshop && workshopJobs.length > 0 ? (
+          <View className="mb-6">
+            <Text className="mb-2 text-xs font-semibold uppercase tracking-wider text-apple-secondary">
+              Customer jobs
+            </Text>
+            <View className="gap-3">
+              {workshopJobs.slice(0, 3).map((job) => (
+                <AppleCard key={job.vehicle_id} padded>
+                  <Text className="text-base font-semibold text-apple-ink">
+                    {job.year} {job.make} {job.model}
+                  </Text>
+                  <Text className="mt-1 text-sm text-apple-secondary">
+                    {job.mod_count} install{job.mod_count === 1 ? '' : 's'} · {job.verified_count}{' '}
+                    verified
+                  </Text>
+                </AppleCard>
+              ))}
+              <Pressable onPress={() => router.push('/workshop/jobs')}>
+                <Text className="text-center text-sm font-semibold text-accent">
+                  View all customer jobs →
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
+        {isWorkshop ? (
+          <Text className="mb-2 text-xs font-semibold uppercase tracking-wider text-apple-secondary">
+            Your vehicles
+          </Text>
+        ) : null}
+
+        <WishlistSummaryCard
+          count={wishlistCount}
+          plannedTotal={wishlistPlanned}
+          onPress={() => router.push('/wishlist')}
+        />
+
         {vehicles.length === 0 ? (
           <AppleCard padded style={{ marginTop: 8 }}>
             <Text className="text-base font-semibold text-apple-ink">No vehicles yet</Text>
@@ -92,13 +161,9 @@ export default function GarageScreen() {
             </Pressable>
           </AppleCard>
         ) : (
-          <View className="gap-3">
+          <View className="gap-4">
             {vehicles.map((v) => (
-              <VehicleListCard
-                key={v.id}
-                vehicle={v}
-                onPress={() => router.push(`/vehicle/${v.id}`)}
-              />
+              <VehicleGarageCard key={v.id} vehicle={v} />
             ))}
 
             <Pressable
@@ -130,51 +195,45 @@ export default function GarageScreen() {
   );
 }
 
-function VehicleListCard({
-  vehicle,
+function WishlistSummaryCard({
+  count,
+  plannedTotal,
   onPress,
 }: {
-  vehicle: VehicleSummary;
+  count: number;
+  plannedTotal: number;
   onPress: () => void;
 }) {
-  const title =
-    vehicle.nickname ?? `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+  const subtitle =
+    count === 0
+      ? 'Save parts from Explore or product pages'
+      : plannedTotal > 0
+        ? `${count} item${count === 1 ? '' : 's'} · $${Math.round(plannedTotal).toLocaleString()} planned`
+        : `${count} saved item${count === 1 ? '' : 's'} across your builds`;
 
   return (
-    <Pressable onPress={onPress} className="active:opacity-90">
-      <AppleCard style={{ padding: 0, overflow: 'hidden' }}>
-        {vehicle.cover_photo_url ? (
-          <Image
-            source={{ uri: vehicle.cover_photo_url }}
-            className="aspect-[16/9] w-full bg-apple-bg2"
-            resizeMode="cover"
-          />
-        ) : (
-          <View
-            className="aspect-[16/9] w-full items-center justify-center"
-            style={{ backgroundColor: `${colors.accent}10` }}
-          >
-            <Ionicons name="car-sport-outline" size={48} color={colors.accent} />
-          </View>
-        )}
-        <View className="flex-row items-center gap-3 p-4">
-          <VehicleThumb size={48} color={colors.accent} />
-          <View className="min-w-0 flex-1">
-            <Text className="text-[17px] font-semibold text-apple-ink" numberOfLines={1}>
-              {title}
-            </Text>
-            <Text className="text-[13px] text-apple-secondary">
-              {vehicle.year} {vehicle.make} {vehicle.model}
-              {vehicle.trim ? ` · ${vehicle.trim}` : ''}
-            </Text>
-            <Text className="mt-1 text-[13px] text-apple-secondary">
-              {vehicle.mod_count} mod{vehicle.mod_count === 1 ? '' : 's'} · $
-              {(Number(vehicle.total_spend) / 1000).toFixed(1)}k invested
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.tertiary} />
+    <Pressable onPress={onPress} className="mb-3 active:opacity-90">
+      <AppleCard
+        style={{
+          padding: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          backgroundColor: colors.accentSoft,
+        }}
+      >
+        <View
+          className="h-11 w-11 items-center justify-center rounded-xl bg-white"
+        >
+          <Ionicons name="bookmark-outline" size={22} color={colors.accent} />
         </View>
+        <View className="min-w-0 flex-1">
+          <Text className="text-[15px] font-semibold text-apple-ink">Saved parts</Text>
+          <Text className="mt-0.5 text-[13px] text-apple-secondary">{subtitle}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={colors.tertiary} />
       </AppleCard>
     </Pressable>
   );
 }
+

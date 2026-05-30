@@ -165,7 +165,7 @@ export async function addWishlistItem(input: {
     throw error;
   }
   if (!data?.id) {
-    throw new Error('Save may have failed — open My wishlist to confirm.');
+    throw new Error('Save may have failed — open Saved parts in Garage to confirm.');
   }
   return data.id;
 }

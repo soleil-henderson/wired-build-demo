@@ -1,8 +1,9 @@
-import { Stack, useFocusEffect } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
+import { useFocusData } from '@/lib/use-focus-data';
 
 type PartClickRow = {
   part_id: string;
@@ -16,7 +17,6 @@ export default function AdminPartClicksScreen() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    setLoading(true);
     const { data: clicks } = await supabase
       .from('part_clicks')
       .select('part_id')
@@ -53,10 +53,12 @@ export default function AdminPartClicksScreen() {
     setLoading(false);
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
+  useFocusData(
+    ({ isInitial }) => {
+      if (isInitial && rows.length === 0) setLoading(true);
+      return load();
+    },
+    [load]
   );
 
   return (
@@ -68,7 +70,7 @@ export default function AdminPartClicksScreen() {
         Internal BI — last 5,000 click events aggregated by part.
       </Text>
 
-      {loading ? (
+      {loading && rows.length === 0 ? (
         <ActivityIndicator className="mt-8" color="#FF6A2B" />
       ) : rows.length === 0 ? (
         <Text className="mt-8 text-apple-secondary">No clicks recorded yet.</Text>

@@ -1,3 +1,4 @@
+import { displayImageUrl } from './image-url';
 import { supabase } from './supabase';
 import type { Database } from '@/types/database';
 
@@ -12,6 +13,7 @@ type ActorPayload = {
 
 export type NotificationPayload =
   | (ActorPayload & { /* follow */ })
+  | (ActorPayload & { request_id: string })
   | (ActorPayload & { post_id: string; reaction_type: string })
   | (ActorPayload & {
       post_id: string;
@@ -33,6 +35,10 @@ export type NotificationRow = {
   created_at: string;
 };
 
+export type EnrichedNotificationRow = NotificationRow & {
+  post_thumbnail_url: string | null;
+};
+
 export async function listNotifications(
   userId: string,
   limit = 50
@@ -45,6 +51,67 @@ export async function listNotifications(
     .limit(limit);
   if (error) throw error;
   return (data ?? []) as NotificationRow[];
+}
+
+/** Notifications with post thumbnails for likes/comments (Instagram-style right preview). */
+export async function listNotificationsEnriched(
+  userId: string,
+  limit = 50
+): Promise<EnrichedNotificationRow[]> {
+  const rows = await listNotifications(userId, limit);
+  const postIds = [
+    ...new Set(
+      rows
+        .filter((r) => r.type === 'reaction' || r.type === 'comment')
+        .map((r) => (r.payload as { post_id: string }).post_id)
+        .filter(Boolean)
+    ),
+  ];
+
+  const thumbByPost = new Map<string, string | null>();
+  if (postIds.length > 0) {
+    const { data, error } = await supabase
+      .from('posts')
+      .select(
+        `
+        id,
+        mod:mods!posts_mod_id_fkey (
+          media!media_mod_id_fkey ( url, thumbnail_url, kind, is_sensitive )
+        )
+      `
+      )
+      .in('id', postIds);
+    if (!error && data) {
+      for (const row of data) {
+        const mod = row.mod as {
+          media?: {
+            url: string;
+            thumbnail_url: string | null;
+            kind: string;
+            is_sensitive: boolean;
+          }[];
+        } | null;
+        const firstPhoto = (mod?.media ?? []).find(
+          (m) => !m.is_sensitive && m.kind === 'photo'
+        );
+        thumbByPost.set(
+          row.id,
+          firstPhoto
+            ? displayImageUrl(firstPhoto.url, firstPhoto.thumbnail_url) ??
+                firstPhoto.url
+            : null
+        );
+      }
+    }
+  }
+
+  return rows.map((r) => ({
+    ...r,
+    post_thumbnail_url:
+      r.type === 'reaction' || r.type === 'comment'
+        ? thumbByPost.get((r.payload as { post_id: string }).post_id) ?? null
+        : null,
+  }));
 }
 
 export async function getUnreadCount(userId: string): Promise<number> {
@@ -72,5 +139,10 @@ export async function markRead(notificationId: string): Promise<void> {
     .update({ read_at: new Date().toISOString() })
     .eq('id', notificationId)
     .is('read_at', null);
+  if (error) throw error;
+}
+
+export async function deleteNotification(notificationId: string): Promise<void> {
+  const { error } = await supabase.from('notifications').delete().eq('id', notificationId);
   if (error) throw error;
 }

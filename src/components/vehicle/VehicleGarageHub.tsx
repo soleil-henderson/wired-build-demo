@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -9,7 +9,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  Share,
   Text,
   View,
 } from 'react-native';
@@ -24,9 +23,10 @@ import { SegmentedControl } from '@/components/apple/SegmentedControl';
 import { showAppAlert } from '@/lib/app-alert';
 import { listVehicleMods, type ModWithPart } from '@/lib/mods';
 import { listPlanItems, type PlanItem } from '@/lib/plan-items';
-import { publicBuildUrl } from '@/lib/public-build';
+import { sharePublicBuild } from '@/lib/share-build';
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/lib/theme';
+import { useFocusData } from '@/lib/use-focus-data';
 import {
   listVehicleWishlist,
   wishlistDisplayName,
@@ -41,23 +41,32 @@ import {
   uploadVehicleDocument,
   type VehicleDocument,
 } from '@/lib/vehicle-documents';
+import { MaintenanceServiceTab } from '@/components/vehicle/MaintenanceServiceTab';
 import type { Database } from '@/types/database';
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
-type HubTab = 'plan' | 'mods' | 'spend' | 'docs';
+type HubTab = 'plan' | 'mods' | 'spend' | 'service' | 'docs';
+
+const HUB_TABS: HubTab[] = ['plan', 'mods', 'spend', 'service', 'docs'];
+
+function parseInitialTab(value: string | undefined): HubTab {
+  if (value && HUB_TABS.includes(value as HubTab)) return value as HubTab;
+  return 'plan';
+}
 
 type Props = {
   vehicleId: string;
+  initialTab?: string;
 };
 
 /** Full vehicle hub — hero, stats, Plan / Mods / Spend / Docs tabs. */
-export function VehicleGarageHub({ vehicleId }: Props) {
+export function VehicleGarageHub({ vehicleId, initialTab }: Props) {
   const router = useRouter();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [mods, setMods] = useState<ModWithPart[]>([]);
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
-  const [tab, setTab] = useState<HubTab>('plan');
+  const [tab, setTab] = useState<HubTab>(() => parseInitialTab(initialTab));
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -95,11 +104,13 @@ export function VehicleGarageHub({ vehicleId }: Props) {
     }
   }, [vehicleId]);
 
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      load();
-    }, [load])
+  useFocusData(
+    async ({ isInitial }) => {
+      if (isInitial && !vehicle) setLoading(true);
+      await load();
+    },
+    [load],
+    { cacheKey: vehicleId }
   );
 
   const plannedTotal = useMemo(
@@ -123,8 +134,9 @@ export function VehicleGarageHub({ vehicleId }: Props) {
       Alert.alert('Private build', 'Make this build public to share a link.');
       return;
     }
-    const url = publicBuildUrl(vehicle.id);
-    await Share.share({ message: url, url });
+    const title =
+      vehicle.nickname ?? `${vehicle.year} ${vehicle.make} ${vehicle.model}`;
+    await sharePublicBuild(vehicle.id, title);
   }
 
   const title = vehicle?.nickname ?? (vehicle ? `${vehicle.make} ${vehicle.model}` : 'Vehicle');
@@ -164,12 +176,11 @@ export function VehicleGarageHub({ vehicleId }: Props) {
           }}
         />
       }
-      stickyHeaderIndices={[1]}
     >
       <Stack.Screen options={{ title }} />
 
-      <View className="bg-white pb-3">
-        <View className="flex-row items-center justify-between px-4 pb-3 pt-2">
+      <View className="px-4 pt-2">
+        <View className="mb-3 flex-row items-center justify-between">
           <Text className="text-[13px] font-semibold text-apple-secondary">My Garage</Text>
           <View className="flex-row gap-4">
             <Pressable onPress={handleShare} hitSlop={8}>
@@ -184,62 +195,77 @@ export function VehicleGarageHub({ vehicleId }: Props) {
           </View>
         </View>
 
-        {vehicle.cover_photo_url ? (
-          <Image
-            source={{ uri: vehicle.cover_photo_url }}
-            className="mx-4 mb-4 aspect-[16/9] rounded-[18px] bg-apple-bg2"
-            resizeMode="cover"
-          />
-        ) : (
-          <View
-            className="mx-4 mb-4 aspect-[16/9] items-center justify-center rounded-[18px]"
-            style={{ backgroundColor: `${colors.accent}12` }}
-          >
-            <Ionicons name="car-sport-outline" size={72} color={colors.accent} />
-          </View>
-        )}
+        <AppleCard style={{ marginBottom: 12 }}>
+          {vehicle.cover_photo_url ? (
+            <Image
+              source={{ uri: vehicle.cover_photo_url }}
+              style={{ width: '100%', aspectRatio: 16 / 9, backgroundColor: colors.bg2 }}
+              resizeMode="cover"
+            />
+          ) : (
+            <View
+              className="w-full items-center justify-center"
+              style={{ aspectRatio: 16 / 9, backgroundColor: `${colors.accent}12` }}
+            >
+              <Ionicons name="car-sport-outline" size={72} color={colors.accent} />
+            </View>
+          )}
 
-        <View className="px-4">
-          <Text
-            className="text-[28px] font-bold text-apple-ink"
-            style={{ letterSpacing: -0.84 }}
-          >
-            {vehicle.nickname ?? `${vehicle.make} ${vehicle.model}`}
-          </Text>
-          <View className="mt-1 flex-row flex-wrap items-center gap-2">
-            <Text className="text-[15px] text-apple-secondary">
-              {vehicle.year} {vehicle.make} {vehicle.model}
+          <View className="p-4">
+            <Text
+              className="text-[28px] font-bold text-apple-ink"
+              style={{ letterSpacing: -0.84 }}
+            >
+              {vehicle.nickname ?? `${vehicle.make} ${vehicle.model}`}
             </Text>
-            {vehicle.trim ? <AppleChip>{vehicle.trim}</AppleChip> : null}
-          </View>
+            <View className="mt-1 flex-row flex-wrap items-center gap-2">
+              <Text className="text-[15px] text-apple-secondary">
+                {vehicle.year} {vehicle.make} {vehicle.model}
+              </Text>
+              {vehicle.trim ? <AppleChip>{vehicle.trim}</AppleChip> : null}
+            </View>
 
-          <View className="mt-4 flex-row gap-2.5">
-            <StatPill label="Spent" value={`$${(Number(vehicle.total_spend) / 1000).toFixed(1)}k`} />
-            <StatPill
-              label="Value"
-              value={
-                vehicle.build_value
-                  ? `$${(Number(vehicle.build_value) / 1000).toFixed(1)}k`
-                  : '—'
-              }
-              highlight
-            />
-            <StatPill label="Mods" value={String(mods.length)} />
-            <StatPill
-              label="Planned"
-              value={plannedTotal > 0 ? `$${(plannedTotal / 1000).toFixed(0)}k` : '—'}
-              amber
-            />
+            <View className="mt-4 flex-row gap-2.5">
+              <StatPill
+                label="Spent"
+                value={`$${(Number(vehicle.total_spend) / 1000).toFixed(1)}k`}
+              />
+              <StatPill
+                label="Value"
+                value={
+                  vehicle.build_value
+                    ? `$${(Number(vehicle.build_value) / 1000).toFixed(1)}k`
+                    : '—'
+                }
+                highlight
+              />
+              <StatPill label="Mods" value={String(mods.length)} />
+              <StatPill
+                label="Planned"
+                value={plannedTotal > 0 ? `$${(plannedTotal / 1000).toFixed(0)}k` : '—'}
+                amber
+              />
+            </View>
+
+            <Pressable
+              onPress={() => router.push(`/vehicle/assistant?vehicleId=${vehicle.id}`)}
+              className="mt-4 flex-row items-center justify-center gap-2 rounded-xl py-3 active:opacity-90"
+              style={{ backgroundColor: colors.blueSoft }}
+            >
+              <Ionicons name="sparkles" size={18} color={colors.blue} />
+              <Text className="text-[15px] font-semibold text-signal-blue">Ask Wired AI</Text>
+            </Pressable>
           </View>
-        </View>
+        </AppleCard>
       </View>
 
-      <View className="border-b border-apple-border bg-white px-4 pb-3 pt-1">
+      <View className="px-4 pb-3">
         <SegmentedControl
           options={[
             { id: 'plan', label: 'Plan' },
             { id: 'mods', label: 'Mods' },
             { id: 'spend', label: 'Spend' },
+            { id: 'service', label: 'Service' },
             { id: 'docs', label: 'Docs' },
           ]}
           value={tab}
@@ -265,6 +291,7 @@ export function VehicleGarageHub({ vehicleId }: Props) {
             spendByCat={spendByCat}
           />
         ) : null}
+        {tab === 'service' ? <MaintenanceServiceTab vehicleId={vehicle.id} /> : null}
         {tab === 'docs' ? <DocsTab vehicleId={vehicle.id} /> : null}
       </View>
     </ScrollView>
@@ -420,6 +447,8 @@ function WishlistRow({ item, onPress }: { item: WishlistItem; onPress: () => voi
 }
 
 function ModsTab({ mods }: { mods: ModWithPart[] }) {
+  const router = useRouter();
+
   if (mods.length === 0) {
     return (
       <AppleCard padded>
@@ -434,7 +463,12 @@ function ModsTab({ mods }: { mods: ModWithPart[] }) {
         const d = new Date(mod.install_date);
         const partName = mod.part ? `${mod.part.brand} ${mod.part.name}` : mod.custom_part_name ?? 'Mod';
         return (
-          <AppleCard key={mod.id} style={{ padding: 16, marginBottom: 12 }}>
+          <Pressable
+            key={mod.id}
+            onPress={() => router.push(`/mod/${mod.id}`)}
+            className="active:opacity-90"
+          >
+          <AppleCard style={{ padding: 16, marginBottom: 12 }}>
             <View className="flex-row gap-3">
               <View className="h-[52px] w-[52px] items-center justify-center rounded-[14px] bg-apple-bg2">
                 <Text className="text-lg font-bold text-apple-ink">{d.getDate()}</Text>
@@ -467,8 +501,10 @@ function ModsTab({ mods }: { mods: ModWithPart[] }) {
                   </View>
                 </View>
               </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.tertiary} />
             </View>
           </AppleCard>
+          </Pressable>
         );
       })}
     </View>
@@ -570,6 +606,7 @@ function computeModMonthsSpan(mods: ModWithPart[]): number | null {
 }
 
 function DocsTab({ vehicleId }: { vehicleId: string }) {
+  const router = useRouter();
   const [documents, setDocuments] = useState<VehicleDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -587,11 +624,13 @@ function DocsTab({ vehicleId }: { vehicleId: string }) {
     }
   }, [vehicleId]);
 
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      load();
-    }, [load])
+  useFocusData(
+    async ({ isInitial }) => {
+      if (isInitial && documents.length === 0) setLoading(true);
+      await load();
+    },
+    [load],
+    { cacheKey: vehicleId }
   );
 
   async function handleUpload(input: {
@@ -672,7 +711,7 @@ function DocsTab({ vehicleId }: { vehicleId: string }) {
     ]);
   }
 
-  if (loading) {
+  if (loading && documents.length === 0) {
     return (
       <View className="items-center py-12">
         <ActivityIndicator color={colors.accent} />
@@ -695,6 +734,22 @@ function DocsTab({ vehicleId }: { vehicleId: string }) {
           }}
         />
       ) : null}
+
+      <Pressable
+        onPress={() => router.push(`/vehicle/import-documents?vehicleId=${vehicleId}`)}
+        className="mb-4 flex-row items-center gap-3 rounded-xl border border-apple-border bg-white px-4 py-3 active:opacity-90"
+      >
+        <View className="h-10 w-10 items-center justify-center rounded-xl bg-apple-bg2">
+          <Ionicons name="sparkles" size={20} color={colors.blue} />
+        </View>
+        <View className="flex-1">
+          <Text className="text-[15px] font-semibold text-apple-ink">Import paperwork</Text>
+          <Text className="text-xs text-apple-secondary">
+            Bulk upload — Wired AI sorts into Docs and Service
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.tertiary} />
+      </Pressable>
 
       {documents.length === 0 ? (
         <View className="items-center py-12">

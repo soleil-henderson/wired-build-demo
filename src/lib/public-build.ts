@@ -188,13 +188,4 @@ export async function getPublicBuild(id: string): Promise<PublicBuild | null> {
   };
 }
 
-/**
- * Build the canonical share URL for a build. Uses EXPO_PUBLIC_SITE_URL when
- * set so production builds share the real domain, falling back to a sensible
- * placeholder during development.
- */
-export function publicBuildUrl(id: string): string {
-  const base =
-    process.env.EXPO_PUBLIC_SITE_URL?.replace(/\/$/, '') ?? 'https://wiredbuild.app';
-  return `${base}/build/${id}`;
-}
+export { publicBuildUrl } from './site-url';

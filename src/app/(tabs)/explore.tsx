@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,134 +10,292 @@ import {
   RefreshControl,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppleCard } from '@/components/apple/AppleCard';
 import { AppleHeader } from '@/components/apple/AppleHeader';
-import { MoneyText, VehicleThumb } from '@/components/apple/ApplePrimitives';
+import { SearchField } from '@/components/ui/SearchField';
+import { MoneyText } from '@/components/apple/ApplePrimitives';
+import { EventsSection } from '@/components/explore/EventsSection';
+import { NearYouSection } from '@/components/explore/NearYouSection';
+import { FollowButton } from '@/components/social/FollowButton';
 import { UserBadges } from '@/components/UserBadges';
 import { showAppAlert } from '@/lib/app-alert';
 import { useAuth } from '@/lib/auth-context';
+import { TAB_SCROLL_BOTTOM_INSET } from '@/lib/tab-screen-layout';
 import { colors } from '@/lib/theme';
 import type { FeedPost } from '@/lib/feed';
+import { isModPost, resolvePostDisplayMedia } from '@/lib/feed';
+import { PartCategoryFilters } from '@/components/explore/PartCategoryFilters';
+import { PopularPartRow } from '@/components/explore/PopularPartRow';
 import {
+  enrichPartCardsWithShopping,
   listBuildsForSale,
-  listPopularParts,
+  listPopularPartsForExplore,
   listTrendingPosts,
+  parseExploreSearchQuery,
   type BuildForSale,
-  searchPartsForExplore,
+  type ExplorePartCard,
+  enrichExplorePartCardsThumbnails,
+  searchExploreCatalogueOnly,
+  searchExploreDiscover,
   searchUsers,
-  type PartSearchResult,
   type UserSearchResult,
 } from '@/lib/explore';
+import {
+  getViewerCoordinates,
+  listNearbyBuilds,
+  syncViewerLocationCoords,
+  type NearbyBuild,
+} from '@/lib/nearby-builds';
 import { saveSearch } from '@/lib/saved-searches';
-import { canSaveSearches, getUserSubscriptionTier } from '@/lib/subscription';
+import { ensureSubscriptionTier } from '@/lib/subscription-guard';
+import { useSubscriptionTier } from '@/hooks/use-subscription-tier';
+import { listUpcomingEvents, type EventSummary } from '@/lib/events';
 import { addWishlistItem, listUserWishlistPartIds } from '@/lib/wishlist';
+import { useFocusData } from '@/lib/use-focus-data';
 import type { ModCategory } from '@/types/database';
 
 export default function ExploreScreen() {
   const { session } = useAuth();
+  const { tier } = useSubscriptionTier();
   const router = useRouter();
 
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
+  const [discoverSearching, setDiscoverSearching] = useState(false);
   const [userHits, setUserHits] = useState<UserSearchResult[]>([]);
-  const [partHits, setPartHits] = useState<PartSearchResult[]>([]);
+  const [partHits, setPartHits] = useState<ExplorePartCard[]>([]);
+  const [discoverHits, setDiscoverHits] = useState<ExplorePartCard[]>([]);
 
-  const [popularParts, setPopularParts] = useState<PartSearchResult[]>([]);
+  const [popularParts, setPopularParts] = useState<ExplorePartCard[]>([]);
   const [trending, setTrending] = useState<FeedPost[]>([]);
   const [forSale, setForSale] = useState<BuildForSale[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [nearby, setNearby] = useState<NearbyBuild[]>([]);
+  const [nearbyLocationEnabled, setNearbyLocationEnabled] = useState(false);
+  const [events, setEvents] = useState<EventSummary[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedPartIds, setSavedPartIds] = useState<Set<string>>(() => new Set());
+  const [savedDiscoverUrls, setSavedDiscoverUrls] = useState<Set<string>>(() => new Set());
+  const [partCategory, setPartCategory] = useState<ModCategory | null>(null);
 
-  const load = useCallback(async () => {
+  const partFilters = useCallback(
+    () => (partCategory ? { category: partCategory } : undefined),
+    [partCategory]
+  );
+
+  const searchParsed = parseExploreSearchQuery(query);
+  const isUserSearch = searchParsed.mode === 'user';
+
+  const enrichShoppingRef = useRef(0);
+
+  const enrichPopularPartsInBackground = useCallback(
+    async (parts: ExplorePartCard[]) => {
+      if (!session?.user.id || parts.length === 0) return;
+      const token = ++enrichShoppingRef.current;
+      try {
+        const enriched = await enrichPartCardsWithShopping(parts, 8);
+        if (enrichShoppingRef.current === token) {
+          setPopularParts(enriched);
+        }
+      } catch {
+        /* optional live prices */
+      }
+    },
+    [session?.user.id]
+  );
+
+  const loadNearbyInBackground = useCallback(async () => {
+    try {
+      const viewer = await getViewerCoordinates();
+      setNearbyLocationEnabled(viewer != null);
+      if (viewer && session?.user.id) {
+        void syncViewerLocationCoords(session.user.id, viewer).catch(() => {});
+      }
+      const nearBuilds = await listNearbyBuilds(viewer, {
+        excludeUserId: session?.user.id ?? null,
+        limit: 10,
+      });
+      setNearby(nearBuilds);
+    } catch {
+      /* near-you is optional */
+    }
+  }, [session?.user.id]);
+
+  const loadCore = useCallback(async () => {
     try {
       const wishlistIdsPromise = session
         ? listUserWishlistPartIds(session.user.id)
         : Promise.resolve(new Set<string>());
-      const [parts, posts, saleBuilds, wishlistPartIds] = await Promise.all([
-        listPopularParts(12),
-        listTrendingPosts(session?.user.id ?? null, 30, 6),
-        listBuildsForSale(8),
-        wishlistIdsPromise,
-      ]);
+      const [parts, posts, saleBuilds, wishlistPartIds, upcomingEvents] =
+        await Promise.all([
+          listPopularPartsForExplore(session?.user.id ?? null, 8, partFilters()),
+          listTrendingPosts(session?.user.id ?? null, 30, 6),
+          listBuildsForSale(8),
+          wishlistIdsPromise,
+          listUpcomingEvents(session?.user.id ?? null, 8).catch(() => [] as EventSummary[]),
+        ]);
       setPopularParts(parts);
       setTrending(posts);
       setForSale(saleBuilds);
+      setEvents(upcomingEvents);
       setSavedPartIds(wishlistPartIds);
+      void enrichPopularPartsInBackground(parts);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load Explore';
       Alert.alert('Error', message);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, [session]);
+  }, [session, partFilters, enrichPopularPartsInBackground]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
+  const load = useCallback(async () => {
+    await loadCore();
+    void loadNearbyInBackground();
+  }, [loadCore, loadNearbyInBackground]);
+
+  useFocusData(
+    async () => {
+      await loadCore();
+      void loadNearbyInBackground();
+    },
+    [loadCore, loadNearbyInBackground],
+    { staleMs: 60_000 }
   );
 
-  // Debounced search across users + parts.
+  const partCategoryInitial = useRef(true);
+  useEffect(() => {
+    if (partCategoryInitial.current) {
+      partCategoryInitial.current = false;
+      return;
+    }
+    if (searchParsed.term.length >= 2) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const parts = await listPopularPartsForExplore(
+          session?.user.id ?? null,
+          8,
+          partFilters()
+        );
+        if (!cancelled) {
+          setPopularParts(parts);
+          void enrichPopularPartsInBackground(parts);
+        }
+      } catch {
+        /* category filter refresh */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [partCategory, session?.user.id, partFilters, enrichPopularPartsInBackground, searchParsed.term]);
+
+  // Debounced search: @handle → users only; otherwise catalogue first, Google in background.
   const searchToken = useRef(0);
   useEffect(() => {
-    const term = query.trim();
-    if (term.length < 2) {
+    const { mode, term } = parseExploreSearchQuery(query);
+    const minLen = mode === 'user' ? 1 : 2;
+    if (term.length < minLen) {
       setUserHits([]);
       setPartHits([]);
+      setDiscoverHits([]);
       setSearching(false);
+      setDiscoverSearching(false);
       return;
     }
     const token = ++searchToken.current;
     setSearching(true);
+    setDiscoverSearching(false);
     const handle = setTimeout(async () => {
       try {
-        const [users, parts] = await Promise.all([
-          searchUsers(term, 6),
-          searchPartsForExplore(term, 8),
-        ]);
-        if (searchToken.current === token) {
-          setUserHits(users);
-          setPartHits(parts);
+        if (mode === 'user') {
+          const users = await searchUsers(term, 6);
+          if (searchToken.current === token) {
+            setUserHits(users);
+            setPartHits([]);
+            setDiscoverHits([]);
+          }
+        } else {
+          const catalogue = await searchExploreCatalogueOnly(term, { catalogue: 8 });
+          if (searchToken.current !== token) return;
+
+          setUserHits([]);
+          setPartHits(catalogue);
+          setDiscoverHits([]);
+          setSearching(false);
+
+          void (async () => {
+            const enriched = await enrichExplorePartCardsThumbnails(catalogue);
+            if (searchToken.current === token) setPartHits(enriched);
+          })();
+
+          if (!session?.user.id) return;
+
+          setDiscoverSearching(true);
+          void (async () => {
+            try {
+              const discover = await searchExploreDiscover(term, catalogue, 10);
+              if (searchToken.current === token) setDiscoverHits(discover);
+            } finally {
+              if (searchToken.current === token) setDiscoverSearching(false);
+            }
+          })();
         }
       } finally {
-        if (searchToken.current === token) setSearching(false);
+        if (searchToken.current === token && mode === 'user') {
+          setSearching(false);
+        }
       }
     }, 250);
     return () => clearTimeout(handle);
-  }, [query]);
+  }, [query, session]);
 
-  async function handleSaveToWishlist(part: PartSearchResult) {
+  async function handleSaveToWishlist(part: ExplorePartCard) {
     if (!session) {
       showAppAlert('Sign in', 'Sign in to save parts to your wishlist.');
       return;
     }
-    if (savedPartIds.has(part.id)) return;
+
+    const isDiscover = part.source === 'discover';
+    const discoverUrl = part.product_url?.trim() ?? '';
+    if (isDiscover) {
+      if (!discoverUrl || savedDiscoverUrls.has(discoverUrl)) return;
+    } else if (savedPartIds.has(part.id)) {
+      return;
+    }
 
     setSavingId(part.id);
     try {
+      const label = `${part.brand} ${part.name}`.trim();
+      const priceNote = part.price_range ? `Typical price: ${part.price_range}` : null;
+      const linkNote = discoverUrl ? `Product link: ${discoverUrl}` : null;
+      const notes = [priceNote, linkNote].filter(Boolean).join('\n') || null;
+
       await addWishlistItem({
         userId: session.user.id,
         vehicleId: null,
-        partId: part.id,
-        customPartName: null,
-        category: part.category as ModCategory,
+        partId: isDiscover ? null : part.id,
+        customPartName: isDiscover ? label : null,
+        category: (part.category as ModCategory) ?? 'other',
         targetCost: null,
-        notes: null,
+        notes,
         priority: 'medium',
       });
-      setSavedPartIds((prev) => new Set(prev).add(part.id));
+
+      if (isDiscover && discoverUrl) {
+        setSavedDiscoverUrls((prev) => new Set(prev).add(discoverUrl));
+      } else {
+        setSavedPartIds((prev) => new Set(prev).add(part.id));
+      }
+
       showAppAlert(
         'Saved',
-        `${part.brand} ${part.name} added to your wishlist. View it from Profile → My wishlist.`
+        `${label} added to your wishlist. View it from Garage → Saved parts.`
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not save';
@@ -147,13 +305,14 @@ export default function ExploreScreen() {
     }
   }
 
-  const hasQuery = query.trim().length >= 2;
+  const hasQuery =
+    searchParsed.term.length >= (searchParsed.mode === 'user' ? 1 : 2);
 
   return (
     <SafeAreaView className="flex-1 bg-apple-bg2" edges={['top']}>
       <AppleHeader title="Explore" />
       <ScrollView
-        contentContainerClassName="pb-24"
+        contentContainerStyle={{ paddingBottom: TAB_SCROLL_BOTTOM_INSET }}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
@@ -167,29 +326,21 @@ export default function ExploreScreen() {
         }
       >
         <View className="px-4 pt-2">
-          <AppleCard style={{ marginBottom: 24, padding: 0, overflow: 'hidden' }}>
-            <TextInput
+          <View className="mb-4">
+            <SearchField
               value={query}
               onChangeText={setQuery}
-              placeholder="Search builds, parts, people"
-              placeholderTextColor={colors.tertiary}
-              autoCapitalize="none"
-              autoCorrect={false}
-              className="px-4 py-3.5 text-base text-apple-ink"
+              placeholder="Search parts or @username"
+              trailing={
+                searching ? <ActivityIndicator color={colors.accent} size="small" /> : null
+              }
             />
-          </AppleCard>
+          </View>
           {hasQuery && session ? (
             <Pressable
               onPress={async () => {
                 try {
-                  const tier = await getUserSubscriptionTier(session.user.id);
-                  if (!canSaveSearches(tier)) {
-                    Alert.alert(
-                      'Member perk',
-                      'Saved searches require a Member subscription or higher.'
-                    );
-                    return;
-                  }
+                  if (!ensureSubscriptionTier(tier, 'member', 'Saved searches')) return;
                   await saveSearch(session.user.id, query);
                   Alert.alert('Saved', 'Search saved to your account.');
                 } catch (err) {
@@ -206,17 +357,27 @@ export default function ExploreScreen() {
 
         {/* ---- Search results ---- */}
         {hasQuery ? (
-          <View className="mt-4">
-            {searching ? (
+          <View className="mt-2">
+            {searching &&
+            userHits.length === 0 &&
+            partHits.length === 0 &&
+            discoverHits.length === 0 ? (
               <View className="items-center py-6">
                 <ActivityIndicator color={colors.accent} />
               </View>
-            ) : userHits.length === 0 && partHits.length === 0 ? (
+            ) : userHits.length === 0 &&
+              partHits.length === 0 &&
+              discoverHits.length === 0 &&
+              !discoverSearching ? (
               <View className="mx-4 mt-2">
                 <AppleCard padded>
                   <Text className="font-semibold text-apple-ink">No matches</Text>
                   <Text className="mt-1 text-sm text-apple-secondary">
-                    Try a brand, part name, handle or builder name.
+                    {isUserSearch
+                      ? 'No users for that @handle — try a longer handle or display name.'
+                      : session
+                        ? 'No matches in the catalogue or from Google Shopping. Try another brand or part name.'
+                        : 'Try another brand or part name — sign in for web results.'}
                   </Text>
                 </AppleCard>
               </View>
@@ -232,7 +393,7 @@ export default function ExploreScreen() {
                           <Pressable
                             onPress={() =>
                               router.push(
-                                u.is_workshop ? `/workshop/${u.handle}` : `/user/${u.handle}`
+                                `/user/${u.handle}`
                               )
                             }
                             className="flex-1 flex-row items-center gap-3 active:opacity-80"
@@ -261,6 +422,9 @@ export default function ExploreScreen() {
                               <Text className="text-xs text-apple-secondary">@{u.handle}</Text>
                             </View>
                           </Pressable>
+                          {!u.is_workshop ? (
+                            <FollowButton userId={u.id} handle={u.handle} />
+                          ) : null}
                           {u.is_workshop && u.workshop_phone ? (
                             <Pressable
                               onPress={() => Linking.openURL(`tel:${u.workshop_phone}`)}
@@ -278,10 +442,10 @@ export default function ExploreScreen() {
 
                 {partHits.length > 0 ? (
                   <View>
-                    <SectionLabel>Parts</SectionLabel>
+                    <SectionLabel>Parts in Wired</SectionLabel>
                     <View className="gap-2 px-4 pt-2">
                       {partHits.map((p) => (
-                        <PartRow
+                        <PopularPartRow
                           key={p.id}
                           part={p}
                           saving={savingId === p.id}
@@ -292,26 +456,101 @@ export default function ExploreScreen() {
                     </View>
                   </View>
                 ) : null}
+
+                {session && !isUserSearch && (discoverSearching || discoverHits.length > 0) ? (
+                  <View>
+                    <View className="flex-row items-center gap-2 px-4">
+                      <SectionLabel inline>From the web</SectionLabel>
+                      {discoverSearching ? (
+                        <ActivityIndicator color={colors.accent} size="small" />
+                      ) : null}
+                    </View>
+                    <Text className="px-4 pb-1 text-xs text-apple-secondary">
+                      Live Google Shopping results — not saved to the catalogue.
+                    </Text>
+                    <View className="gap-2 px-4 pt-1">
+                      {discoverHits.map((p) => (
+                        <PopularPartRow
+                          key={p.id}
+                          part={p}
+                          saving={savingId === p.id}
+                          saved={
+                            p.product_url
+                              ? savedDiscoverUrls.has(p.product_url)
+                              : false
+                          }
+                          onSave={() => handleSaveToWishlist(p)}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                ) : null}
+
               </View>
             )}
           </View>
-        ) : loading ? (
-          <View className="mt-12 items-center">
-            <ActivityIndicator color={colors.accent} />
-          </View>
         ) : (
           <View className="gap-6 pt-2">
+            <NearYouSection builds={nearby} locationEnabled={nearbyLocationEnabled} />
+
+            <EventsSection
+              events={events}
+              onCreatePress={() => {
+                if (!session) {
+                  showAppAlert('Sign in', 'Sign in to post an event.');
+                  return;
+                }
+                router.push('/event/new');
+              }}
+            />
+
+            <View>
+              <View className="mb-3 flex-row items-center justify-between px-4">
+                <View className="flex-row items-center gap-2">
+                  <Text className="text-[22px] font-bold text-apple-ink" style={{ letterSpacing: -0.44 }}>
+                    Trending mods
+                  </Text>
+                  <Ionicons name="flame" size={22} color={colors.accent} />
+                </View>
+                <Text className="text-xs font-medium text-apple-tertiary">This month</Text>
+              </View>
+              {trending.length === 0 ? (
+                <View className="mx-4">
+                  <AppleCard padded>
+                    <Text className="font-semibold text-apple-ink">Nothing trending yet</Text>
+                    <Text className="mt-1 text-sm text-apple-secondary">
+                      Log a public mod or like one to seed the charts.
+                    </Text>
+                  </AppleCard>
+                </View>
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 8 }}
+                >
+                  {trending.map((post, idx) => (
+                    <TrendingCard
+                      key={post.id}
+                      post={post}
+                      rank={idx + 1}
+                      onPress={() => router.push(`/post/${post.id}`)}
+                    />
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+
             {/* Builds like yours — horizontal carousel */}
             {forSale.length > 0 ? (
-              <View className="mt-2">
-                <View className="mb-3.5 flex-row items-baseline justify-between px-4">
-                  <Text
-                    className="text-[22px] font-bold text-apple-ink"
-                    style={{ letterSpacing: -0.44 }}
-                  >
-                    Builds like yours
+              <View>
+                <View className="mb-3 flex-row items-baseline justify-between px-4">
+                  <Text className="text-[22px] font-bold text-apple-ink" style={{ letterSpacing: -0.44 }}>
+                    Builds for sale
                   </Text>
-                  <Text className="text-[15px] font-semibold text-signal-blue">See all</Text>
+                  <Pressable onPress={() => router.push('/explore')}>
+                    <Text className="text-[15px] font-semibold text-signal-blue">See all</Text>
+                  </Pressable>
                 </View>
                 <ScrollView
                   horizontal
@@ -369,63 +608,54 @@ export default function ExploreScreen() {
             ) : null}
 
             <View>
-              <View className="flex-row items-end justify-between px-4 pt-4">
-                <Text
-                  className="text-[22px] font-bold text-apple-ink"
-                  style={{ letterSpacing: -0.44 }}
+              <View className="mb-2 flex-row items-center justify-between px-4 pt-4">
+                <View className="flex-row items-center gap-2">
+                  <Text
+                    className="text-[22px] font-bold text-apple-ink"
+                    style={{ letterSpacing: -0.44 }}
+                  >
+                    Popular parts
+                  </Text>
+                  <Ionicons name="cart-outline" size={22} color={colors.accent} />
+                </View>
+                <Pressable
+                  onPress={() =>
+                    router.push(
+                      partCategory
+                        ? `/explore/parts?category=${partCategory}`
+                        : '/explore/parts'
+                    )
+                  }
+                  hitSlop={8}
                 >
-                  Popular parts
-                </Text>
-                <Text className="text-xs font-medium text-apple-tertiary">by installs</Text>
+                  <Text className="text-[15px] font-semibold text-signal-blue">View all</Text>
+                </Pressable>
               </View>
-              <View className="mt-2 gap-2 px-4">
-                {popularParts.map((p) => (
-                  <PartRow
-                    key={p.id}
-                    part={p}
-                    saving={savingId === p.id}
-                    saved={savedPartIds.has(p.id)}
-                    onSave={() => handleSaveToWishlist(p)}
-                  />
-                ))}
+              <Text className="mb-3 px-4 text-[13px] text-apple-secondary">
+                Shop by category — compare community picks and live web prices.
+              </Text>
+              <PartCategoryFilters category={partCategory} onCategoryChange={setPartCategory} />
+              <View className="mt-3 gap-2 px-4">
+                {popularParts.length === 0 ? (
+                  <AppleCard padded>
+                    <Text className="text-sm text-apple-secondary">
+                      No catalogue parts in this category yet. Try All types or search above.
+                    </Text>
+                  </AppleCard>
+                ) : (
+                  popularParts.map((p) => (
+                    <PopularPartRow
+                      key={p.id}
+                      part={p}
+                      saving={savingId === p.id}
+                      saved={savedPartIds.has(p.id)}
+                      onSave={() => handleSaveToWishlist(p)}
+                    />
+                  ))
+                )}
               </View>
             </View>
 
-            <View>
-              <View className="mb-3.5 flex-row items-center gap-2 px-4">
-                <Text
-                  className="text-[22px] font-bold text-apple-ink"
-                  style={{ letterSpacing: -0.44 }}
-                >
-                  Trending
-                </Text>
-                <Ionicons name="flame" size={22} color={colors.accent} />
-              </View>
-              {trending.length === 0 ? (
-                <View className="mx-4">
-                  <AppleCard padded>
-                    <Text className="font-semibold text-apple-ink">Nothing trending yet</Text>
-                    <Text className="mt-1 text-sm text-apple-secondary">
-                      Log a public mod or like one to seed the charts.
-                    </Text>
-                  </AppleCard>
-                </View>
-              ) : (
-                <View className="mx-4">
-                  <AppleCard style={{ padding: 0, overflow: 'hidden' }}>
-                    {trending.map((post, idx) => (
-                      <TrendingRow
-                        key={post.id}
-                        post={post}
-                        rank={idx + 1}
-                        last={idx === trending.length - 1}
-                        onPress={() => router.push(`/post/${post.id}`)}
-                      />
-                    ))}
-                  </AppleCard>
-                </View>
-              )}
-            </View>
           </View>
         )}
       </ScrollView>
@@ -452,97 +682,64 @@ function SectionLabel({
   );
 }
 
-function PartRow({
-  part,
-  saving,
-  saved,
-  onSave,
-}: {
-  part: PartSearchResult;
-  saving: boolean;
-  saved: boolean;
-  onSave: () => void;
-}) {
-  const router = useRouter();
-  return (
-    <AppleCard style={{ padding: 12 }}>
-      <View className="flex-row items-center gap-3">
-      <View className="min-w-0 flex-1">
-        <Pressable
-          onPress={() => router.push(`/part/${part.id}`)}
-          className="active:opacity-80"
-        >
-          <Text className="text-[10px] font-semibold uppercase tracking-wider text-apple-tertiary">
-            {part.category.replace('_', ' ')}
-          </Text>
-          <Text className="mt-0.5 text-base font-semibold text-apple-ink">{part.brand}</Text>
-          <Text className="text-sm text-apple-secondary">{part.name}</Text>
-          <Text className="mt-1 text-[11px] text-apple-tertiary">
-            {part.install_count} install{part.install_count === 1 ? '' : 's'}
-          </Text>
-        </Pressable>
-      </View>
-      <Pressable
-        onPress={onSave}
-        disabled={saving || saved}
-        className={`shrink-0 rounded-xl px-3 py-1.5 disabled:opacity-60 ${
-          saved ? 'bg-apple-bg2' : 'bg-accent-soft active:opacity-80'
-        }`}
-        accessibilityRole="button"
-        accessibilityLabel={saved ? 'Saved to wishlist' : 'Add to wishlist'}
-      >
-        {saving ? (
-          <ActivityIndicator color={colors.accent} />
-        ) : (
-          <Text
-            className={`text-xs font-semibold ${saved ? 'text-apple-tertiary' : 'text-accent'}`}
-          >
-            {saved ? 'Saved' : '+ Wishlist'}
-          </Text>
-        )}
-      </Pressable>
-      </View>
-    </AppleCard>
-  );
-}
-
-function TrendingRow({
+function TrendingCard({
   post,
   rank,
-  last,
   onPress,
 }: {
   post: FeedPost;
   rank: number;
-  last: boolean;
   onPress: () => void;
 }) {
-  const partLabel = post.mod?.part
-    ? `${post.mod.part.brand} ${post.mod.part.name}`
-    : post.mod?.custom_part_name ?? `${post.vehicle.make} ${post.vehicle.model}`;
+  const thumb = resolvePostDisplayMedia(post)[0]?.url;
+  const title = isModPost(post)
+    ? post.mod?.part
+      ? `${post.mod.part.brand} ${post.mod.part.name}`
+      : post.mod?.custom_part_name ?? `${post.vehicle.make} ${post.vehicle.model}`
+    : post.body?.trim() || `${post.vehicle.make} ${post.vehicle.model}`;
   const likes =
     post.reaction_count >= 1000
       ? `${(post.reaction_count / 1000).toFixed(1)}k`
       : String(post.reaction_count);
 
   return (
-    <Pressable
-      onPress={onPress}
-      className={`flex-row items-center gap-3.5 px-4 py-3.5 active:bg-apple-bg2 ${
-        last ? '' : 'border-b border-apple-border'
-      }`}
-    >
-      <Text className="w-6 text-xl font-bold text-accent">{rank}</Text>
-      <VehicleThumb size={48} color={colors.accent} />
-      <View className="min-w-0 flex-1">
-        <Text className="text-[15px] font-semibold text-apple-ink" numberOfLines={1}>
-          {partLabel}
-        </Text>
-        <Text className="text-[13px] text-apple-secondary">
-          @{post.author.handle} · {likes} likes
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={colors.tertiary} />
+    <Pressable onPress={onPress} style={{ width: 168 }}>
+      <AppleCard style={{ padding: 0, overflow: 'hidden' }}>
+        <View className="relative">
+          {thumb ? (
+            <Image
+              source={{ uri: thumb }}
+              className="aspect-square w-full bg-apple-bg2"
+              resizeMode="cover"
+            />
+          ) : (
+            <View
+              className="aspect-square w-full items-center justify-center"
+              style={{ backgroundColor: colors.accentSoft }}
+            >
+              <Ionicons name="car-sport-outline" size={36} color={colors.accent} />
+            </View>
+          )}
+          <View
+            className="absolute left-2 top-2 h-7 w-7 items-center justify-center rounded-full"
+            style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
+          >
+            <Text className="text-xs font-bold text-white">#{rank}</Text>
+          </View>
+        </View>
+        <View className="p-3">
+          <Text className="text-sm font-semibold text-apple-ink" numberOfLines={2}>
+            {title}
+          </Text>
+          <Text className="mt-1 text-xs text-apple-secondary" numberOfLines={1}>
+            @{post.author.handle}
+          </Text>
+          <View className="mt-2 flex-row items-center gap-1">
+            <Ionicons name="heart" size={12} color={colors.accent} />
+            <Text className="text-xs font-semibold text-accent">{likes}</Text>
+          </View>
+        </View>
+      </AppleCard>
     </Pressable>
   );
 }

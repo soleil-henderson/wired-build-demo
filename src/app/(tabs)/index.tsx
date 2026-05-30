@@ -1,62 +1,87 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Image,
+  Platform,
   Pressable,
   RefreshControl,
   Share,
   Text,
   View,
 } from 'react-native';
+import { FlatList } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { InstagramHomeHeader } from '@/components/InstagramHomeHeader';
 import { AppleCard } from '@/components/apple/AppleCard';
-import { AppleHeader } from '@/components/apple/AppleHeader';
 import { GradientAvatar, MoneyText, VerifiedLabel } from '@/components/apple/ApplePrimitives';
 import { SegmentedControl } from '@/components/apple/SegmentedControl';
+import { MediaCarousel } from '@/components/ui/MediaCarousel';
+import { StoriesRow } from '@/components/social/StoriesRow';
+import { HomeSwipeShell } from '@/components/social/HomeSwipeShell';
+import { ModToolsDisplay } from '@/components/mods/ModToolsDisplay';
+import { FollowButton } from '@/components/social/FollowButton';
 import { UserBadges } from '@/components/UserBadges';
+import { useSubscriptionTier } from '@/hooks/use-subscription-tier';
 import { useAuth } from '@/lib/auth-context';
+import { ensureSubscriptionTier } from '@/lib/subscription-guard';
 import {
   listFeed,
+  isModPost,
+  resolvePostDisplayMedia,
   togglePostLike,
   type FeedMode,
   type FeedPost,
 } from '@/lib/feed';
+import { listStoryRings, type StoryRing } from '@/lib/stories';
+import { TAB_SCROLL_BOTTOM_INSET } from '@/lib/tab-screen-layout';
 import { colors } from '@/lib/theme';
+import { resolveModShopLink } from '@/lib/shop-link';
+import { navigateToModProduct } from '@/lib/product-nav';
 import { useUnreadNotifications } from '@/lib/unread-notifications-context';
+import { useUnreadMessages } from '@/lib/unread-messages-context';
+import { useFocusData } from '@/lib/use-focus-data';
 
 export default function FeedScreen() {
   const { session } = useAuth();
+  const { tier } = useSubscriptionTier();
   const router = useRouter();
   const { count: unread, refresh: refreshUnread, clearLocal: clearUnread } =
     useUnreadNotifications();
+  const { count: unreadMessages, refresh: refreshMessageUnread } = useUnreadMessages();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [mode, setMode] = useState<FeedMode>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [storyRings, setStoryRings] = useState<StoryRing[]>([]);
+  const [storiesLoading, setStoriesLoading] = useState(true);
 
   const loadFresh = useCallback(async () => {
     try {
-      const [page] = await Promise.all([
+      const [page, rings] = await Promise.all([
         listFeed(session?.user.id ?? null, mode, null),
-        refreshUnread(),
+        session
+          ? listStoryRings(session.user.id).catch(() => [] as StoryRing[])
+          : Promise.resolve([] as StoryRing[]),
       ]);
+      await Promise.all([refreshUnread(), refreshMessageUnread()]);
       setPosts(page.posts);
       setCursor(page.nextCursor);
+      setStoryRings(rings);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Could not load feed';
       Alert.alert('Feed failed', message);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setStoriesLoading(false);
     }
-  }, [session, mode, refreshUnread]);
+  }, [session, mode, refreshUnread, refreshMessageUnread]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !cursor) return;
@@ -77,10 +102,12 @@ export default function FeedScreen() {
     }
   }, [cursor, loadingMore, session, mode]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadFresh();
-    }, [loadFresh])
+  useFocusData(
+    async ({ isInitial }) => {
+      if (isInitial && posts.length === 0) setLoading(true);
+      await loadFresh();
+    },
+    [loadFresh]
   );
 
   async function handleToggleLike(post: FeedPost) {
@@ -88,6 +115,7 @@ export default function FeedScreen() {
       Alert.alert('Sign in', 'Sign in to react.');
       return;
     }
+    if (!ensureSubscriptionTier(tier, 'member', 'Liking posts')) return;
     const previouslyLiked = post.liked_by_me;
     setPosts((current) =>
       current.map((p) =>
@@ -135,7 +163,11 @@ export default function FeedScreen() {
   }
 
   const ListHeader = (
-    <View className="px-4 pb-2 pt-1">
+    <View>
+      {session ? (
+        <StoriesRow rings={storyRings} loading={storiesLoading && storyRings.length === 0} />
+      ) : null}
+      <View className="px-4 pb-2 pt-1">
       {/* Community pulse banner */}
       <AppleCard
         style={{
@@ -154,10 +186,10 @@ export default function FeedScreen() {
           </View>
           <View className="flex-1">
             <Text className="text-[15px] font-semibold text-apple-ink">
-              {posts.length > 0 ? `${posts.length}+ mods in your feed` : 'What\u2019s being built'}
+              {posts.length > 0 ? `${posts.length}+ posts in your feed` : 'What\u2019s being built'}
             </Text>
             <Text className="text-[13px] text-apple-secondary">
-              Recent mods logged across the network
+              Mods, photos, and adventures from the network
             </Text>
           </View>
         </View>
@@ -176,6 +208,7 @@ export default function FeedScreen() {
           />
         </View>
       ) : null}
+      </View>
     </View>
   );
 
@@ -211,7 +244,7 @@ export default function FeedScreen() {
               Quiet around here
             </Text>
             <Text className="mt-1 text-apple-secondary">
-              No public mods yet. Log one and it&apos;ll show up here for everyone.
+              No public posts yet. Log a mod or share photos from the Create tab.
             </Text>
           </>
         )}
@@ -231,48 +264,51 @@ export default function FeedScreen() {
     ) : null;
 
   return (
-    <SafeAreaView className="flex-1 bg-apple-bg2" edges={['top']}>
-      <AppleHeader
-        title="Home"
-        notificationCount={unread}
-        onSearchPress={() => router.push('/explore')}
-        onNotificationsPress={() => {
-          clearUnread();
-          router.push('/notifications');
-        }}
-      />
-      <FlatList
-        data={posts}
-        keyExtractor={(p) => p.id}
-        renderItem={({ item }) => (
-          <View className="px-4">
-            <PostCard
-              post={item}
-              onToggleLike={() => handleToggleLike(item)}
-              onOpenPost={() => router.push(`/post/${item.id}`)}
-              onOpenAuthor={() => router.push(`/user/${item.author.handle}`)}
+    <HomeSwipeShell enabled={!!session && Platform.OS !== 'web'}>
+      <SafeAreaView className="flex-1 bg-apple-bg2" edges={['top']}>
+        <InstagramHomeHeader
+          notificationCount={unread}
+          messageCount={unreadMessages}
+          onNotificationsPress={() => {
+            clearUnread();
+            router.push('/notifications');
+          }}
+          onMessagesPress={() => router.push('/messages')}
+        />
+        <FlatList
+          style={{ flex: 1 }}
+          data={posts}
+          keyExtractor={(p) => p.id}
+          renderItem={({ item }) => (
+            <View className="px-4">
+              <PostCard
+                post={item}
+                onToggleLike={() => handleToggleLike(item)}
+                onOpenPost={() => router.push(`/post/${item.id}`)}
+                onOpenAuthor={() => router.push(`/user/${item.author.handle}`)}
+              />
+            </View>
+          )}
+          ListHeaderComponent={ListHeader}
+          ListEmptyComponent={ListEmpty}
+          ListFooterComponent={ListFooter}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.6}
+          refreshControl={
+            <RefreshControl
+              tintColor={colors.accent}
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                setCursor(null);
+                loadFresh();
+              }}
             />
-          </View>
-        )}
-        ListHeaderComponent={ListHeader}
-        ListEmptyComponent={ListEmpty}
-        ListFooterComponent={ListFooter}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.6}
-        refreshControl={
-          <RefreshControl
-            tintColor={colors.accent}
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              setCursor(null);
-              loadFresh();
-            }}
-          />
-        }
-        contentContainerStyle={{ paddingBottom: 100 }}
-      />
-    </SafeAreaView>
+          }
+          contentContainerStyle={{ paddingBottom: TAB_SCROLL_BOTTOM_INSET }}
+        />
+      </SafeAreaView>
+    </HomeSwipeShell>
   );
 }
 
@@ -294,10 +330,18 @@ function PostCard({
     post.mod?.part
       ? `${post.mod.part.brand} ${post.mod.part.name}`
       : post.mod?.custom_part_name ?? null;
-  const brandLabel = post.mod?.part?.brand ?? post.mod?.category.replace('_', ' ');
-  const caption =
-    post.body ??
-    (partLabel ? `Installed ${partLabel}` : null);
+  const brandLabel = post.mod?.part?.brand ?? post.mod?.category.replace('_', ' ') ?? '';
+  const displayMedia = resolvePostDisplayMedia(post);
+  const caption = isModPost(post)
+    ? post.body ?? (partLabel ? `Installed ${partLabel}` : null)
+    : post.body;
+  const shopLink = post.mod
+    ? resolveModShopLink({
+        product_links: post.mod.product_links,
+        part: post.mod.part,
+        partLabel,
+      })
+    : null;
   const avatarColor = hashColor(post.author.handle);
   const initials = (post.author.display_name || post.author.handle || '?')
     .split(' ')
@@ -327,72 +371,61 @@ function PostCard({
             <UserBadges user={post.author} />
           </View>
           <Text className="text-[13px] text-apple-secondary">
-            {vehicleTitle} · {formatRelative(post.created_at)}
+            {isModPost(post)
+              ? `${vehicleTitle} · ${formatRelative(post.created_at)}`
+              : formatRelative(post.created_at)}
           </Text>
         </Pressable>
-        <Ionicons name="ellipsis-horizontal" size={20} color={colors.tertiary} />
+        <FollowButton userId={post.author.id} handle={post.author.handle} />
       </View>
 
-      <Pressable onPress={onOpenPost}>
-        <View className="relative w-full bg-apple-bg2" style={{ aspectRatio: 16 / 10 }}>
-          {post.mod?.photo_url ? (
-            <Image
-              source={{ uri: post.mod.photo_url }}
-              className="h-full w-full"
-              resizeMode="cover"
-            />
-          ) : (
-            <View
-              className="h-full w-full items-center justify-center"
-              style={{ backgroundColor: `${avatarColor}14` }}
-            >
-              <Ionicons name="car-sport-outline" size={56} color={avatarColor} />
-            </View>
-          )}
-          {post.mod ? (
-            <View
-              className="absolute left-3 top-3 rounded-full px-3 py-1"
-              style={{ backgroundColor: 'rgba(255,255,255,0.92)' }}
-            >
-              <Text className="text-xs font-semibold" style={{ color: avatarColor }}>
-                + New mod
-              </Text>
-            </View>
-          ) : null}
-        </View>
-      </Pressable>
+      {displayMedia.length > 0 ? (
+        <MediaCarousel
+          items={displayMedia}
+          aspectRatio={1}
+          liked={post.liked_by_me}
+          onSingleTap={onOpenPost}
+          onDoubleTap={onToggleLike}
+        />
+      ) : null}
 
       <View className="px-4 py-3.5">
         {caption ? (
           <Text className="mb-3 text-[15px] leading-[22px] text-apple-ink">{caption}</Text>
         ) : null}
 
-        {post.mod && partLabel ? (
-          <View
-            className="mb-3.5 flex-row items-center gap-3 rounded-[14px] p-3"
+        {post.mod && (partLabel || shopLink) ? (
+          <Pressable
+            onPress={() => navigateToModProduct(router, post.mod)}
+            className="mb-3.5 flex-row items-center gap-3 rounded-[14px] p-3 active:opacity-80"
             style={{ backgroundColor: colors.bg2 }}
           >
             <View className="h-[38px] w-[38px] items-center justify-center rounded-[10px] bg-white">
               <Ionicons name="pricetag-outline" size={16} color={avatarColor} />
             </View>
             <View className="min-w-0 flex-1">
-              <Text className="text-xs font-semibold text-apple-secondary">{brandLabel}</Text>
-              <Text className="text-sm font-semibold text-apple-ink" numberOfLines={1}>
-                {partLabel}
-              </Text>
+              {partLabel ? (
+                <>
+                  <Text className="text-xs font-semibold text-apple-secondary">{brandLabel}</Text>
+                  <Text className="text-sm font-semibold text-apple-ink" numberOfLines={1}>
+                    {partLabel}
+                  </Text>
+                </>
+              ) : (
+                <Text className="text-sm font-semibold text-apple-ink" numberOfLines={1}>
+                  {shopLink?.subtitle ?? 'Product link'}
+                </Text>
+              )}
             </View>
             {post.mod.cost != null ? (
               <MoneyText value={Number(post.mod.cost)} size={16} color={colors.accent} weight="700" />
             ) : null}
-            {post.mod.part ? (
-              <Pressable
-                onPress={() => router.push(`/part/${post.mod!.part!.id}`)}
-                className="h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-white"
-              >
-                <Ionicons name="bookmark-outline" size={16} color={colors.secondary} />
-              </Pressable>
-            ) : null}
-          </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.tertiary} />
+          </Pressable>
+        ) : null}
+
+        {post.mod && (post.mod.tools?.length ?? 0) > 0 ? (
+          <ModToolsDisplay tools={post.mod.tools} />
         ) : null}
 
         <View className="flex-row items-center gap-5">

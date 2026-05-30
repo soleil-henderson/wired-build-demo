@@ -1,3 +1,4 @@
+import { listModTools, type ModTool } from './mod-tools';
 import { thumbnailUrlForPublicUrl } from './image-url';
 import { getReceiptSignedUrl } from './receipts';
 import {
@@ -71,6 +72,39 @@ export type ModForEdit = ModWithPart & {
   receipt: ModReceipt | null;
 };
 
+export type ModDetailVehicle = {
+  id: string;
+  year: number | null;
+  make: string;
+  model: string;
+  nickname: string | null;
+  current_owner_id: string;
+};
+
+export type ModDetail = {
+  mod: ModForEdit;
+  vehicle: ModDetailVehicle;
+  tools: ModTool[];
+};
+
+/** Full mod page: install record, photos, tools, and linked vehicle. */
+export async function getModDetail(modId: string): Promise<ModDetail | null> {
+  const mod = await getModForEdit(modId);
+  if (!mod) return null;
+
+  const { data: vehicle, error } = await supabase
+    .from('vehicles')
+    .select('id, year, make, model, nickname, current_owner_id')
+    .eq('id', mod.vehicle_id)
+    .maybeSingle();
+
+  if (error || !vehicle) return null;
+
+  const tools = await listModTools(modId).catch(() => []);
+
+  return { mod, vehicle, tools };
+}
+
 /**
  * Load a single mod for the edit screen. RLS ensures only the vehicle
  * owner can read private mods on their own builds.
@@ -140,7 +174,7 @@ export async function deleteModMedia(mediaId: string): Promise<void> {
   const { error } = await supabase.from('media').delete().eq('id', mediaId);
   if (error) throw error;
 
-  if (row?.kind === 'photo') {
+  if (row?.kind === 'photo' || row?.kind === 'video') {
     const key =
       row.storage_key ||
       (row.url ? storageKeyFromModPhotoPublicUrl(row.url) : null);
@@ -201,6 +235,7 @@ export type ModUpdateInput = {
   notes: string | null;
   privacy: Database['public']['Tables']['mods']['Row']['privacy'];
   custom_part_name: string | null;
+  product_links?: Database['public']['Tables']['mods']['Row']['product_links'];
 };
 
 /**
@@ -222,6 +257,9 @@ export async function updateMod(modId: string, input: ModUpdateInput): Promise<v
       notes: input.notes,
       privacy: input.privacy,
       custom_part_name: input.custom_part_name,
+      ...(input.product_links !== undefined
+        ? { product_links: input.product_links }
+        : {}),
     })
     .eq('id', modId);
 

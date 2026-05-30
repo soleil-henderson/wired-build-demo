@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 
 /** iOS-style app badge label (caps at 99+). */
 export function formatNotificationBadgeCount(count: number): string {
@@ -17,6 +17,8 @@ type Props = {
 
 /** Bell icon with an Apple-style red numeric badge. */
 export function NotificationBellButton({ count, onPress, accessibilityLabel }: Props) {
+  const { theme } = useTheme();
+  const { colors } = theme;
   const label = formatNotificationBadgeCount(count);
   const wide = label.length > 1;
 
@@ -42,6 +44,7 @@ export function NotificationBellButton({ count, onPress, accessibilityLabel }: P
             styles.badge,
             wide ? styles.badgeWide : styles.badgeRound,
             label.length >= 3 ? styles.badgeExtraWide : null,
+            { backgroundColor: colors.red, borderColor: colors.bg2 },
           ]}
         >
           <Text style={styles.badgeText} numberOfLines={1}>
@@ -49,7 +52,7 @@ export function NotificationBellButton({ count, onPress, accessibilityLabel }: P
           </Text>
         </View>
       ) : count > 0 ? (
-        <View style={styles.dot} />
+        <View style={[styles.dot, { backgroundColor: colors.red, borderColor: colors.bg2 }]} />
       ) : null}
     </Pressable>
   );
@@ -63,20 +66,16 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.red,
     borderWidth: 1.5,
-    borderColor: colors.bg,
   },
   badge: {
     position: 'absolute',
     top: -4,
     right: -8,
     minHeight: 18,
-    backgroundColor: colors.red,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: colors.bg,
   },
   badgeRound: {
     minWidth: 18,

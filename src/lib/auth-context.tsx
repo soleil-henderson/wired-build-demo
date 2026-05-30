@@ -15,13 +15,20 @@ import {
   registerForPushNotificationsAsync,
   setAppBadgeCount,
 } from './push-notifications';
+import { formatSignInError, normalizeAuthEmail } from './auth-account';
+import { webAppAbsoluteUrl } from './site-url';
 import { supabase } from './supabase';
+import type { AccountType } from '@/types/database';
 
 type AuthContextValue = {
   session: Session | null;
   isLoading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (
+    email: string,
+    password: string,
+    options?: { accountType?: AccountType }
+  ) => Promise<{ session: Session | null; needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
 };
 
@@ -72,28 +79,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       isLoading,
       async signInWithEmail(email, password) {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        const normalizedEmail = normalizeAuthEmail(email);
+        const { error } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password,
+        });
         if (error) {
-          if (
-            error.message.toLowerCase().includes('email not confirmed') ||
-            error.message.toLowerCase().includes('not confirmed')
-          ) {
-            throw new Error(
-              'Confirm your email first — check your inbox for the verification link, then sign in again.'
-            );
-          }
-          throw error;
-        }
-        if (data.user && !data.user.email_confirmed_at) {
-          await supabase.auth.signOut();
-          throw new Error(
-            'Confirm your email first — check your inbox for the verification link, then sign in again.'
-          );
+          throw formatSignInError(error);
         }
       },
-      async signUpWithEmail(email, password) {
-        const { error } = await supabase.auth.signUp({ email, password });
+      async signUpWithEmail(email, password, options) {
+        const accountType = options?.accountType ?? 'builder';
+        const normalizedEmail = normalizeAuthEmail(email);
+        const { data, error } = await supabase.auth.signUp({
+          email: normalizedEmail,
+          password,
+          options: {
+            data: { account_type: accountType },
+            emailRedirectTo: webAppAbsoluteUrl('/auth/callback'),
+          },
+        });
         if (error) throw error;
+
+        if (data.user && data.user.identities?.length === 0) {
+          throw new Error(
+            'An account with this email already exists. Try signing in instead.'
+          );
+        }
+
+        const needsEmailConfirmation = !data.session && !!data.user;
+        return {
+          session: data.session,
+          needsEmailConfirmation,
+        };
       },
       async signOut() {
         // Clear push token BEFORE signing out — RLS still allows the

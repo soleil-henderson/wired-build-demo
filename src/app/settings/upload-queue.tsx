@@ -55,11 +55,7 @@ export default function UploadQueueScreen() {
   return (
     <ScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="pb-12">
       <Stack.Screen options={{ title: 'Pending uploads' }} />
-      <ScreenHeader
-        eyebrow="SETTINGS"
-        title="Pending photo uploads"
-        subtitle="Photos saved offline while logging a mod. Retry when you are back online."
-      />
+      <ScreenHeader subtitle="Photos saved offline while logging a mod. Retry when you are back online." />
 
       {loading ? (
         <ActivityIndicator className="mt-8" color="#FF6A2B" />

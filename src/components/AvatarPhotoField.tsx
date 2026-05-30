@@ -31,12 +31,14 @@ export function AvatarPhotoField({ previewUri, fallbackInitial, onPick }: Props)
             allowsEditing: true,
             aspect: [1, 1],
             quality: 1,
+            exif: false,
           })
         : await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
             allowsEditing: true,
             aspect: [1, 1],
             quality: 1,
+            exif: false,
           });
 
     if (result.canceled || !result.assets[0]) return;

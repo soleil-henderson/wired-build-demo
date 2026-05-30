@@ -3,37 +3,38 @@ import { makeRedirectUri } from 'expo-auth-session';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 
+import { webAppAbsoluteUrl, WEB_APP_BASE_PATH } from './site-url';
 import { supabase } from './supabase';
 
 /**
- * Apple / Google sign-in via Supabase OAuth (web-based flow).
+ * Apple / Google sign-in via Supabase OAuth.
  *
- * Notes for the demo:
- * - Web-based OAuth works inside Expo Go because the redirect URL goes to
- *   the Expo dev-client scheme, which `makeRedirectUri` generates for us.
- *   For App Store builds you'll want native Apple sign-in (Apple requires
- *   it whenever third-party social sign-in is offered) via
- *   `expo-apple-authentication` + `signInWithIdToken`. Plumbing for that
- *   can sit on top of this helper later.
- * - The redirect URL must be added to **Authentication → URL
- *   Configuration → Additional Redirect URLs** in the Supabase dashboard,
- *   including the Expo Go variant during development (something like
- *   `exp://*` is the easiest catch-all).
- * - Provider credentials (Apple Service ID + Key, Google Client
- *   ID / Secret) live in **Authentication → Providers** in the dashboard.
+ * - **Native (Expo Go / dev build):** in-app browser → `wiredbuilddemo://auth/callback`
+ * - **Web (wiredbuild.com/app):** full-page redirect → `https://<site>/app/auth/callback`
+ *
+ * Add every redirect URL to Supabase → Authentication → URL Configuration.
  */
 
-// Make sure any in-progress auth sessions are dismissed when the JS
-// reloads — required by expo-web-browser for `openAuthSessionAsync`.
 WebBrowser.maybeCompleteAuthSession();
 
 export type OAuthProvider = 'apple' | 'google';
 
-/**
- * Sign in with Apple — native `ASAuthorization` on iOS when available
- * (App Store requirement when Google sign-in is offered), otherwise the
- * web OAuth flow used in Expo Go.
- */
+/** OAuth return URL for the current platform (must match Supabase allow list). */
+export function getOAuthRedirectUri(): string {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined') {
+      const origin = window.location.origin.replace(/\/$/, '');
+      return `${origin}${WEB_APP_BASE_PATH}/auth/callback`;
+    }
+    return webAppAbsoluteUrl('/auth/callback');
+  }
+
+  return makeRedirectUri({
+    scheme: 'wiredbuilddemo',
+    path: 'auth/callback',
+  });
+}
+
 export async function signInWithApple(): Promise<boolean> {
   if (Platform.OS === 'ios' && (await AppleAuthentication.isAvailableAsync())) {
     try {
@@ -63,30 +64,38 @@ export async function signInWithApple(): Promise<boolean> {
   return signInWithOAuthProvider('apple');
 }
 
-/**
- * Open the provider's consent page in a sandboxed browser, then exchange
- * the redirected tokens for a Supabase session.
- *
- * Returns true on success. Throws on Supabase errors so the caller can
- * surface a friendly message. User-dismissed flows resolve as `false`.
- */
 export async function signInWithOAuthProvider(
-  provider: OAuthProvider
+  provider: OAuthProvider,
+  options?: { accountType?: 'builder' | 'workshop' }
 ): Promise<boolean> {
-  const redirectTo = makeRedirectUri({
-    // The app's scheme from app.json. In Expo Go the helper rewrites this
-    // to the dev-client URL automatically.
-    scheme: 'wiredbuilddemo',
-    path: 'auth/callback',
-  });
+  const redirectTo = getOAuthRedirectUri();
+  const oauthOptions = {
+    redirectTo,
+    ...(options?.accountType
+      ? { data: { account_type: options.accountType } as Record<string, string> }
+      : {}),
+  };
+
+  if (Platform.OS === 'web') {
+    if (typeof window === 'undefined') {
+      throw new Error('Google sign-in requires a browser window.');
+    }
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: oauthOptions,
+    });
+    if (error) throw error;
+    if (!data?.url) throw new Error('Provider did not return an auth URL.');
+
+    window.location.assign(data.url);
+    return false;
+  }
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
-      redirectTo,
-      // We need to drive the browser ourselves so we can pull tokens out
-      // of the redirect URL — Supabase would otherwise call window.open
-      // which doesn't exist on RN.
+      ...oauthOptions,
       skipBrowserRedirect: true,
     },
   });
@@ -96,11 +105,29 @@ export async function signInWithOAuthProvider(
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
   if (result.type !== 'success' || !result.url) return false;
 
-  // Tokens come back in the URL fragment (implicit flow) e.g.
-  //   wiredbuilddemo://auth/callback#access_token=…&refresh_token=…
-  const tokens = parseAuthTokensFromUrl(result.url);
+  await completeOAuthFromCallbackUrl(result.url);
+  return true;
+}
+
+/** Finish OAuth after redirect (web callback page or native in-app browser). */
+export async function completeOAuthFromCallbackUrl(url: string): Promise<void> {
+  const parsed = new URL(url, typeof window !== 'undefined' ? window.location.origin : 'https://wiredbuild.com');
+  const code = parsed.searchParams.get('code');
+  const errorParam = parsed.searchParams.get('error_description') ?? parsed.searchParams.get('error');
+
+  if (errorParam) {
+    throw new Error(decodeURIComponent(errorParam.replace(/\+/g, ' ')));
+  }
+
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) throw error;
+    return;
+  }
+
+  const tokens = parseAuthTokensFromUrl(url);
   if (!tokens.access_token || !tokens.refresh_token) {
-    throw new Error('OAuth callback URL was missing session tokens.');
+    throw new Error('OAuth callback was missing session tokens.');
   }
 
   const { error: setErr } = await supabase.auth.setSession({
@@ -108,8 +135,6 @@ export async function signInWithOAuthProvider(
     refresh_token: tokens.refresh_token,
   });
   if (setErr) throw setErr;
-
-  return true;
 }
 
 function isAppleAuthCanceled(err: unknown): boolean {
@@ -121,14 +146,12 @@ function isAppleAuthCanceled(err: unknown): boolean {
   );
 }
 
-function parseAuthTokensFromUrl(url: string): {
+export function parseAuthTokensFromUrl(url: string): {
   access_token: string | null;
   refresh_token: string | null;
 } {
-  // Hash params (`#a=b&c=d`) — implicit flow
   const hash = url.includes('#') ? url.slice(url.indexOf('#') + 1) : '';
   const fromHash = new URLSearchParams(hash);
-  // Query params (`?a=b&c=d`) — PKCE / explicit fallback
   const queryStart = url.indexOf('?');
   const queryEnd = url.indexOf('#');
   const queryStr =

@@ -3,14 +3,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+
+import { KeyboardSafeScrollView } from '@/components/ui/KeyboardSafeView';
 
 import { useAuth } from '@/lib/auth-context';
 import { maxVehiclesForTier } from '@/lib/subscription';
@@ -151,12 +151,9 @@ export default function AddVehicleScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-apple-bg2"
-    >
+    <>
       <Stack.Screen options={{ title: 'Add vehicle' }} />
-      <ScrollView contentContainerClassName="px-6 pt-6 pb-24">
+      <KeyboardSafeScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="px-6 pt-6">
         <Text className="text-3xl font-bold text-apple-ink">Add your 4WD</Text>
         <Text className="mt-2 text-apple-secondary">
           The VIN is the spine of the whole record. Build history attaches to it and
@@ -321,8 +318,8 @@ export default function AddVehicleScreen() {
             </Text>
           )}
         </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardSafeScrollView>
+    </>
   );
 }
 

@@ -3,14 +3,14 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+
+import { KeyboardSafeScrollView } from '@/components/ui/KeyboardSafeView';
 
 import { useAuth } from '@/lib/auth-context';
 import { searchParts, type Part } from '@/lib/parts';
@@ -118,15 +118,9 @@ export default function WishlistNewScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-apple-bg2"
-    >
+    <>
       <Stack.Screen options={{ title: 'Add to wishlist' }} />
-      <ScrollView
-        contentContainerClassName="px-5 pt-5 pb-12"
-        keyboardShouldPersistTaps="handled"
-      >
+      <KeyboardSafeScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="px-5 pt-5">
         {/* Part picker */}
         <Section title="Part">
           {selectedPart ? (
@@ -313,8 +307,8 @@ export default function WishlistNewScreen() {
             </Text>
           )}
         </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardSafeScrollView>
+    </>
   );
 }
 

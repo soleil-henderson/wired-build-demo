@@ -47,6 +47,75 @@ export async function uploadModPhoto(input: {
   };
 }
 
+/** Mod video clip — public CDN, same bucket as photos. */
+export async function uploadModVideo(input: {
+  uri: string;
+  ownerId: string;
+  mimeType?: string | null;
+  width?: number | null;
+  height?: number | null;
+}): Promise<UploadedPhoto> {
+  const mime = input.mimeType ?? 'video/mp4';
+  const ext =
+    mime.includes('quicktime') || mime.includes('mov') ? 'mov' : 'mp4';
+  const key = `${input.ownerId}/${cryptoRandomId()}.${ext}`;
+  const bytes = await readUploadBytes(input.uri);
+
+  if (bytes.byteLength > 50 * 1024 * 1024) {
+    throw new Error('Video must be 50 MB or smaller.');
+  }
+
+  const { error } = await supabase.storage.from(MOD_PHOTOS_BUCKET).upload(key, bytes, {
+    contentType: mime,
+    cacheControl: '31536000',
+    upsert: false,
+  });
+
+  if (error) throw error;
+
+  const { data: pub } = supabase.storage.from(MOD_PHOTOS_BUCKET).getPublicUrl(key);
+
+  return {
+    url: pub.publicUrl,
+    storage_key: key,
+    width: input.width ?? null,
+    height: input.height ?? null,
+  };
+}
+
+/** DM voice memo — public CDN, same bucket as mod photos. */
+export async function uploadDmAudio(input: {
+  uri: string;
+  ownerId: string;
+  mimeType?: string | null;
+}): Promise<UploadedPhoto> {
+  const mime = input.mimeType ?? 'audio/m4a';
+  const ext = mime.includes('mpeg') || mime.includes('mp3') ? 'mp3' : 'm4a';
+  const key = `${input.ownerId}/voice-${cryptoRandomId()}.${ext}`;
+  const bytes = await readUploadBytes(input.uri);
+
+  if (bytes.byteLength > 8 * 1024 * 1024) {
+    throw new Error('Voice message must be 8 MB or smaller.');
+  }
+
+  const { error } = await supabase.storage.from(MOD_PHOTOS_BUCKET).upload(key, bytes, {
+    contentType: mime,
+    cacheControl: '31536000',
+    upsert: false,
+  });
+
+  if (error) throw error;
+
+  const { data: pub } = supabase.storage.from(MOD_PHOTOS_BUCKET).getPublicUrl(key);
+
+  return {
+    url: pub.publicUrl,
+    storage_key: key,
+    width: null,
+    height: null,
+  };
+}
+
 const AVATAR_MAX_EDGE_PX = 512;
 
 /**
@@ -154,6 +223,28 @@ export async function uploadPrivateFile(input: {
 
   if (error) throw error;
   return key;
+}
+
+/** Upload to an explicit storage key (import batches, etc.). */
+export async function uploadPrivateFileWithKey(input: {
+  uri: string;
+  key: string;
+  mimeType: string;
+}): Promise<string> {
+  const bytes = await readUploadBytes(input.uri);
+
+  if (bytes.byteLength > 10 * 1024 * 1024) {
+    throw new Error('File must be 10 MB or smaller.');
+  }
+
+  const { error } = await supabase.storage.from(RECEIPTS_BUCKET).upload(input.key, bytes, {
+    contentType: input.mimeType,
+    cacheControl: '3600',
+    upsert: false,
+  });
+
+  if (error) throw error;
+  return input.key;
 }
 
 function extensionForUpload(fileName: string, mimeType: string): string {

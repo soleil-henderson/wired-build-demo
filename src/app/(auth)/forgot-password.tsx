@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { requestPasswordReset } from '@/lib/auth-account';
+import { KeyboardSafeScrollView } from '@/components/ui/KeyboardSafeView';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -30,7 +31,11 @@ export default function ForgotPasswordScreen() {
   return (
     <SafeAreaView className="flex-1 bg-apple-bg2">
       <Stack.Screen options={{ title: 'Reset password' }} />
-      <View className="flex-1 justify-center px-6">
+      <KeyboardSafeScrollView
+        offsetHeader={false}
+        className="flex-1"
+        contentContainerClassName="flex-grow justify-center px-6 py-8"
+      >
         <Text className="text-2xl font-bold text-apple-ink">Forgot password?</Text>
         <Text className="mt-2 text-apple-secondary">
           We&apos;ll email a link to reset your password. Check spam if it doesn&apos;t arrive.
@@ -49,7 +54,7 @@ export default function ForgotPasswordScreen() {
               keyboardType="email-address"
               placeholder="you@example.com"
               placeholderTextColor="#A1A1A6"
-              className="mt-6 rounded-xl bg-apple-bg2 px-4 py-3 text-apple-ink"
+              className="mt-6 rounded-xl bg-apple-bg2 px-4 py-3 text-base text-apple-ink"
             />
             <Pressable
               onPress={handleSubmit}
@@ -68,7 +73,7 @@ export default function ForgotPasswordScreen() {
         <Link href="/(auth)/sign-in" className="mt-8">
           <Text className="text-center text-accent">Back to sign in</Text>
         </Link>
-      </View>
+      </KeyboardSafeScrollView>
     </SafeAreaView>
   );
 }

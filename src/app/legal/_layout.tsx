@@ -1,7 +1,5 @@
-import { Stack } from 'expo-router';
-
-import { stackScreenOptions } from '@/lib/theme';
+import { ThemeStack } from '@/components/navigation/ThemeStack';
 
 export default function LegalLayout() {
-  return <Stack screenOptions={stackScreenOptions} />;
+  return <ThemeStack />;
 }

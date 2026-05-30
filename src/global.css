@@ -2,12 +2,54 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Web: gray canvas outside the centered app column */
-@media (min-width: 640px) {
-  html,
-  body,
-  #root {
-    min-height: 100%;
-    background-color: #f5f5f7;
+/* Wired Original defaults — overridden at runtime by ThemeRoot */
+:root {
+  --apple-bg: #ffffff;
+  --apple-bg2: #f5f5f7;
+  --apple-surface: #ffffff;
+  --apple-border: #e8e8ed;
+  --apple-border-strong: #d2d2d7;
+  --apple-ink: #1d1d1f;
+  --apple-secondary: #6e6e73;
+  --apple-tertiary: #a1a1a6;
+  --accent: #ff6a2b;
+  --accent-soft: #fff1ea;
+  --accent-dark: #e55a1f;
+  --accent-light: #ff8f5c;
+  --signal-green: #34c759;
+  --signal-red: #ff3b30;
+  --signal-blue: #0071e3;
+  --signal-amber: #ff9f0a;
+  --signal-purple: #af52de;
+}
+
+/* Route legacy bg-white cards/inputs through themed surface */
+@layer utilities {
+  .bg-white {
+    background-color: var(--apple-surface);
   }
+}
+
+/*
+ * Web: fill the full viewport (including iOS safe area above the status bar).
+ * ScrollViewStyleReset extends html height by env(safe-area-inset-top); without
+ * a matching background here that strip renders as the browser default (white).
+ */
+html {
+  touch-action: manipulation;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  min-height: 100dvh;
+  background-color: var(--apple-bg2);
+}
+
+/* iOS Safari auto-zooms focused inputs below 16px (common on auth screens). */
+input,
+textarea,
+select {
+  font-size: 16px;
 }

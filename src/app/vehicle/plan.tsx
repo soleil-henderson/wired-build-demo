@@ -4,11 +4,12 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+
+import { KeyboardSafeScrollView } from '@/components/ui/KeyboardSafeView';
 
 import { useAuth } from '@/lib/auth-context';
 import { addPlanItem, deletePlanItem, listPlanItems, type PlanItem } from '@/lib/plan-items';
@@ -73,8 +74,9 @@ export default function BuildPlanScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="px-6 pb-12">
+    <>
       <Stack.Screen options={{ title: 'Build plan' }} />
+      <KeyboardSafeScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="px-6">
       <Text className="mt-4 text-apple-secondary">
         Structured plan items beyond the wishlist. Promote to a mod from the wishlist flow
         or log directly when installed.
@@ -158,6 +160,7 @@ export default function BuildPlanScreen() {
           ))
         )}
       </View>
-    </ScrollView>
+      </KeyboardSafeScrollView>
+    </>
   );
 }

@@ -27,22 +27,46 @@ Update `public/.well-known/apple-app-site-association` with your real Apple Team
 ## Supabase Auth (OAuth)
 
 1. **Authentication → URL Configuration** — add redirect URLs:
-   - `wiredbuilddemo://auth/callback`
+   - `wiredbuilddemo://auth/callback` (Expo Go / native)
    - `exp://*` (Expo Go development)
-2. **Providers → Apple** — Service ID, Team ID, Key ID, `.p8` key; callback `https://<project>.supabase.co/auth/v1/callback`
-3. **Providers → Google** — OAuth client ID + secret; same Supabase callback on the Google console
+   - `https://wiredbuild.com/app/auth/callback` (production web)
+   - `http://localhost:8081/auth/callback` (local `expo start --web`, port may vary)
+   - Set **Site URL** to `https://wiredbuild.com`
+2. **Google Cloud Console** (OAuth client used by Supabase) → **Authorized JavaScript origins**:
+   - `https://wiredbuild.com`
+   - `http://localhost:8081` (local web dev)
+3. **Providers → Apple** — Service ID, Team ID, Key ID, `.p8` key; callback `https://<project>.supabase.co/auth/v1/callback`
+4. **Providers → Google** — OAuth client ID + secret; same Supabase callback on the Google console
 
-## Web (public share pages)
+## HTTPS (“Not Secure” in Chrome)
 
-Static export for `/build/[id]` and marketing:
+Chrome shows **Not Secure** when you open the site over **HTTP** (`http://wiredbuild.com`), not HTTPS.
+
+1. **Always use** `https://wiredbuild.com` (bookmark the `https://` URL).
+2. **Vercel** → Project → **Domains** → `wiredbuild.com` must show **Valid** SSL (Let’s Encrypt). Wait up to 24h after first DNS connect.
+3. **GoDaddy DNS only** — use **A** `@` → `76.76.21.21` and **CNAME** `www` → `cname.vercel-dns.com`.  
+   Do **not** use GoDaddy “Forward domain” / masking to Vercel; that often serves HTTP only.
+4. Redeploy after `vercel.json` HTTPS redirect changes: `npm run build:web && npx vercel --prod`.
+
+Google OAuth requires HTTPS on production web.
+
+## Web (landing + app)
+
+| URL | Content |
+|-----|---------|
+| `https://wiredbuild.com/` | Static marketing landing ([marketing/index.html](../marketing/index.html)) |
+| `https://wiredbuild.com/app` | Expo web app (auth, garage, feed, …) |
+| `https://wiredbuild.com/build/[id]` | Redirects to `/app/build/[id]` (short share links) |
 
 ```bash
-npm run build:web
+npm run build:web   # exports app to dist/app/ + copies landing to dist/index.html
 ```
 
-Deploy the `dist/` folder (Vercel: [vercel.json](../vercel.json) rewrites all routes to `index.html` for expo-router).
+Deploy `dist/` to Vercel ([vercel.json](../vercel.json)).
 
-Set `EXPO_PUBLIC_SITE_URL` to your production web origin so native Share uses the same domain.
+Set `EXPO_PUBLIC_SITE_URL` to `https://wiredbuild.com` (site origin, not `/app`).
+
+Supabase redirect URLs must include `https://wiredbuild.com/app/auth/callback`.
 
 ## Database
 

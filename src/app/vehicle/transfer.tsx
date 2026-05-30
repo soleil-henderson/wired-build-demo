@@ -4,14 +4,13 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
+
+import { KeyboardSafeScrollView } from '@/components/ui/KeyboardSafeView';
 
 import { UserBadges } from '@/components/UserBadges';
 import { useAuth } from '@/lib/auth-context';
@@ -143,15 +142,9 @@ export default function TransferOwnershipScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-apple-bg2"
-    >
+    <>
       <Stack.Screen options={{ title: 'Transfer ownership' }} />
-      <ScrollView
-        contentContainerClassName="px-6 pt-6 pb-24"
-        keyboardShouldPersistTaps="handled"
-      >
+      <KeyboardSafeScrollView className="flex-1 bg-apple-bg2" contentContainerClassName="px-6 pt-6">
         <Text className="text-accent text-xs font-semibold tracking-[3px]">
           OWNERSHIP TRANSFER
         </Text>
@@ -270,7 +263,7 @@ export default function TransferOwnershipScreen() {
           Need to back out? Pop this screen — no transfer happens until you
           confirm in the alert.
         </Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardSafeScrollView>
+    </>
   );
 }
